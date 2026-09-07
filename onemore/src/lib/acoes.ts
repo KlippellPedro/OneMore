@@ -24,7 +24,7 @@ export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promis
         series.push({
           exercicioId: item.exercicioId,
           serie: i,
-          reps: 0,
+          reps: anterior?.reps ?? 0,
           carga: anterior?.carga ?? item.cargaAlvo ?? 0,
           feito: false,
         })

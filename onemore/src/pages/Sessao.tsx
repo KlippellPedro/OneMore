@@ -318,7 +318,7 @@ export default function Sessao() {
         onEscolher={async ex => {
           const ant = await ultimaCarga(ex.id)
           const novas: SerieLog[] = [1, 2, 3].map(n => ({
-            exercicioId: ex.id, serie: n, reps: 0, carga: ant?.carga ?? 0, feito: false,
+            exercicioId: ex.id, serie: n, reps: ant?.reps ?? 0, carga: ant?.carga ?? 0, feito: false,
           }))
           await salvar([...sessao.series, ...novas])
           setAnteriores(a => ({ ...a, [ex.id]: ant }))
