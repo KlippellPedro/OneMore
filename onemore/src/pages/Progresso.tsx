@@ -6,6 +6,7 @@ import { coletarStats, CONQUISTAS, type StatsConquista } from '../lib/xp'
 import { registrarCorpo, volumeSessao, FAIXA_ALVO } from '../lib/acoes'
 import { Grafico, Barras } from '../components/Grafico'
 import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
+import { Icone } from '../components/Icone'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Barra, Chip, Vazio } from '../components/ui'
 import { useUI } from '../state/ui'
@@ -139,7 +140,7 @@ export default function Progresso() {
               Historico
             </h2>
             {sessoes.length === 0 ? (
-              <Vazio icone="📋" titulo="Nenhum treino registrado" texto="Faca o primeiro treino e ele aparece aqui." />
+              <Vazio icone="prancheta" titulo="Nenhum treino registrado" texto="Faca o primeiro treino e ele aparece aqui." />
             ) : (
               <div className="space-y-2 pb-4">
                 {sessoes.slice(0, 40).map(s => (
@@ -227,10 +228,10 @@ export default function Progresso() {
               return (
                 <Card key={q.id} className={`p-3.5 ${feita ? 'border-xp/30' : ''}`}>
                   <div className="flex items-center gap-3">
-                    <div className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center text-xl ${
-                      feita ? 'bg-xp/15' : 'bg-surface-2 grayscale opacity-40'
+                    <div className={`w-11 h-11 shrink-0 rounded-xl flex items-center justify-center ${
+                      feita ? 'bg-xp/15 text-xp' : 'bg-surface-2 text-muted/50'
                     }`}>
-                      {q.icone}
+                      <Icone nome={q.icone} tamanho={22} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-baseline justify-between gap-2">
@@ -274,7 +275,7 @@ function SecaoGlicemia({ registros, onRegistrar }: {
 }) {
   if (!registros.length) {
     return (
-      <Vazio icone="🩸" titulo="Nenhuma medicao ainda"
+      <Vazio icone="sangue" titulo="Nenhuma medicao ainda"
         texto="Registre a glicemia e o app monta o historico junto com treino e comida."
         acao={<Btn variant="primary" onClick={onRegistrar}>Registrar glicemia</Btn>} />
     )

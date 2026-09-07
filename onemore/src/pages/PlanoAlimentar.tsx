@@ -8,6 +8,7 @@ import { Cabecalho } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Confirmar, Barra, Vazio } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, nq, clamp } from '../lib/format'
+import { Icone } from '../components/Icone'
 import type { Alimento, ItemRefeicao, PlanoRefeicao } from '../db/types'
 
 export default function PlanoAlimentar() {
@@ -128,8 +129,8 @@ export default function PlanoAlimentar() {
 
         <Card className="p-4 mb-4 border-accent/25">
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 shrink-0 rounded-xl grad-accent flex items-center justify-center text-white text-lg">
-              ⚡
+            <div className="w-10 h-10 shrink-0 rounded-xl grad-accent flex items-center justify-center text-white">
+              <Icone nome="faisca" tamanho={20} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-bold">Gerar cardapio automatico</p>
@@ -145,7 +146,7 @@ export default function PlanoAlimentar() {
         </Card>
 
         {planos.length === 0 && (
-          <Vazio icone="🍽️" titulo="Nenhuma refeicao"
+          <Vazio icone="prato" titulo="Nenhuma refeicao"
             texto="Crie as refeicoes do seu dia e monte o cardapio de cada uma."
             acao={<Btn variant="primary" onClick={() => setNovaRef(true)}>Criar refeicao</Btn>} />
         )}

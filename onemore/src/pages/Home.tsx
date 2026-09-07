@@ -12,6 +12,7 @@ import { multiplicadorStreak } from '../lib/xp'
 import { useUI, vibrar } from '../state/ui'
 import { Card, Btn, Barra, Anel, Secao } from '../components/ui'
 import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
+import { Icone } from '../components/Icone'
 import { n0, n1, pl, peso, dataCurta, duracao, clamp } from '../lib/format'
 
 export default function Home() {
@@ -51,12 +52,12 @@ export default function Home() {
 
   /* ---------------- missoes do dia ---------------- */
   const missoes = [
-    { id: 'treino', icone: '🏋️', nome: 'Fazer o treino de hoje', ok: !!treinouHoje, xp: 60 },
-    { id: 'prot', icone: '🥩', nome: `Bater ${perfil.metaProt} g de proteina`, ok: total.prot >= perfil.metaProt * 0.9, xp: 30, prog: total.prot / perfil.metaProt },
-    { id: 'agua', icone: '💧', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de agua`, ok: mlAgua >= perfil.metaAgua, xp: 15, prog: mlAgua / perfil.metaAgua },
-    { id: 'peso', icone: '⚖️', nome: 'Registrar o peso', ok: !!pesoHoje?.peso, xp: 15 },
+    { id: 'treino', icone: 'halter', nome: 'Fazer o treino de hoje', ok: !!treinouHoje, xp: 60 },
+    { id: 'prot', icone: 'talheres', nome: `Bater ${perfil.metaProt} g de proteina`, ok: total.prot >= perfil.metaProt * 0.9, xp: 30, prog: total.prot / perfil.metaProt },
+    { id: 'agua', icone: 'gota', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de agua`, ok: mlAgua >= perfil.metaAgua, xp: 15, prog: mlAgua / perfil.metaAgua },
+    { id: 'peso', icone: 'balanca', nome: 'Registrar o peso', ok: !!pesoHoje?.peso, xp: 15 },
     ...(perfil.diabetesTipo1 === true
-      ? [{ id: 'gli', icone: '🩸', nome: 'Medir a glicemia (4x)', ok: glicemias.length >= 4, xp: 10, prog: glicemias.length / 4 }]
+      ? [{ id: 'gli', icone: 'sangue', nome: 'Medir a glicemia (4x)', ok: glicemias.length >= 4, xp: 10, prog: glicemias.length / 4 }]
       : []),
   ]
   const feitas = missoes.filter(m => m.ok).length
@@ -89,7 +90,7 @@ export default function Home() {
         </div>
         {perfil.streak > 0 && (
           <div className="flex items-center gap-1.5 h-9 px-3 rounded-full bg-accent/12 border border-accent/25">
-            <span className="text-base leading-none">🔥</span>
+            <Icone nome="chama" tamanho={15} className="text-accent" />
             <span className="text-sm font-black text-accent">{perfil.streak}</span>
             <span className="text-[10px] text-accent/70 font-semibold">{perfil.streak === 1 ? 'dia' : 'dias'}</span>
           </div>
@@ -266,10 +267,10 @@ export default function Home() {
         <Card className="p-2">
           {missoes.map(m => (
             <div key={m.id} className="flex items-center gap-3 px-2.5 py-2.5">
-              <div className={`w-8 h-8 shrink-0 rounded-xl flex items-center justify-center text-base ${
-                m.ok ? 'bg-good/15' : 'bg-surface-2'
+              <div className={`w-8 h-8 shrink-0 rounded-xl flex items-center justify-center ${
+                m.ok ? 'bg-good/15 text-good' : 'bg-surface-2 text-muted'
               }`}>
-                {m.ok ? '✓' : m.icone}
+                <Icone nome={m.ok ? 'check' : m.icone} tamanho={16} traco={m.ok ? 2.4 : 1.8} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className={`text-[13.5px] font-medium truncate ${m.ok ? 'text-muted line-through' : 'text-txt'}`}>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
 import { Feedback } from './components/Feedback'
+import { Icone } from './components/Icone'
 import { useSessaoAtiva } from './state/hooks'
 import { Link } from 'react-router-dom'
 
@@ -22,21 +23,9 @@ const TABS = [
   { to: '/', label: 'Inicio', icone: 'casa' },
   { to: '/treinos', label: 'Treino', icone: 'halter' },
   { to: '/dieta', label: 'Dieta', icone: 'prato' },
-  { to: '/progresso', label: 'Progresso', icone: 'grafico' },
+  { to: '/progresso', label: 'Progresso', icone: 'barras' },
   { to: '/perfil', label: 'Perfil', icone: 'pessoa' },
 ]
-
-function Icone({ nome, ativo }: { nome: string; ativo: boolean }) {
-  const p = { fill: 'none', stroke: 'currentColor', strokeWidth: ativo ? 2.4 : 1.9, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
-  const paths: Record<string, React.ReactNode> = {
-    casa: <><path {...p} d="M3 10.5 12 3l9 7.5" /><path {...p} d="M5 9.5V21h14V9.5" /></>,
-    halter: <><path {...p} d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" /></>,
-    prato: <><circle {...p} cx="12" cy="12" r="8" /><circle {...p} cx="12" cy="12" r="3.2" /></>,
-    grafico: <><path {...p} d="M4 20V10M10 20V5M16 20v-7M22 20H2" /></>,
-    pessoa: <><circle {...p} cx="12" cy="8" r="3.6" /><path {...p} d="M4.5 20c1.2-4 4-6 7.5-6s6.3 2 7.5 6" /></>,
-  }
-  return <svg viewBox="0 0 24 24" className="w-[22px] h-[22px]">{paths[nome]}</svg>
-}
 
 function BarraSessao() {
   const sessao = useSessaoAtiva()
@@ -64,7 +53,7 @@ function TabBar() {
               `flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? 'text-accent' : 'text-muted'}`}>
             {({ isActive }) => (
               <>
-                <Icone nome={t.icone} ativo={isActive} />
+                <Icone nome={t.icone} tamanho={22} traco={isActive ? 2.4 : 1.9} />
                 <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>{t.label}</span>
               </>
             )}
@@ -93,7 +82,7 @@ export default function App() {
     return (
       <div className="min-h-full flex items-center justify-center p-8 text-center">
         <div>
-          <p className="text-4xl mb-4">{'⚠️'}</p>
+          <div className="flex justify-center mb-4 text-bad"><Icone nome="alerta" tamanho={40} /></div>
           <p className="font-bold mb-2">Nao consegui abrir o banco local</p>
           <p className="text-[13px] text-muted">{erro}</p>
         </div>

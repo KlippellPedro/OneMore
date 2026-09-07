@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { clamp } from '../lib/format'
+import { Icone } from './Icone'
 
 /* ------------------------------------------------------------------ */
 /* CARD / SECAO                                                        */
@@ -240,11 +241,14 @@ export function Chip({ ativo, onClick, children, cor }: {
 }
 
 export function Vazio({ icone, titulo, texto, acao }: {
+  /** Nome do icone em components/Icone.tsx. */
   icone: string; titulo: string; texto?: string; acao?: ReactNode
 }) {
   return (
     <div className="text-center py-12 px-6">
-      <div className="text-4xl mb-3 opacity-60">{icone}</div>
+      <div className="flex justify-center mb-4 text-muted/50">
+        <Icone nome={icone} tamanho={40} traco={1.5} />
+      </div>
       <p className="font-semibold text-txt mb-1">{titulo}</p>
       {texto && <p className="text-[13px] text-muted mb-4 leading-relaxed">{texto}</p>}
       {acao}

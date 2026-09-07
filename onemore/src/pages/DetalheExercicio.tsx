@@ -8,6 +8,7 @@ import { Card, Btn, Sheet, Campo, Input, Confirmar } from '../components/ui'
 import { Grafico } from '../components/Grafico'
 import { useUI } from '../state/ui'
 import { youtubeId, dataNumerica, n0, peso } from '../lib/format'
+import { Icone, BotaoFavorito } from '../components/Icone'
 
 export default function DetalheExercicio() {
   const { id = '' } = useParams()
@@ -47,8 +48,8 @@ export default function DetalheExercicio() {
     <div>
       <Cabecalho titulo={ex.nome} sub={`${nomeGrupo(ex.grupo)} - ${nomeEquip(ex.equipamento)}`}
         acao={
-          <button onClick={() => db.exercicios.update(id, { favorito: !ex.favorito })}
-            className={`w-9 h-9 rounded-xl text-lg ${ex.favorito ? 'text-xp' : 'text-line'}`}>★</button>
+          <BotaoFavorito ativo={ex.favorito} className="w-9 h-9 rounded-xl"
+            onClick={() => db.exercicios.update(id, { favorito: !ex.favorito })} />
         } />
 
       <div className="px-4 pt-4">
@@ -81,8 +82,9 @@ export default function DetalheExercicio() {
           </div>
         ) : ex.videoUrl ? (
           <a href={ex.videoUrl} target="_blank" rel="noreferrer"
-            className="block p-4 rounded-2xl bg-surface border border-line mb-3 text-center text-[13px] font-semibold text-accent">
-            Abrir video da execucao ↗
+            className="flex items-center justify-center gap-2 p-4 rounded-2xl bg-surface border border-line mb-3 text-[13px] font-semibold text-accent">
+            Abrir video da execucao
+            <Icone nome="link-externo" tamanho={15} />
           </a>
         ) : (
           <Card className="p-4 mb-3 text-center">
@@ -126,7 +128,7 @@ export default function DetalheExercicio() {
             <ul className="space-y-2">
               {ex.erros.map((p, i) => (
                 <li key={i} className="flex gap-2.5 text-[13.5px] leading-relaxed text-txt/85">
-                  <span className="text-bad shrink-0">✕</span>{p}
+                  <Icone nome="x" tamanho={14} traco={2.4} className="text-bad shrink-0 mt-[3px]" />{p}
                 </li>
               ))}
             </ul>

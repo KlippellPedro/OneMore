@@ -156,6 +156,7 @@ export interface Conquista {
   id: string
   nome: string
   desc: string
+  /** Nome do icone em components/Icone.tsx - nunca emoji. */
   icone: string
   xp: number
   alvo: number
@@ -168,37 +169,37 @@ const c = (
 ): Conquista => ({ id, nome, desc, icone, xp, atual, alvo })
 
 export const CONQUISTAS: Conquista[] = [
-  c('t1', 'Primeiro Ferro', 'Conclua seu primeiro treino', '\u{1F525}', 50, s => s.treinos, 1),
-  c('t10', 'Constante', 'Conclua 10 treinos', '\u{1F4AA}', 120, s => s.treinos, 10),
-  c('t50', 'Veterano', 'Conclua 50 treinos', '\u{1F3CB}\u{FE0F}', 400, s => s.treinos, 50),
-  c('t100', 'Centuriao', 'Conclua 100 treinos', '\u{2694}\u{FE0F}', 900, s => s.treinos, 100),
-  c('t250', 'Inabalavel', 'Conclua 250 treinos', '\u{1F5FF}', 2500, s => s.treinos, 250),
+  c('t1', 'Primeiro Ferro', 'Conclua seu primeiro treino', 'chama', 50, s => s.treinos, 1),
+  c('t10', 'Constante', 'Conclua 10 treinos', 'halter', 120, s => s.treinos, 10),
+  c('t50', 'Veterano', 'Conclua 50 treinos', 'medalha', 400, s => s.treinos, 50),
+  c('t100', 'Centuriao', 'Conclua 100 treinos', 'escudo', 900, s => s.treinos, 100),
+  c('t250', 'Inabalavel', 'Conclua 250 treinos', 'montanha', 2500, s => s.treinos, 250),
 
-  c('s500', 'Meio Milhar', 'Complete 500 series', '\u{1F4C8}', 200, s => s.series, 500),
-  c('s2000', 'Maquina', 'Complete 2000 series', '\u{1F916}', 700, s => s.series, 2000),
+  c('s500', 'Meio Milhar', 'Complete 500 series', 'grafico-linha', 200, s => s.series, 500),
+  c('s2000', 'Maquina', 'Complete 2000 series', 'chip', 700, s => s.series, 2000),
 
-  c('v50', '50 Toneladas', 'Levante 50.000 kg no total', '\u{1F9F1}', 250, s => s.volumeTotal, 50000),
-  c('v250', '250 Toneladas', 'Levante 250.000 kg no total', '\u{1F3D7}\u{FE0F}', 800, s => s.volumeTotal, 250000),
-  c('v1m', 'Um Milhao', 'Levante 1.000.000 kg no total', '\u{1F30B}', 3000, s => s.volumeTotal, 1000000),
+  c('v50', '50 Toneladas', 'Levante 50.000 kg no total', 'anilha', 250, s => s.volumeTotal, 50000),
+  c('v250', '250 Toneladas', 'Levante 250.000 kg no total', 'predio', 800, s => s.volumeTotal, 250000),
+  c('v1m', 'Um Milhao', 'Levante 1.000.000 kg no total', 'planeta', 3000, s => s.volumeTotal, 1000000),
 
-  c('st7', 'Semana Cheia', '7 dias seguidos de atividade', '\u{1F4C5}', 150, s => s.melhorStreak, 7),
-  c('st30', 'Mes Perfeito', '30 dias seguidos de atividade', '\u{1F319}', 600, s => s.melhorStreak, 30),
-  c('st100', 'Disciplina', '100 dias seguidos de atividade', '\u{1F48E}', 2000, s => s.melhorStreak, 100),
+  c('st7', 'Semana Cheia', '7 dias seguidos de atividade', 'calendario', 150, s => s.melhorStreak, 7),
+  c('st30', 'Mes Perfeito', '30 dias seguidos de atividade', 'lua', 600, s => s.melhorStreak, 30),
+  c('st100', 'Disciplina', '100 dias seguidos de atividade', 'diamante', 2000, s => s.melhorStreak, 100),
 
-  c('d7', 'Dieta na Regua', '7 dias batendo a meta de calorias', '\u{1F957}', 200, s => s.diasDieta, 7),
-  c('d30', 'Chef do Shape', '30 dias batendo a meta de calorias', '\u{1F373}', 700, s => s.diasDieta, 30),
+  c('d7', 'Dieta na Regua', '7 dias batendo a meta de calorias', 'folha', 200, s => s.diasDieta, 7),
+  c('d30', 'Chef do Shape', '30 dias batendo a meta de calorias', 'chapeu', 700, s => s.diasDieta, 30),
 
-  c('pr10', 'Mais Forte', 'Bata 10 recordes de carga', '\u{1F680}', 250, s => s.prs, 10),
-  c('pr50', 'Evolucao Constante', 'Bata 50 recordes de carga', '\u{1F4CA}', 900, s => s.prs, 50),
+  c('pr10', 'Mais Forte', 'Bata 10 recordes de carga', 'foguete', 250, s => s.prs, 10),
+  c('pr50', 'Evolucao Constante', 'Bata 50 recordes de carga', 'barras', 900, s => s.prs, 50),
 
-  c('ex20', 'Explorador', 'Treine 20 exercicios diferentes', '\u{1F9ED}', 150, s => s.exerciciosDistintos, 20),
-  c('p10', 'Sob Controle', 'Registre seu peso 10 vezes', '\u{2696}\u{FE0F}', 120, s => s.pesosRegistrados, 10),
+  c('ex20', 'Explorador', 'Treine 20 exercicios diferentes', 'bussola', 150, s => s.exerciciosDistintos, 20),
+  c('p10', 'Sob Controle', 'Registre seu peso 10 vezes', 'balanca', 120, s => s.pesosRegistrados, 10),
 
-  c('n5', 'Aquecendo', 'Alcance o nivel 5', '\u{2B50}', 0, s => s.nivel, 5),
-  c('n10', 'Prata', 'Alcance o nivel 10', '\u{1F948}', 0, s => s.nivel, 10),
-  c('n20', 'Ouro', 'Alcance o nivel 20', '\u{1F947}', 0, s => s.nivel, 20),
-  c('n35', 'Platina', 'Alcance o nivel 35', '\u{1F537}', 0, s => s.nivel, 35),
-  c('n50', 'Elite', 'Alcance o nivel 50', '\u{1F451}', 0, s => s.nivel, 50),
+  c('n5', 'Aquecendo', 'Alcance o nivel 5', 'raio', 0, s => s.nivel, 5),
+  c('n10', 'Prata', 'Alcance o nivel 10', 'estrela', 0, s => s.nivel, 10),
+  c('n20', 'Ouro', 'Alcance o nivel 20', 'trofeu', 0, s => s.nivel, 20),
+  c('n35', 'Platina', 'Alcance o nivel 35', 'hexagono', 0, s => s.nivel, 35),
+  c('n50', 'Elite', 'Alcance o nivel 50', 'coroa', 0, s => s.nivel, 50),
 ]
 
 export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {

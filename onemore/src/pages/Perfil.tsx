@@ -13,6 +13,7 @@ import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, n1 } from '../lib/format'
+import { Icone } from '../components/Icone'
 import type { Perfil as TPerfil } from '../db/types'
 
 const ATIVIDADES = [
@@ -220,7 +221,7 @@ function SheetDados({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
                 <p className="text-[13.5px] font-semibold">{a.nome}</p>
                 <p className="text-[11.5px] text-muted">{a.desc}</p>
               </div>
-              {f.atividade === a.v && <span className="text-accent">✓</span>}
+              {f.atividade === a.v && <Icone nome="check" tamanho={17} traco={2.4} className="text-accent shrink-0" />}
             </button>
           ))}
         </div>
@@ -278,7 +279,7 @@ function SheetMetas({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
                 <p className="text-[13.5px] font-semibold">{o.nome}</p>
                 <p className="text-[11.5px] text-muted">{o.desc}</p>
               </div>
-              {f.objetivo === o.v && <span className="text-accent">✓</span>}
+              {f.objetivo === o.v && <Icone nome="check" tamanho={17} traco={2.4} className="text-accent shrink-0" />}
             </button>
           ))}
         </div>
@@ -567,7 +568,7 @@ function Passo({ n, titulo, feito, desabilitado, children }: {
       <div className="flex items-center gap-2.5 mb-3">
         <span className={`w-6 h-6 rounded-lg text-[12px] font-bold flex items-center justify-center ${
           feito ? 'bg-good text-[#0a0714]' : 'bg-surface-2 text-muted'
-        }`}>{feito ? '✓' : n}</span>
+        }`}>{feito ? <Icone nome="check" tamanho={13} traco={2.8} /> : n}</span>
         <p className="text-[13.5px] font-bold">{titulo}</p>
       </div>
       {children}

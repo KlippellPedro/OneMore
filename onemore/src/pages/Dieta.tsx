@@ -11,6 +11,7 @@ import {
 } from '../lib/acoes'
 import { SeletorAlimento, SheetQuantidade } from '../components/SeletorAlimento'
 import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
+import { Icone } from '../components/Icone'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Anel, Barra, Sheet, Confirmar } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
@@ -163,7 +164,7 @@ export default function Dieta() {
         {/* -------- agua -------- */}
         <Card className="p-3.5 mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-lg">💧</span>
+            <Icone nome="gota" tamanho={19} className="text-accent-2 shrink-0" />
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline justify-between mb-1.5">
                 <span className="text-[13px] font-bold">{n1((agua?.ml ?? 0) / 1000)} L</span>

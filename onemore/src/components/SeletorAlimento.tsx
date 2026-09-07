@@ -4,6 +4,7 @@ import { useAlimentos } from '../state/hooks'
 import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
 import { macrosDe, paraGramas } from '../lib/nutricao'
 import { Sheet, Input, Chip, Btn, Campo, Stepper, useAutoFoco } from './ui'
+import { BotaoFavorito } from './Icone'
 import { normalizar } from './SeletorExercicio'
 import { n0, n1 } from '../lib/format'
 import type { Alimento } from '../db/types'
@@ -37,7 +38,7 @@ export function SeletorAlimento({ aberto, fechar, onEscolher, titulo = 'Adiciona
           placeholder="Buscar alimento..." className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5 pb-1">
           <Chip ativo={cat === 'todos'} onClick={() => setCat('todos')}>Todos</Chip>
-          <Chip ativo={cat === 'favoritos'} onClick={() => setCat('favoritos')}>★ Favoritos</Chip>
+          <Chip ativo={cat === 'favoritos'} onClick={() => setCat('favoritos')}>Favoritos</Chip>
           {CATEGORIAS_ALIMENTO.map(c => (
             <Chip key={c} ativo={cat === c} onClick={() => setCat(c)}>{c}</Chip>
           ))}
@@ -61,8 +62,8 @@ export function SeletorAlimento({ aberto, fechar, onEscolher, titulo = 'Adiciona
                   </p>
                 </div>
               </button>
-              <button onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })}
-                className={`w-9 h-9 shrink-0 rounded-xl text-base ${a.favorito ? 'text-xp' : 'text-line'}`}>★</button>
+              <BotaoFavorito ativo={a.favorito} className="w-9 h-9 rounded-xl"
+                onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })} />
             </div>
           ))}
         </div>

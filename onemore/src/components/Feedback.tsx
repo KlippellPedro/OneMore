@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useUI, vibrar } from '../state/ui'
 import { rankDoNivel } from '../lib/xp'
 import { Btn } from './ui'
+import { Icone } from './Icone'
 
 export function Feedback() {
   const { toasts, levelUp, conquista, fecharLevelUp, proximaConquista } = useUI()
@@ -23,9 +24,9 @@ export function Feedback() {
               t.tipo === 'erro' ? 'bg-bad/15 border-bad/40' :
               'bg-surface/95 border-line'
             }`}>
-            {t.tipo === 'xp' && <span className="text-xl">{'⚡'}</span>}
-            {t.tipo === 'ok' && <span className="text-xl">{'✅'}</span>}
-            {t.tipo === 'erro' && <span className="text-xl">{'⚠️'}</span>}
+            {t.tipo === 'xp' && <Icone nome="raio" tamanho={20} className="shrink-0 text-xp" />}
+            {t.tipo === 'ok' && <Icone nome="check" tamanho={20} className="shrink-0 text-good" traco={2.4} />}
+            {t.tipo === 'erro' && <Icone nome="alerta" tamanho={20} className="shrink-0 text-bad" />}
             <div className="min-w-0">
               <p className={`text-sm font-bold leading-tight ${
                 t.tipo === 'xp' ? 'text-xp' : t.tipo === 'ok' ? 'text-good' : t.tipo === 'erro' ? 'text-bad' : 'text-txt'
@@ -63,7 +64,9 @@ export function Feedback() {
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
           <div className="relative w-full max-w-[320px] bg-surface border border-xp/40 rounded-3xl p-6 text-center anim-pop">
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-xp mb-4">Conquista desbloqueada</p>
-            <div className="text-6xl mb-4">{conquista.icone}</div>
+            <div className="flex justify-center mb-4 text-xp">
+              <Icone nome={conquista.icone} tamanho={64} traco={1.5} />
+            </div>
             <p className="text-xl font-black mb-1.5">{conquista.nome}</p>
             <p className="text-[13px] text-muted leading-relaxed mb-4">{conquista.desc}</p>
             {conquista.xp > 0 && (

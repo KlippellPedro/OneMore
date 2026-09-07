@@ -8,6 +8,7 @@ import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Vazio, Confirmar, Sheet, Campo, Input } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
 import { diaCurto, diaLongo, pl } from '../lib/format'
+import { Icone } from '../components/Icone'
 import type { GrupoMuscular, Rotina } from '../db/types'
 
 const CORES = ['#a855f7', '#22d3ee', '#34d399', '#fbbf24', '#f472b6', '#fb7185', '#818cf8', '#c026d3']
@@ -107,8 +108,8 @@ export default function Treinos() {
         {/* -------- biblioteca de programas -------- */}
         <Card className="p-4 mb-6 border-accent/25" onClick={() => nav('/treinos/programas')}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 shrink-0 rounded-xl grad-accent flex items-center justify-center text-white text-lg">
-              ★
+            <div className="w-10 h-10 shrink-0 rounded-xl grad-accent flex items-center justify-center text-white">
+              <Icone nome="prancheta" tamanho={20} />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-bold">Programas prontos</p>
@@ -126,7 +127,7 @@ export default function Treinos() {
         </h2>
 
         {rotinas.length === 0 ? (
-          <Vazio icone="🏋️" titulo="Nenhum treino ainda"
+          <Vazio icone="halter" titulo="Nenhum treino ainda"
             texto="Pegue um programa pronto ou monte a sua rotina do zero."
             acao={<Btn variant="primary" onClick={() => nav('/treinos/programas')}>Ver programas</Btn>} />
         ) : (
@@ -209,7 +210,7 @@ export default function Treinos() {
                   <p className="text-[14px] font-semibold truncate">{r.nome}</p>
                   <p className="text-[11.5px] text-muted">{pl(r.itens.length, 'exercicio')}</p>
                 </div>
-                {ativo && <span className="text-accent shrink-0">✓</span>}
+                {ativo && <Icone nome="check" tamanho={17} traco={2.4} className="text-accent shrink-0" />}
               </button>
             )
           })}

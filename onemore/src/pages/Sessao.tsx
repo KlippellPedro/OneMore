@@ -10,6 +10,7 @@ import {
 import { corGrupo } from '../db/seedExercicios'
 import { Seletor } from '../components/SeletorExercicio'
 import { Btn, Sheet, Confirmar, Textarea, Card } from '../components/ui'
+import { Icone } from '../components/Icone'
 import { useUI, vibrar } from '../state/ui'
 import { tempo, duracao, peso, n0 } from '../lib/format'
 import type { SerieLog } from '../db/types'
@@ -221,7 +222,7 @@ export default function Sessao() {
       <div className="px-3 pt-3 space-y-3">
         {grupos.length === 0 && (
           <div className="text-center py-14 px-6">
-            <p className="text-3xl mb-3">💪</p>
+            <div className="flex justify-center mb-3 text-muted/50"><Icone nome="halter" tamanho={36} traco={1.5} /></div>
             <p className="font-semibold mb-1">Treino livre</p>
             <p className="text-[13px] text-muted mb-4">Adicione o primeiro exercicio.</p>
             <Btn variant="primary" onClick={() => setSeletor(true)}>Adicionar exercicio</Btn>
@@ -448,7 +449,7 @@ function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
     <div className="fixed inset-0 z-[65] bg-bg overflow-y-auto">
       <div className="max-w-[560px] mx-auto px-6 py-10 safe-t safe-b">
         <div className="text-center mb-8 anim-pop">
-          <div className="text-6xl mb-4">🔥</div>
+          <div className="flex justify-center mb-4 text-accent"><Icone nome="chama" tamanho={60} traco={1.5} /></div>
           <h1 className="text-3xl font-black mb-1.5">Treino concluido</h1>
           <p className="text-sm text-muted">{sessao.nome}</p>
         </div>

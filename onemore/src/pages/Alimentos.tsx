@@ -5,6 +5,7 @@ import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
 import { normalizar } from '../components/SeletorExercicio'
 import { Cabecalho } from '../components/Cabecalho'
 import { Btn, Input, Chip, Sheet, Campo, Select, Confirmar, Card } from '../components/ui'
+import { BotaoFavorito } from '../components/Icone'
 import { useUI } from '../state/ui'
 import { n0, n1 } from '../lib/format'
 import type { Alimento, Medida } from '../db/types'
@@ -39,7 +40,7 @@ export default function Alimentos() {
         <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-3">
           <Chip ativo={cat === 'todos'} onClick={() => setCat('todos')}>Todos</Chip>
-          <Chip ativo={cat === 'favoritos'} onClick={() => setCat('favoritos')}>★ Favoritos</Chip>
+          <Chip ativo={cat === 'favoritos'} onClick={() => setCat('favoritos')}>Favoritos</Chip>
           <Chip ativo={cat === 'meus'} onClick={() => setCat('meus')}>Meus</Chip>
           {CATEGORIAS_ALIMENTO.map(c => (
             <Chip key={c} ativo={cat === c} onClick={() => setCat(c)}>{c}</Chip>
@@ -65,8 +66,8 @@ export default function Alimentos() {
                   </p>
                 </div>
               </button>
-              <button onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })}
-                className={`w-10 h-10 shrink-0 rounded-xl text-lg ${a.favorito ? 'text-xp' : 'text-line'}`}>★</button>
+              <BotaoFavorito ativo={a.favorito} className="w-10 h-10 rounded-xl"
+                onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })} />
             </div>
           ))}
           {lista.length === 0 && (

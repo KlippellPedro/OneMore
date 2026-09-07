@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useExercicios } from '../state/hooks'
 import { GRUPOS, corGrupo, nomeGrupo, nomeEquip } from '../db/seedExercicios'
 import { Sheet, Input, Chip, useAutoFoco } from './ui'
+import { Icone } from './Icone'
 import type { Exercicio, GrupoMuscular } from '../db/types'
 
 export function normalizar(s: string) {
@@ -42,7 +43,7 @@ export function Seletor({ aberto, fechar, onEscolher, titulo = 'Escolher exercic
           placeholder="Buscar exercicio..." className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5 pb-1">
           <Chip ativo={grupo === 'todos'} onClick={() => setGrupo('todos')}>Todos</Chip>
-          <Chip ativo={grupo === 'favoritos'} onClick={() => setGrupo('favoritos')}>★ Favoritos</Chip>
+          <Chip ativo={grupo === 'favoritos'} onClick={() => setGrupo('favoritos')}>Favoritos</Chip>
           {gruposComItens.map(g => (
             <Chip key={g.id} ativo={grupo === g.id} cor={g.cor} onClick={() => setGrupo(g.id)}>
               {g.nome}
@@ -65,7 +66,7 @@ export function Seletor({ aberto, fechar, onEscolher, titulo = 'Escolher exercic
                   {nomeGrupo(e.grupo)} - {nomeEquip(e.equipamento)}
                 </p>
               </div>
-              {e.favorito && <span className="text-xp text-sm shrink-0">★</span>}
+              {e.favorito && <Icone nome="estrela" preenchido tamanho={15} className="text-xp shrink-0" />}
               {jaEscolhidos.includes(e.id) && (
                 <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-good/15 text-good shrink-0">NA LISTA</span>
               )}

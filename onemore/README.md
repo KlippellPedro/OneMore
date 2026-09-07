@@ -166,6 +166,7 @@ src/
     sync.ts             backup JSON + Supabase
     format.ts           formatação pt-BR
   components/           UI compartilhada, gráficos SVG, seletores
+    Icone.tsx           todos os ícones do app, em SVG de traço (sem emoji)
   pages/                uma tela por arquivo
   state/                hooks do Dexie + store de feedback (toast/level up)
 ```

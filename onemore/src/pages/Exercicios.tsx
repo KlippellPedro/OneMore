@@ -6,6 +6,7 @@ import { GRUPOS, EQUIPAMENTOS, corGrupo, nomeGrupo, nomeEquip } from '../db/seed
 import { normalizar } from '../components/SeletorExercicio'
 import { Cabecalho } from '../components/Cabecalho'
 import { Btn, Input, Chip, Sheet, Campo, Select, Textarea } from '../components/ui'
+import { BotaoFavorito } from '../components/Icone'
 import { useUI } from '../state/ui'
 import type { GrupoMuscular, Equipamento } from '../db/types'
 
@@ -48,7 +49,7 @@ export default function Exercicios() {
         <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-3">
           <Chip ativo={grupo === 'todos'} onClick={() => setGrupo('todos')}>Todos</Chip>
-          <Chip ativo={grupo === 'favoritos'} onClick={() => setGrupo('favoritos')}>★ Favoritos</Chip>
+          <Chip ativo={grupo === 'favoritos'} onClick={() => setGrupo('favoritos')}>Favoritos</Chip>
           {GRUPOS.map(g => (
             <Chip key={g.id} ativo={grupo === g.id} cor={g.cor} onClick={() => setGrupo(g.id)}>{g.nome}</Chip>
           ))}
@@ -79,11 +80,8 @@ export default function Exercicios() {
                       </p>
                     </div>
                   </Link>
-                  <button
-                    onClick={() => db.exercicios.update(e.id, { favorito: !e.favorito })}
-                    className={`w-10 h-10 shrink-0 rounded-xl text-lg ${e.favorito ? 'text-xp' : 'text-line'}`}>
-                    ★
-                  </button>
+                  <BotaoFavorito ativo={e.favorito} className="w-10 h-10 rounded-xl"
+                    onClick={() => db.exercicios.update(e.id, { favorito: !e.favorito })} />
                 </div>
               ))}
             </div>

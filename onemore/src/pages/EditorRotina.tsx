@@ -10,6 +10,7 @@ import { Seletor } from '../components/SeletorExercicio'
 import { Card, Btn, Vazio, Sheet, Campo, Input, Textarea, Chip, Stepper, Confirmar } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
 import { diaCurto, tempo, pl } from '../lib/format'
+import { Icone } from '../components/Icone'
 import type { ItemRotina } from '../db/types'
 
 const CORES = ['#ff6b35', '#4dabf7', '#3ddc97', '#ffc857', '#c084fc', '#ff5470', '#22d3ee', '#a3e635']
@@ -80,7 +81,7 @@ export default function EditorRotina() {
         )}
 
         {rotina.itens.length === 0 ? (
-          <Vazio icone="➕" titulo="Treino vazio"
+          <Vazio icone="mais" titulo="Treino vazio"
             texto="Adicione os exercicios na ordem em que voce vai executar."
             acao={<Btn variant="primary" onClick={() => setSeletor(true)}>Adicionar exercicio</Btn>} />
         ) : (
@@ -112,10 +113,14 @@ export default function EditorRotina() {
                       </button>
 
                       <div className="flex flex-col shrink-0">
-                        <button onClick={() => mover(i, -1)} disabled={i === 0}
-                          className="w-7 h-6 text-muted disabled:opacity-25 active:text-txt text-xs">▲</button>
-                        <button onClick={() => mover(i, 1)} disabled={i === rotina.itens.length - 1}
-                          className="w-7 h-6 text-muted disabled:opacity-25 active:text-txt text-xs">▼</button>
+                        <button onClick={() => mover(i, -1)} disabled={i === 0} aria-label="Subir"
+                          className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
+                          <Icone nome="chevron-cima" tamanho={15} traco={2.2} />
+                        </button>
+                        <button onClick={() => mover(i, 1)} disabled={i === rotina.itens.length - 1} aria-label="Descer"
+                          className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
+                          <Icone nome="chevron-baixo" tamanho={15} traco={2.2} />
+                        </button>
                       </div>
                       <button onClick={() => setApagarIdx(i)}
                         className="w-7 h-7 shrink-0 text-muted active:text-bad text-lg leading-none">×</button>
