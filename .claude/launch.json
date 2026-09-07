@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "forja",
+      "name": "onemore",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "forja"],
+      "runtimeArgs": ["run", "dev", "--prefix", "onemore"],
       "port": 5173
     }
   ]

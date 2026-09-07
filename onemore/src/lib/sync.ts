@@ -9,7 +9,7 @@ import { resetarCacheSeed } from '../db/seed'
 export const VERSAO_BACKUP = 1
 
 export interface Backup {
-  app: 'forja'
+  app: 'onemore'
   versao: number
   criadoEm: string
   dados: Record<string, unknown[]>
@@ -25,7 +25,7 @@ export async function exportar(): Promise<Backup> {
   for (const t of TABELAS) {
     dados[t] = await (db as unknown as Record<string, { toArray(): Promise<unknown[]> }>)[t].toArray()
   }
-  return { app: 'forja', versao: VERSAO_BACKUP, criadoEm: new Date().toISOString(), dados }
+  return { app: 'onemore', versao: VERSAO_BACKUP, criadoEm: new Date().toISOString(), dados }
 }
 
 export async function baixarBackup() {
@@ -34,7 +34,7 @@ export async function baixarBackup() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `forja-backup-${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `onemore-backup-${new Date().toISOString().slice(0, 10)}.json`
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
@@ -43,8 +43,8 @@ export interface ResultadoImport { tabelas: number; registros: number }
 
 /** Substitui TUDO pelo conteudo do backup. */
 export async function importar(backup: Backup): Promise<ResultadoImport> {
-  if (backup?.app !== 'forja' || !backup.dados) {
-    throw new Error('Esse arquivo nao e um backup do Forja.')
+  if (backup?.app !== 'onemore' || !backup.dados) {
+    throw new Error('Esse arquivo nao e um backup do OneMore.')
   }
   let registros = 0
   let tabelas = 0
@@ -66,7 +66,7 @@ export async function apagarTudo() {
   for (const t of TABELAS) {
     await (db as unknown as Record<string, { clear(): Promise<void> }>)[t].clear()
   }
-  localStorage.removeItem('forja:seed')
+  localStorage.removeItem('onemore:seed')
   resetarCacheSeed()
 }
 
@@ -75,24 +75,24 @@ export async function apagarTudo() {
 /* ------------------------------------------------------------------ */
 
 export const SQL_SUPABASE = `-- Cole isso no SQL Editor do seu projeto Supabase e clique em Run.
-create table if not exists public.forja_dados (
+create table if not exists public.onemore_dados (
   user_id uuid primary key references auth.users(id) on delete cascade,
   payload jsonb not null,
   atualizado_em timestamptz not null default now()
 );
 
-alter table public.forja_dados enable row level security;
+alter table public.onemore_dados enable row level security;
 
-drop policy if exists "dono le" on public.forja_dados;
-create policy "dono le" on public.forja_dados
+drop policy if exists "dono le" on public.onemore_dados;
+create policy "dono le" on public.onemore_dados
   for select using (auth.uid() = user_id);
 
-drop policy if exists "dono grava" on public.forja_dados;
-create policy "dono grava" on public.forja_dados
+drop policy if exists "dono grava" on public.onemore_dados;
+create policy "dono grava" on public.onemore_dados
   for insert with check (auth.uid() = user_id);
 
-drop policy if exists "dono atualiza" on public.forja_dados;
-create policy "dono atualiza" on public.forja_dados
+drop policy if exists "dono atualiza" on public.onemore_dados;
+create policy "dono atualiza" on public.onemore_dados
   for update using (auth.uid() = user_id) with check (auth.uid() = user_id);`
 
 let cliente: SupabaseClient | null = null
@@ -106,7 +106,7 @@ export async function getCliente(): Promise<SupabaseClient | null> {
     // carregado sob demanda: o supabase-js sozinho dobra o tamanho do bundle
     const { createClient } = await import('@supabase/supabase-js')
     cliente = createClient(p.supabaseUrl, p.supabaseKey, {
-      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'forja-auth' },
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'onemore-auth' },
     })
     chaveCliente = chave
   }
@@ -157,7 +157,7 @@ export async function enviar(): Promise<Date> {
   if (!u.user) throw new Error('Entre na sua conta primeiro.')
 
   const payload = await exportar()
-  const { error } = await c.from('forja_dados').upsert({
+  const { error } = await c.from('onemore_dados').upsert({
     user_id: u.user.id,
     payload,
     atualizado_em: new Date().toISOString(),
@@ -165,7 +165,7 @@ export async function enviar(): Promise<Date> {
   if (error) throw new Error(traduzir(error.message))
 
   const agora = new Date()
-  localStorage.setItem('forja:sync', agora.toISOString())
+  localStorage.setItem('onemore:sync', agora.toISOString())
   return agora
 }
 
@@ -177,7 +177,7 @@ export async function espiar(): Promise<DadosNuvem | null> {
   const { data: u } = await c.auth.getUser()
   if (!u.user) throw new Error('Entre na sua conta primeiro.')
 
-  const { data, error } = await c.from('forja_dados')
+  const { data, error } = await c.from('onemore_dados')
     .select('payload, atualizado_em').eq('user_id', u.user.id).maybeSingle()
   if (error) throw new Error(traduzir(error.message))
   if (!data) return null
@@ -189,12 +189,12 @@ export async function baixar(): Promise<ResultadoImport> {
   const nuvem = await espiar()
   if (!nuvem) throw new Error('Nao ha nada salvo na nuvem ainda.')
   const r = await importar(nuvem.backup)
-  localStorage.setItem('forja:sync', new Date().toISOString())
+  localStorage.setItem('onemore:sync', new Date().toISOString())
   return r
 }
 
 export function ultimoSync(): Date | null {
-  const s = localStorage.getItem('forja:sync')
+  const s = localStorage.getItem('onemore:sync')
   return s ? new Date(s) : null
 }
 
@@ -205,7 +205,7 @@ function traduzir(msg: string) {
   if (m.includes('password should be')) return 'A senha precisa de pelo menos 6 caracteres.'
   if (m.includes('email not confirmed')) return 'Confirme o e-mail que o Supabase enviou antes de entrar.'
   if (m.includes('relation') && m.includes('does not exist')) {
-    return 'A tabela forja_dados nao existe. Rode o SQL de instalacao no Supabase.'
+    return 'A tabela onemore_dados nao existe. Rode o SQL de instalacao no Supabase.'
   }
   if (m.includes('failed to fetch')) return 'Sem conexao com o Supabase. Confira a URL e a internet.'
   return msg

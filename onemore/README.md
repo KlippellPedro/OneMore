@@ -1,4 +1,4 @@
-# Forja
+# OneMore
 
 App de treino e dieta com sistema de nível e XP, no formato de jogo. PWA — instala
 no celular, funciona offline na academia e sincroniza com a nuvem quando você quiser.
@@ -13,7 +13,7 @@ metas e o catálogo completo. Não abre num formulário em branco.
 ## Rodando
 
 ```bash
-cd forja
+cd onemore
 npm install
 npm run dev
 ```
@@ -157,6 +157,7 @@ src/
     seedAlimentos.ts    catálogo de alimentos
     programas.ts        biblioteca de programas de treino
     seed.ts             popula na 1ª execução, atualiza sem apagar o que é seu
+    migrar.ts           traz os dados do nome antigo (Forja); removível depois
   lib/
     xp.ts               curva de nível, ranks, conquistas
     acoes.ts            iniciar/concluir treino, registrar comida, água, peso, glicemia

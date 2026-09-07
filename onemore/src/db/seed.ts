@@ -5,6 +5,7 @@ import { getPrograma } from './programas'
 import { aplicarPrograma } from '../lib/acoes'
 import { sugerirMetas } from '../lib/nutricao'
 import { gerarPlano, paraPlanoRefeicao } from '../lib/gerarPlano'
+import { migrarDeForja } from './migrar'
 
 const VERSAO_SEED = 2
 
@@ -34,7 +35,9 @@ export function resetarCacheSeed() {
  * (video, imagem, favorito) nem tocar nos itens criados por ele.
  */
 async function executarSeed() {
-  const marca = localStorage.getItem('forja:seed')
+  await migrarDeForja()
+
+  const marca = localStorage.getItem('onemore:seed')
   const jaRodou = marca === String(VERSAO_SEED)
 
   const exAtuais = await db.exercicios.toArray()
@@ -64,7 +67,7 @@ async function executarSeed() {
     && (await db.sessoes.count()) === 0
 
   if (virgem) await montarSetupInicial()
-  localStorage.setItem('forja:seed', String(VERSAO_SEED))
+  localStorage.setItem('onemore:seed', String(VERSAO_SEED))
 }
 
 /**

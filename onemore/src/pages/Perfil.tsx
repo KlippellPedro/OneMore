@@ -114,7 +114,7 @@ export default function Perfil() {
           onChange={e => { const f = e.target.files?.[0]; if (f) importarArquivo(f); e.target.value = '' }} />
 
         <p className="text-center text-[11px] text-muted/60 py-6">
-          Forja - seus dados ficam no seu aparelho.
+          OneMore - seus dados ficam no seu aparelho.
         </p>
       </div>
 

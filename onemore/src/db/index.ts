@@ -4,7 +4,7 @@ import type {
   RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
 } from './types'
 
-export class ForjaDB extends Dexie {
+export class OneMoreDB extends Dexie {
   exercicios!: Table<Exercicio, string>
   rotinas!: Table<Rotina, string>
   sessoes!: Table<Sessao, string>
@@ -18,7 +18,7 @@ export class ForjaDB extends Dexie {
   glicemia!: Table<RegistroGlicemia, string>
 
   constructor() {
-    super('forja')
+    super('onemore')
     this.version(1).stores({
       exercicios: 'id, nome, grupo, equipamento, favorito, custom',
       rotinas: 'id, nome, ordem, arquivada',
@@ -39,7 +39,7 @@ export class ForjaDB extends Dexie {
   }
 }
 
-export const db = new ForjaDB()
+export const db = new OneMoreDB()
 
 export const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8)

@@ -14,8 +14,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Forja - Treino & Dieta',
-        short_name: 'Forja',
+        name: 'OneMore - Treino & Dieta',
+        short_name: 'OneMore',
         description: 'Monte treinos, controle a dieta e suba de nivel.',
         theme_color: '#0a0714',
         background_color: '#0a0714',
