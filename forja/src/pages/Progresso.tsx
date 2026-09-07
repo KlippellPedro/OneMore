@@ -296,7 +296,7 @@ function SecaoGlicemia({ registros, onRegistrar }: {
         <div className="flex items-start justify-between mb-3">
           <div>
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">
-              Ultimas {registros.length} medicoes
+              Ultimas {pl(registros.length, 'medicao', 'medicoes')}
             </h2>
             <p className="text-[24px] font-black leading-tight mt-1 tabular-nums">
               {n0(media)}<span className="text-[13px] text-muted font-medium ml-1">mg/dL de media</span>
