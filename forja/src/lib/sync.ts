@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { db, getPerfil, salvarPerfil } from '../db'
+import { resetarCacheSeed } from '../db/seed'
 
 /* ------------------------------------------------------------------ */
 /* BACKUP LOCAL (JSON)                                                 */
@@ -16,7 +17,7 @@ export interface Backup {
 
 const TABELAS = [
   'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos',
-  'dieta', 'corpo', 'xp', 'perfil', 'agua',
+  'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
 ] as const
 
 export async function exportar(): Promise<Backup> {
@@ -66,6 +67,7 @@ export async function apagarTudo() {
     await (db as unknown as Record<string, { clear(): Promise<void> }>)[t].clear()
   }
   localStorage.removeItem('forja:seed')
+  resetarCacheSeed()
 }
 
 /* ------------------------------------------------------------------ */

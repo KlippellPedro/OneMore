@@ -157,6 +157,8 @@ export interface Perfil {
   nome: string
   sexo: 'M' | 'F'
   nascimento?: string
+  /** Usada quando nao ha data de nascimento. */
+  idade?: number
   alturaCm: number
   pesoKg: number
   atividade: 1.2 | 1.375 | 1.55 | 1.725 | 1.9
@@ -167,6 +169,8 @@ export interface Perfil {
   metaGord: number
   metaAgua: number        // ml
   metaTreinosSemana: number
+  /** Liga os recursos de glicemia e destaque de carboidrato. */
+  diabetesTipo1?: boolean
   xp: number
   streak: number
   melhorStreak: number
@@ -181,5 +185,33 @@ export interface Agua {
   id: string              // data
   data: string
   ml: number
+  atualizadoEm: number
+}
+
+/* ------------------------------------------------------------------ */
+/* DIABETES                                                            */
+/* ------------------------------------------------------------------ */
+
+export type MomentoGlicemia =
+  | 'jejum' | 'antes-refeicao' | 'depois-refeicao'
+  | 'pre-treino' | 'durante-treino' | 'pos-treino'
+  | 'antes-dormir' | 'madrugada' | 'hipo' | 'outro'
+
+/**
+ * Registro de glicemia. O app SO ANOTA e mostra - nunca calcula dose,
+ * razao carbo/insulina nem fator de correcao. Isso e do medico.
+ */
+export interface RegistroGlicemia {
+  id: string
+  data: string            // YYYY-MM-DD
+  ts: number
+  valor: number           // mg/dL
+  momento: MomentoGlicemia
+  /** Insulina aplicada junto, se houve. Anotacao livre, sem sugestao. */
+  insulinaUnidades?: number
+  insulinaTipo?: 'rapida' | 'basal'
+  /** Carboidrato da refeicao relacionada, em gramas. */
+  carboG?: number
+  obs?: string
   atualizadoEm: number
 }

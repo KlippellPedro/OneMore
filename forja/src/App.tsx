@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 
 import Home from './pages/Home'
 import Treinos from './pages/Treinos'
+import Programas from './pages/Programas'
 import EditorRotina from './pages/EditorRotina'
 import Sessao from './pages/Sessao'
 import Exercicios from './pages/Exercicios'
@@ -43,8 +44,8 @@ function BarraSessao() {
   if (!sessao || loc.pathname.startsWith('/sessao')) return null
   return (
     <Link to={`/sessao/${sessao.id}`}
-      className="fixed left-3 right-3 bottom-[72px] z-40 flex items-center gap-3 px-4 h-12 rounded-2xl bg-accent text-[#12080a] shadow-xl anim-up safe-b">
-      <span className="w-2 h-2 rounded-full bg-[#12080a] animate-pulse" />
+      className="fixed left-3 right-3 bottom-[72px] z-40 flex items-center gap-3 px-4 h-12 rounded-2xl grad-accent glow-accent text-white shadow-xl anim-up safe-b">
+      <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
       <span className="text-[13px] font-bold flex-1 truncate">Treino em andamento - {sessao.nome}</span>
       <span className="text-[13px] font-bold">Voltar {'>'}</span>
     </Link>
@@ -115,6 +116,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/treinos" element={<Treinos />} />
+          <Route path="/treinos/programas" element={<Programas />} />
           <Route path="/treinos/:id" element={<EditorRotina />} />
           <Route path="/sessao/:id" element={<Sessao />} />
           <Route path="/exercicios" element={<Exercicios />} />

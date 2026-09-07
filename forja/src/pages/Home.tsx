@@ -1,15 +1,17 @@
+import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, hoje, isoDia } from '../db'
 import {
   useNivel, useRotinas, useSessaoAtiva, useRegistrosDoDia,
-  useAguaDoDia, useMapaAlimentos, useMapaExercicios,
+  useAguaDoDia, useMapaAlimentos, useMapaExercicios, useGlicemiaDoDia,
 } from '../state/hooks'
 import { totalDoDia } from '../lib/nutricao'
 import { iniciarSessao, addAgua, volumeSessao } from '../lib/acoes'
 import { multiplicadorStreak } from '../lib/xp'
 import { useUI, vibrar } from '../state/ui'
 import { Card, Btn, Barra, Anel, Secao } from '../components/ui'
+import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
 import { n0, n1, pl, peso, dataCurta, duracao, clamp } from '../lib/format'
 
 export default function Home() {
@@ -22,6 +24,8 @@ export default function Home() {
   const agua = useAguaDoDia()
   const mapaAl = useMapaAlimentos()
   const mapaEx = useMapaExercicios()
+  const glicemias = useGlicemiaDoDia()
+  const [medir, setMedir] = useState(false)
   const hj = hoje()
 
   const recentes = useLiveQuery(async () => {
@@ -51,6 +55,9 @@ export default function Home() {
     { id: 'prot', icone: '🥩', nome: `Bater ${perfil.metaProt} g de proteina`, ok: total.prot >= perfil.metaProt * 0.9, xp: 30, prog: total.prot / perfil.metaProt },
     { id: 'agua', icone: '💧', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de agua`, ok: mlAgua >= perfil.metaAgua, xp: 15, prog: mlAgua / perfil.metaAgua },
     { id: 'peso', icone: '⚖️', nome: 'Registrar o peso', ok: !!pesoHoje?.peso, xp: 15 },
+    ...(perfil.diabetesTipo1 === true
+      ? [{ id: 'gli', icone: '🩸', nome: 'Medir a glicemia (4x)', ok: glicemias.length >= 4, xp: 10, prog: glicemias.length / 4 }]
+      : []),
   ]
   const feitas = missoes.filter(m => m.ok).length
 
@@ -206,6 +213,34 @@ export default function Home() {
         </Card>
       </Secao>
 
+      {/* -------- glicemia -------- */}
+      {perfil.diabetesTipo1 === true && (
+        <Secao titulo="Glicemia de hoje">
+          <Card className="overflow-hidden">
+            <div className="flex items-center gap-3 px-4 py-3">
+              <div className="flex-1 min-w-0">
+                {glicemias.length ? (
+                  <>
+                    <p className="text-[15px] font-black tabular-nums">
+                      {n0(glicemias[0].valor)}
+                      <span className="text-[11px] text-muted font-medium ml-1">mg/dL agora</span>
+                    </p>
+                    <p className="text-[11.5px] text-muted">
+                      {glicemias.length} medic{glicemias.length === 1 ? 'ao' : 'oes'} - media{' '}
+                      {n0(glicemias.reduce((t, g) => t + g.valor, 0) / glicemias.length)}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-[13px] text-muted">Nenhuma medicao registrada hoje</p>
+                )}
+              </div>
+              <Btn size="sm" variant="primary" onClick={() => setMedir(true)}>+ Medir</Btn>
+            </div>
+            {glicemias.slice(0, 3).map(g => <LinhaGlicemia key={g.id} r={g} />)}
+          </Card>
+        </Secao>
+      )}
+
       {/* -------- agua -------- */}
       <Secao titulo="Agua">
         <Card className="p-4">
@@ -222,7 +257,7 @@ export default function Home() {
               )}
             </div>
           </div>
-          <Barra valor={mlAgua / perfil.metaAgua} cor="#4dabf7" altura={9} />
+          <Barra valor={mlAgua / perfil.metaAgua} cor="var(--color-accent-2)" altura={9} />
         </Card>
       </Secao>
 
@@ -276,6 +311,8 @@ export default function Home() {
           </div>
         </Secao>
       )}
+
+      <SheetGlicemia aberto={medir} fechar={() => setMedir(false)} />
     </div>
   )
 }

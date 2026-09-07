@@ -57,8 +57,8 @@ export function paraGramas(a: Alimento, qtd: number, medida: string): number {
 /* METAS                                                               */
 /* ------------------------------------------------------------------ */
 
-export function idadeDe(nascimento?: string): number {
-  if (!nascimento) return 25
+export function idadeDe(nascimento?: string, fallback = 25): number {
+  if (!nascimento) return fallback
   const [a, m, d] = nascimento.split('-').map(Number)
   const hoje = new Date()
   let idade = hoje.getFullYear() - a
@@ -68,13 +68,13 @@ export function idadeDe(nascimento?: string): number {
 }
 
 /** Taxa metabolica basal - Mifflin-St Jeor. */
-export function tmb(p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento'>): number {
-  const idade = idadeDe(p.nascimento)
+export function tmb(p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento' | 'idade'>): number {
+  const idade = idadeDe(p.nascimento, p.idade)
   const base = 10 * p.pesoKg + 6.25 * p.alturaCm - 5 * idade
   return Math.round(p.sexo === 'M' ? base + 5 : base - 161)
 }
 
-export function gastoDiario(p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento' | 'atividade'>): number {
+export function gastoDiario(p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento' | 'idade' | 'atividade'>): number {
   return Math.round(tmb(p) * p.atividade)
 }
 
@@ -91,16 +91,16 @@ export interface SugestaoMetas extends Macros { gasto: number; tmb: number }
  * Proteina e gordura por kg de peso; carboidrato leva o que sobra.
  */
 export function sugerirMetas(
-  p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento' | 'atividade' | 'objetivo'>,
+  p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento' | 'idade' | 'atividade' | 'objetivo'>,
 ): SugestaoMetas {
   const base = tmb(p)
   const gasto = Math.round(base * p.atividade)
   const kcal = Math.round(gasto * (1 + AJUSTE_OBJETIVO[p.objetivo]))
 
-  const protPorKg = p.objetivo === 'cutting' ? 2.2 : p.objetivo === 'bulking' ? 1.8 : 2.0
+  const protPorKg = p.objetivo === 'cutting' ? 2.2 : 2.0
   const prot = Math.round(p.pesoKg * protPorKg)
 
-  const gordPorKg = p.objetivo === 'cutting' ? 0.8 : 1.0
+  const gordPorKg = p.objetivo === 'cutting' ? 0.8 : p.objetivo === 'bulking' ? 1.1 : 1.0
   let gord = Math.round(p.pesoKg * gordPorKg)
   // piso de seguranca: nunca abaixo de 20% das calorias
   gord = Math.max(gord, Math.round((kcal * 0.20) / 9))

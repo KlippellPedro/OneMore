@@ -59,3 +59,19 @@ export function useAguaDoDia(data: string = hoje()) {
 export function usePlanos() {
   return useLiveQuery(() => db.planos.orderBy('ordem').toArray(), [], []) ?? []
 }
+
+export function useGlicemiaDoDia(data: string = hoje()) {
+  return useLiveQuery(
+    async () => (await db.glicemia.where('data').equals(data).toArray())
+      .sort((a, b) => b.ts - a.ts),
+    [data], [],
+  ) ?? []
+}
+
+/** Ultimas N medicoes, da mais recente pra mais antiga. */
+export function useGlicemiaRecente(limite = 60) {
+  return useLiveQuery(
+    async () => (await db.glicemia.orderBy('ts').reverse().limit(limite).toArray()),
+    [limite], [],
+  ) ?? []
+}

@@ -51,7 +51,7 @@ export function Btn({
   children, onClick, variant = 'surface', size = 'md', className = '', disabled, type = 'button',
 }: BtnProps) {
   const v = {
-    primary: 'bg-accent text-[#12080a] font-bold active:bg-accent-soft',
+    primary: 'grad-accent glow-accent text-white font-bold active:brightness-110',
     ghost: 'bg-transparent text-muted active:bg-surface-2',
     surface: 'bg-surface-2 text-txt border border-line active:bg-line',
     danger: 'bg-bad/15 text-bad border border-bad/30 active:bg-bad/25',
@@ -229,9 +229,11 @@ export function Chip({ ativo, onClick, children, cor }: {
   return (
     <button onClick={onClick}
       className={`shrink-0 h-8 px-3 rounded-full text-[12.5px] font-medium border transition-colors ${
-        ativo ? 'text-[#0a0d12] font-semibold' : 'bg-surface-2 border-line text-muted'
+        ativo
+          ? cor ? 'text-[#0a0714] font-semibold' : 'grad-accent text-white font-semibold border-transparent'
+          : 'bg-surface-2 border-line text-muted'
       }`}
-      style={ativo ? { background: cor ?? 'var(--color-accent)', borderColor: cor ?? 'var(--color-accent)' } : undefined}>
+      style={ativo && cor ? { background: cor, borderColor: cor } : undefined}>
       {children}
     </button>
   )

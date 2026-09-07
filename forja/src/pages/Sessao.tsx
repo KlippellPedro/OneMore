@@ -388,7 +388,7 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
         <button onClick={onMarcar}
           className={`w-10 h-10 shrink-0 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90 ${
             serie.feito
-              ? 'bg-good border-good text-[#0a0d12]'
+              ? 'bg-good border-good text-[#0a0714]'
               : 'border-line text-muted active:border-accent'
           }`}>
           <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">

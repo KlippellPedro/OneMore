@@ -1,5 +1,6 @@
 import { db, uid, hoje, getPerfil } from '../db'
-import type { Rotina, Sessao, SerieLog, Alimento } from '../db/types'
+import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia } from '../db/types'
+import type { Programa } from '../db/programas'
 import { darXP, XP, type GanhoXP } from './xp'
 import { macrosDe, totalDoDia, diaBatido, paraGramas } from './nutricao'
 
@@ -219,4 +220,104 @@ export async function registrarCorpo(
     return darXP('peso', 'Medidas registradas', XP.PESO)
   }
   return null
+}
+
+/* ------------------------------------------------------------------ */
+/* PROGRAMAS DE TREINO                                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Transforma um programa da biblioteca em rotinas de verdade.
+ * As rotinas antigas sao ARQUIVADAS, nunca apagadas - o historico de
+ * treinos aponta pra elas e ficaria orfao.
+ */
+export async function aplicarPrograma(
+  prog: Programa,
+  opts: { substituir?: boolean; dias?: (number | null)[] } = {},
+): Promise<Rotina[]> {
+  if (opts.substituir) {
+    const atuais = await db.rotinas.filter(r => !r.arquivada).toArray()
+    for (const r of atuais) {
+      await db.rotinas.update(r.id, { arquivada: true, atualizadoEm: Date.now() })
+    }
+  }
+
+  const base = await db.rotinas.count()
+  const dias = opts.dias ?? prog.sugestaoDias
+  const rotinas: Rotina[] = prog.treinos.map((t, i) => {
+    const d = dias[i]
+    return {
+      id: uid(),
+      nome: t.nome,
+      descricao: t.descricao,
+      cor: t.cor,
+      itens: t.itens,
+      dias: d == null ? [] : [d],
+      ordem: base + i,
+      atualizadoEm: Date.now(),
+    }
+  })
+  await db.rotinas.bulkPut(rotinas)
+  return rotinas
+}
+
+/**
+ * Coloca uma rotina num dia da semana. Cada dia tem no maximo uma rotina,
+ * entao atribuir tira esse dia de quem estava nele antes.
+ * rotinaId null = dia de descanso.
+ */
+export async function atribuirDia(dia: number, rotinaId: string | null) {
+  const rotinas = await db.rotinas.filter(r => !r.arquivada).toArray()
+  for (const r of rotinas) {
+    const tinha = r.dias?.includes(dia) ?? false
+    const deveTer = r.id === rotinaId
+    if (tinha === deveTer) continue
+    const dias = deveTer
+      ? [...(r.dias ?? []), dia].sort()
+      : (r.dias ?? []).filter(d => d !== dia)
+    await db.rotinas.update(r.id, { dias, atualizadoEm: Date.now() })
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* GLICEMIA                                                            */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Anota uma medicao de glicemia (e, se houver, a insulina aplicada).
+ * O app registra e mostra - nao calcula dose, razao nem correcao.
+ */
+export async function registrarGlicemia(dados: {
+  valor: number
+  momento: MomentoGlicemia
+  insulinaUnidades?: number
+  insulinaTipo?: 'rapida' | 'basal'
+  carboG?: number
+  obs?: string
+}): Promise<GanhoXP | null> {
+  const agora = Date.now()
+  const data = hoje()
+  await db.glicemia.put({
+    id: uid(), data, ts: agora, atualizadoEm: agora, ...dados,
+  })
+
+  // XP so nas 4 primeiras do dia: recompensa o habito sem incentivar excesso
+  const doDia = await db.glicemia.where('data').equals(data).count()
+  if (doDia > 4) return null
+  return darXP('glicemia', 'Glicemia registrada', XP.GLICEMIA)
+}
+
+export async function removerGlicemia(id: string) {
+  await db.glicemia.delete(id)
+}
+
+/** Faixa de referencia mais usada pra tempo no alvo. Confirmar com o medico. */
+export const FAIXA_ALVO = { min: 70, max: 180 }
+
+export function classificarGlicemia(v: number) {
+  if (v < 54) return { rotulo: 'Muito baixa', cor: 'var(--color-bad)' }
+  if (v < FAIXA_ALVO.min) return { rotulo: 'Baixa', cor: 'var(--color-bad)' }
+  if (v <= FAIXA_ALVO.max) return { rotulo: 'No alvo', cor: 'var(--color-good)' }
+  if (v <= 250) return { rotulo: 'Alta', cor: 'var(--color-warn)' }
+  return { rotulo: 'Muito alta', cor: 'var(--color-bad)' }
 }

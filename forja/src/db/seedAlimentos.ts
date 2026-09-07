@@ -25,7 +25,7 @@ const L: Linha[] = [
   ['Torrada integral', 'Carboidratos', 380, 11.0, 70.0, 6.0, 6.0, 'unidade:8'],
 
   /* ------------------------- PROTEINAS ------------------------- */
-  ['Peito de frango grelhado', 'Proteinas', 165, 31.0, 0.0, 3.6, 0, 'file medio:120|file grande:180|100 g:100'],
+  ['Peito de frango grelhado', 'Proteinas', 165, 31.0, 0.0, 3.6, 0, 'file medio:120|file grande:180'],
   ['Coxa de frango sem pele cozida', 'Proteinas', 170, 26.0, 0.0, 7.0, 0, 'unidade:70'],
   ['Sobrecoxa assada sem pele', 'Proteinas', 184, 25.0, 0.0, 9.0, 0, 'unidade:90'],
   ['Ovo de galinha cozido', 'Proteinas', 146, 13.3, 0.6, 9.5, 0, 'unidade:50|gema:17|clara:33'],

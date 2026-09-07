@@ -75,6 +75,7 @@ export const XP = {
   PROTEINA_OK: 30,
   AGUA_OK: 15,
   PESO: 15,
+  GLICEMIA: 10,
 } as const
 
 /** Streak multiplica tudo: 30 dias seguidos = 1.6x. */

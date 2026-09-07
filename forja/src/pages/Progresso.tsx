@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, hoje, isoDia, diaMais } from '../db'
-import { usePerfil, useNivel } from '../state/hooks'
+import { usePerfil, useNivel, useGlicemiaRecente } from '../state/hooks'
 import { coletarStats, CONQUISTAS, type StatsConquista } from '../lib/xp'
-import { registrarCorpo, volumeSessao } from '../lib/acoes'
+import { registrarCorpo, volumeSessao, FAIXA_ALVO } from '../lib/acoes'
 import { Grafico, Barras } from '../components/Grafico'
+import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Barra, Chip, Vazio } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, n1, pl, peso, dataCurta, duracao, dataNumerica } from '../lib/format'
+import type { RegistroGlicemia } from '../db/types'
 
-type Aba = 'treino' | 'corpo' | 'conquistas'
+type Aba = 'treino' | 'corpo' | 'glicemia' | 'conquistas'
 
 export default function Progresso() {
   const { celebrar, toast } = useUI()
@@ -18,6 +20,9 @@ export default function Progresso() {
   const { nivel, rank, progresso, xpNoNivel, xpParaProximo } = useNivel()
   const [aba, setAba] = useState<Aba>('treino')
   const [registrarPeso, setRegistrarPeso] = useState(false)
+  const [novaGlicemia, setNovaGlicemia] = useState(false)
+  const glicemias = useGlicemiaRecente(120)
+  const diabetes = perfil.diabetesTipo1 === true
 
   const stats = useLiveQuery(() => coletarStats(perfil), [perfil.xp, perfil.conquistas.length])
   const sessoes = useLiveQuery(async () => {
@@ -93,6 +98,9 @@ export default function Progresso() {
         <div className="flex gap-1.5 mb-4 overflow-x-auto">
           <Chip ativo={aba === 'treino'} onClick={() => setAba('treino')}>Treino</Chip>
           <Chip ativo={aba === 'corpo'} onClick={() => setAba('corpo')}>Corpo</Chip>
+          {diabetes && (
+            <Chip ativo={aba === 'glicemia'} onClick={() => setAba('glicemia')}>Glicemia</Chip>
+          )}
           <Chip ativo={aba === 'conquistas'} onClick={() => setAba('conquistas')}>
             Conquistas {perfil.conquistas.length}/{CONQUISTAS.length}
           </Chip>
@@ -205,6 +213,11 @@ export default function Progresso() {
           </>
         )}
 
+        {/* ---------------- GLICEMIA ---------------- */}
+        {aba === 'glicemia' && (
+          <SecaoGlicemia registros={glicemias} onRegistrar={() => setNovaGlicemia(true)} />
+        )}
+
         {/* ---------------- CONQUISTAS ---------------- */}
         {aba === 'conquistas' && stats && (
           <div className="space-y-2 pb-4">
@@ -244,9 +257,102 @@ export default function Progresso() {
         )}
       </div>
 
+      <SheetGlicemia aberto={novaGlicemia} fechar={() => setNovaGlicemia(false)} />
+
       <SheetPeso aberto={registrarPeso} fechar={() => setRegistrarPeso(false)}
         pesoAtual={perfil.pesoKg}
         onSalvo={g => { if (g) celebrar(g); else toast('Registro atualizado', 'ok') }} />
+    </div>
+  )
+}
+
+/* ------------------------------------------------------------------ */
+
+function SecaoGlicemia({ registros, onRegistrar }: {
+  registros: RegistroGlicemia[]
+  onRegistrar: () => void
+}) {
+  if (!registros.length) {
+    return (
+      <Vazio icone="🩸" titulo="Nenhuma medicao ainda"
+        texto="Registre a glicemia e o app monta o historico junto com treino e comida."
+        acao={<Btn variant="primary" onClick={onRegistrar}>Registrar glicemia</Btn>} />
+    )
+  }
+
+  const media = registros.reduce((t, r) => t + r.valor, 0) / registros.length
+  const noAlvo = registros.filter(r => r.valor >= FAIXA_ALVO.min && r.valor <= FAIXA_ALVO.max).length
+  const baixas = registros.filter(r => r.valor < FAIXA_ALVO.min).length
+  const altas = registros.filter(r => r.valor > FAIXA_ALVO.max).length
+  const pctAlvo = noAlvo / registros.length
+
+  // grafico em ordem cronologica (a lista vem da mais recente pra mais antiga)
+  const pontos = [...registros].reverse().slice(-40)
+    .map(r => ({ x: dataNumerica(r.data), y: r.valor }))
+
+  return (
+    <>
+      <Card className="p-4 mb-3">
+        <div className="flex items-start justify-between mb-3">
+          <div>
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">
+              Ultimas {registros.length} medicoes
+            </h2>
+            <p className="text-[24px] font-black leading-tight mt-1 tabular-nums">
+              {n0(media)}<span className="text-[13px] text-muted font-medium ml-1">mg/dL de media</span>
+            </p>
+          </div>
+          <Btn size="sm" variant="primary" onClick={onRegistrar}>+ Medir</Btn>
+        </div>
+
+        <div className="mb-2">
+          <div className="flex items-baseline justify-between mb-1.5">
+            <span className="text-[11.5px] text-muted">
+              Dentro de {FAIXA_ALVO.min}-{FAIXA_ALVO.max} mg/dL
+            </span>
+            <span className="text-[13px] font-black text-good tabular-nums">
+              {n0(pctAlvo * 100)}%
+            </span>
+          </div>
+          <Barra valor={pctAlvo} cor="var(--color-good)" altura={8} />
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mt-4">
+          <Mini rotulo="Baixas" valor={String(baixas)} cor="var(--color-bad)" />
+          <Mini rotulo="No alvo" valor={String(noAlvo)} cor="var(--color-good)" />
+          <Mini rotulo="Altas" valor={String(altas)} cor="var(--color-warn)" />
+        </div>
+
+        <p className="text-[11px] text-muted/80 leading-relaxed mt-4">
+          Faixa de referencia geral. A sua e definida pelo seu endocrinologista -
+          esses numeros sao so o seu historico, nao uma avaliacao.
+        </p>
+      </Card>
+
+      {pontos.length > 1 && (
+        <Card className="p-4 mb-3">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">
+            Evolucao
+          </h2>
+          <Grafico pontos={pontos} cor="var(--color-accent)" sufixo="" altura={150} />
+        </Card>
+      )}
+
+      <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 px-1 mt-5">
+        Historico
+      </h2>
+      <Card className="overflow-hidden mb-4">
+        {registros.slice(0, 40).map(r => <LinhaGlicemia key={r.id} r={r} />)}
+      </Card>
+    </>
+  )
+}
+
+function Mini({ rotulo, valor, cor }: { rotulo: string; valor: string; cor: string }) {
+  return (
+    <div>
+      <p className="text-[10px] uppercase tracking-wider text-muted font-semibold mb-1">{rotulo}</p>
+      <p className="text-[17px] font-black tabular-nums" style={{ color: cor }}>{valor}</p>
     </div>
   )
 }

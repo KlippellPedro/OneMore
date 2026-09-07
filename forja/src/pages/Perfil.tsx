@@ -34,7 +34,7 @@ export default function Perfil() {
   const perfil = usePerfil()
   const { nivel, rank, progresso, xpNoNivel, xpParaProximo } = useNivel()
 
-  const [aberto, setAberto] = useState<null | 'dados' | 'metas' | 'nuvem'>(null)
+  const [aberto, setAberto] = useState<null | 'dados' | 'metas' | 'nuvem' | 'saude'>(null)
   const [apagar, setApagar] = useState(false)
   const arquivo = useRef<HTMLInputElement>(null)
 
@@ -61,7 +61,8 @@ export default function Perfil() {
               <span className="text-2xl font-black" style={{ color: rank.cor }}>{nivel}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[16px] font-bold truncate">{perfil.nome}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Jogador</p>
+              <p className="text-[16px] font-bold truncate leading-tight">{perfil.nome}</p>
               <p className="text-[12px]" style={{ color: rank.cor }}>Rank {rank.nome}</p>
               <p className="text-[11.5px] text-muted">
                 {n0(perfil.xp)} XP - sequencia {perfil.streak} dia{perfil.streak === 1 ? '' : 's'}
@@ -82,7 +83,16 @@ export default function Perfil() {
             onClick={() => setAberto('metas')} />
         </Grupo>
 
+        <Grupo titulo="Saude">
+          <Linha titulo="Diabetes tipo 1"
+            sub={perfil.diabetesTipo1
+              ? 'Ligado - carboidrato em destaque e registro de glicemia'
+              : 'Desligado'}
+            onClick={() => setAberto('saude')} />
+        </Grupo>
+
         <Grupo titulo="Catalogos">
+          <LinhaLink to="/treinos/programas" titulo="Programas de treino" sub="PPL, Upper/Lower, Full Body, Arnold, 5x5" />
           <LinhaLink to="/exercicios" titulo="Exercicios" sub="Ver, favoritar, adicionar video, criar novos" />
           <LinhaLink to="/alimentos" titulo="Alimentos" sub="Macros e medidas caseiras" />
           <LinhaLink to="/dieta/plano" titulo="Plano alimentar" sub="Cardapio padrao das refeicoes" />
@@ -111,6 +121,7 @@ export default function Perfil() {
       <SheetDados aberto={aberto === 'dados'} fechar={() => setAberto(null)} perfil={perfil} />
       <SheetMetas aberto={aberto === 'metas'} fechar={() => setAberto(null)} perfil={perfil} />
       <SheetNuvem aberto={aberto === 'nuvem'} fechar={() => setAberto(null)} perfil={perfil} />
+      <SheetSaude aberto={aberto === 'saude'} fechar={() => setAberto(null)} perfil={perfil} />
 
       <Confirmar aberto={apagar} perigo titulo="Apagar tudo mesmo?"
         texto="Treinos, dieta, medidas, XP e conquistas somem deste aparelho. Baixe um backup antes se tiver duvida."
@@ -474,6 +485,78 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
   )
 }
 
+function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () => void; perfil: TPerfil }) {
+  const { toast } = useUI()
+  const ligado = perfil.diabetesTipo1 === true
+
+  return (
+    <Sheet aberto={aberto} fechar={fechar} titulo="Saude">
+      <Card className="p-4 mb-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-bold">Diabetes tipo 1</p>
+            <p className="text-[12px] text-muted leading-relaxed mt-1">
+              Com isso ligado, o carboidrato aparece em destaque em cada refeicao
+              e voce ganha o registro de glicemia e insulina.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              await salvarPerfil({ diabetesTipo1: !ligado })
+              toast(ligado ? 'Desligado' : 'Ligado', 'ok')
+            }}
+            className={`w-12 h-7 shrink-0 rounded-full transition-colors relative ${
+              ligado ? 'grad-accent' : 'bg-surface-2 border border-line'
+            }`}>
+            <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
+              ligado ? 'left-6' : 'left-1'
+            }`} />
+          </button>
+        </div>
+      </Card>
+
+      {ligado && (
+        <>
+          <Card className="p-4 mb-3">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-accent mb-2">
+              O que o app faz
+            </h3>
+            <ul className="text-[12.5px] leading-relaxed text-txt/85 space-y-1.5">
+              <li>Mostra o carboidrato de cada refeicao antes do total de calorias.</li>
+              <li>Gera o cardapio com carboidrato parecido entre as refeicoes, pra dose ficar previsivel.</li>
+              <li>Guarda glicemia, insulina aplicada e contexto, com historico e grafico.</li>
+            </ul>
+          </Card>
+
+          <Card className="p-4 mb-3 border-warn/30">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-warn mb-2">
+              O que o app nao faz
+            </h3>
+            <p className="text-[12.5px] leading-relaxed text-txt/85">
+              Nao calcula dose de insulina, razao carboidrato/insulina nem fator de
+              correcao, e nao avalia se um valor esta bom ou ruim. Isso e do seu
+              endocrinologista. Leve o plano de treino e o cardapio pra ele e pro
+              nutricionista antes de comecar - superavit calorico muda a necessidade
+              de insulina.
+            </p>
+          </Card>
+
+          <Card className="p-4">
+            <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">
+              Na academia
+            </h3>
+            <p className="text-[12.5px] leading-relaxed text-txt/85">
+              Leve carboidrato de acao rapida na mochila e meca antes e depois do
+              treino - o app tem os momentos "pre-treino" e "pos-treino" prontos no
+              registro justamente pra voce enxergar esse padrao com o tempo.
+            </p>
+          </Card>
+        </>
+      )}
+    </Sheet>
+  )
+}
+
 function Passo({ n, titulo, feito, desabilitado, children }: {
   n: number; titulo: string; feito?: boolean; desabilitado?: boolean; children: React.ReactNode
 }) {
@@ -483,7 +566,7 @@ function Passo({ n, titulo, feito, desabilitado, children }: {
     }`}>
       <div className="flex items-center gap-2.5 mb-3">
         <span className={`w-6 h-6 rounded-lg text-[12px] font-bold flex items-center justify-center ${
-          feito ? 'bg-good text-[#0a0d12]' : 'bg-surface-2 text-muted'
+          feito ? 'bg-good text-[#0a0714]' : 'bg-surface-2 text-muted'
         }`}>{feito ? '✓' : n}</span>
         <p className="text-[13.5px] font-bold">{titulo}</p>
       </div>

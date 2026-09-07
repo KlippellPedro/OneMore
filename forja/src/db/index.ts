@@ -1,7 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   Exercicio, Rotina, Sessao, Alimento, PlanoRefeicao,
-  RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua,
+  RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
 } from './types'
 
 export class ForjaDB extends Dexie {
@@ -15,6 +15,7 @@ export class ForjaDB extends Dexie {
   xp!: Table<EventoXP, string>
   perfil!: Table<Perfil, string>
   agua!: Table<Agua, string>
+  glicemia!: Table<RegistroGlicemia, string>
 
   constructor() {
     super('forja')
@@ -29,6 +30,11 @@ export class ForjaDB extends Dexie {
       xp: 'id, ts, data, tipo',
       perfil: 'id',
       agua: 'id, data',
+    })
+
+    // v2: registro de glicemia e insulina (diabetes tipo 1)
+    this.version(2).stores({
+      glicemia: 'id, data, ts, momento',
     })
   }
 }
@@ -63,7 +69,7 @@ export function diffDias(a: string, b: string) {
 
 export const PERFIL_PADRAO: Perfil = {
   id: 'me',
-  nome: 'Atleta',
+  nome: 'Jogador',
   sexo: 'M',
   alturaCm: 175,
   pesoKg: 75,
