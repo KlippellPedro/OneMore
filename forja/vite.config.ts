@@ -4,6 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
+  // host: true expoe o dev server na rede local, pra abrir no celular
+  server: { host: true, port: 5173 },
+  preview: { host: true, port: 4173 },
   plugins: [
     react(),
     tailwindcss(),
