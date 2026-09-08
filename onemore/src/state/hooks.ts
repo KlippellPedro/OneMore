@@ -56,8 +56,23 @@ export function useAguaDoDia(data: string = hoje()) {
   return useLiveQuery(() => db.agua.get(data), [data], undefined)
 }
 
+/**
+ * Refeicoes em ordem de horario - e assim que o dia acontece, e deixa o usuario
+ * reposicionar uma refeicao so mudando a hora dela.
+ */
 export function usePlanos() {
-  return useLiveQuery(() => db.planos.orderBy('ordem').toArray(), [], []) ?? []
+  return useLiveQuery(
+    async () => (await db.planos.toArray())
+      .sort((a, b) => a.horario.localeCompare(b.horario) || a.ordem - b.ordem),
+    [], [],
+  ) ?? []
+}
+
+export function useDietasSalvas() {
+  return useLiveQuery(
+    async () => (await db.dietas.toArray()).sort((a, b) => b.atualizadoEm - a.atualizadoEm),
+    [], [],
+  ) ?? []
 }
 
 export function useGlicemiaDoDia(data: string = hoje()) {

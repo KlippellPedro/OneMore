@@ -101,6 +101,16 @@ export function Barras({ dados, cor = 'var(--color-accent)', altura = 120, sufix
   sufixo?: string
 }) {
   const max = Math.max(1, ...dados.map(d => d.valor))
+  const semDados = dados.every(d => d.valor === 0)
+
+  if (semDados) {
+    return (
+      <div className="flex items-center justify-center text-[12px] text-muted" style={{ height: altura }}>
+        Sem dados ainda para esse periodo.
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex items-end gap-1.5" style={{ height: altura }}>

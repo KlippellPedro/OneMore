@@ -118,6 +118,16 @@ export interface PlanoRefeicao {
   atualizadoEm: number
 }
 
+/** Um cardapio inteiro guardado com nome, pra trocar de dieta sem perder a anterior. */
+export interface DietaSalva {
+  id: string
+  nome: string
+  /** Snapshot das refeicoes do plano no momento em que foi salva. */
+  refeicoes: { nome: NomeRefeicao; horario: string; itens: ItemRefeicao[]; ordem: number }[]
+  criadoEm: number
+  atualizadoEm: number
+}
+
 export interface RegistroDieta {
   id: string
   data: string            // YYYY-MM-DD

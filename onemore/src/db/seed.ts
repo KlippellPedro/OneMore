@@ -36,6 +36,7 @@ export function resetarCacheSeed() {
  */
 async function executarSeed() {
   await migrarDeForja()
+  await tirarCoresNeon()
 
   const marca = localStorage.getItem('onemore:seed')
   const jaRodou = marca === String(VERSAO_SEED)
@@ -68,6 +69,30 @@ async function executarSeed() {
 
   if (virgem) await montarSetupInicial()
   localStorage.setItem('onemore:seed', String(VERSAO_SEED))
+}
+
+/** Paleta neon antiga -> equivalente solida. So o que era neon esta aqui. */
+const CORES_ANTIGAS: Record<string, string> = {
+  '#a855f7': '#8b6dd6', '#c084fc': '#9b7fc7', '#c026d3': '#a86eaf', '#7c3aed': '#6d51b8',
+  '#22d3ee': '#4f9aad', '#34d399': '#4caf87', '#3ddc97': '#4fa385', '#a3e635': '#8ba055',
+  '#fbbf24': '#c9a049', '#ffc857': '#c9a049', '#fcd34d': '#d9b654', '#fb923c': '#c2854e',
+  '#fb7185': '#c25f70', '#ff5470': '#c25f70', '#f87171': '#c06a6a', '#ff6b35': '#c96a4a',
+  '#f472b6': '#bd7095', '#e879f9': '#a86eaf', '#818cf8': '#7b81be', '#4dabf7': '#5a8cbf',
+}
+
+/**
+ * As rotinas guardam a cor escolhida no banco, entao trocar a paleta no codigo
+ * nao muda quem ja existe. Isso reescreve uma vez so as cores neon antigas pelas
+ * novas - se o usuario tinha escolhido outra cor qualquer, nao mexe.
+ */
+async function tirarCoresNeon() {
+  if (localStorage.getItem('onemore:cores-solidas') === '1') return
+  const rotinas = await db.rotinas.toArray()
+  for (const r of rotinas) {
+    const nova = CORES_ANTIGAS[r.cor?.toLowerCase()]
+    if (nova) await db.rotinas.update(r.id, { cor: nova })
+  }
+  localStorage.setItem('onemore:cores-solidas', '1')
 }
 
 /**

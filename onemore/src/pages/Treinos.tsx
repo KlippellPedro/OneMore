@@ -5,13 +5,13 @@ import { useRotinas, useMapaExercicios, useSessaoAtiva } from '../state/hooks'
 import { iniciarSessao, atribuirDia } from '../lib/acoes'
 import { corGrupo, nomeGrupo } from '../db/seedExercicios'
 import { Titulo } from '../components/Cabecalho'
-import { Card, Btn, Vazio, Confirmar, Sheet, Campo, Input } from '../components/ui'
+import { Card, Btn, Vazio, Confirmar, Sheet, Campo, Input, Chip } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
 import { diaCurto, diaLongo, pl } from '../lib/format'
 import { Icone } from '../components/Icone'
 import type { GrupoMuscular, Rotina } from '../db/types'
 
-const CORES = ['#a855f7', '#22d3ee', '#34d399', '#fbbf24', '#f472b6', '#fb7185', '#818cf8', '#c026d3']
+const CORES = ['#8b6dd6', '#4f9aad', '#4caf87', '#c9a049', '#bd7095', '#c25f70', '#7b81be', '#a86eaf']
 
 /** Semana comecando na segunda, que e como as pessoas pensam em treino. */
 const SEMANA = [1, 2, 3, 4, 5, 6, 0]
@@ -28,6 +28,7 @@ export default function Treinos() {
   const [cor, setCor] = useState(CORES[0])
   const [apagar, setApagar] = useState<string | null>(null)
   const [diaAberto, setDiaAberto] = useState<number | null>(null)
+  const [vista, setVista] = useState<'semana' | 'rotinas'>('semana')
 
   const hojeDia = new Date().getDay()
   const doDia = (d: number) => rotinas.find(r => r.dias?.includes(d))
@@ -49,6 +50,20 @@ export default function Treinos() {
     nav(`/sessao/${await iniciarSessao(r)}`)
   }
 
+  async function duplicar(r: Rotina) {
+    await db.rotinas.put({
+      ...r,
+      id: uid(),
+      nome: r.nome + ' (copia)',
+      dias: [],
+      itens: r.itens.map(i => ({ ...i })),
+      ordem: rotinas.length,
+      atualizadoEm: Date.now(),
+    })
+    vibrar()
+    toast('Treino duplicado', 'ok')
+  }
+
   return (
     <div>
       <Titulo titulo="Treino" sub={pl(rotinas.length, 'rotina')}
@@ -64,46 +79,6 @@ export default function Treinos() {
             </div>
           </Card>
         )}
-
-        {/* -------- minha semana -------- */}
-        <section className="mb-6">
-          <div className="flex items-end justify-between mb-2.5 px-1">
-            <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted">Minha semana</h2>
-            <span className="text-[11px] text-muted">toque pra trocar</span>
-          </div>
-          <Card className="overflow-hidden">
-            {SEMANA.map(d => {
-              const r = doDia(d)
-              const ehHoje = d === hojeDia
-              return (
-                <button key={d} onClick={() => setDiaAberto(d)}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-line/40 last:border-0 text-left active:bg-surface-2 ${
-                    ehHoje ? 'bg-accent/8' : ''
-                  }`}>
-                  <span className={`w-10 shrink-0 text-[12px] font-bold ${ehHoje ? 'text-accent' : 'text-muted'}`}>
-                    {diaCurto(d)}
-                  </span>
-                  {r ? (
-                    <>
-                      <span className="w-1 h-8 rounded-full shrink-0" style={{ background: r.cor }} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13.5px] font-semibold truncate">{r.nome}</p>
-                        <p className="text-[11px] text-muted">
-                          {pl(r.itens.length, 'exercicio')}
-                        </p>
-                      </div>
-                      {ehHoje && r.itens.length > 0 && (
-                        <Btn size="sm" variant="primary" onClick={() => comecar(r)}>Treinar</Btn>
-                      )}
-                    </>
-                  ) : (
-                    <span className="flex-1 text-[13px] text-muted/60">Descanso</span>
-                  )}
-                </button>
-              )
-            })}
-          </Card>
-        </section>
 
         {/* -------- biblioteca de programas -------- */}
         <Card className="p-4 mb-6 border-accent/25" onClick={() => nav('/treinos/programas')}>
@@ -121,17 +96,57 @@ export default function Treinos() {
           </div>
         </Card>
 
-        {/* -------- rotinas -------- */}
-        <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted mb-2.5 px-1">
-          Minhas rotinas
-        </h2>
+        {/* -------- semana / rotinas -------- */}
+        <div className="flex items-center justify-between mb-2.5 px-1">
+          <div className="flex gap-2">
+            <Chip ativo={vista === 'semana'} onClick={() => setVista('semana')}>Semana</Chip>
+            <Chip ativo={vista === 'rotinas'} onClick={() => setVista('rotinas')}>Rotinas</Chip>
+          </div>
+          {vista === 'semana' && <span className="text-[11px] text-muted">toque pra trocar</span>}
+        </div>
 
-        {rotinas.length === 0 ? (
+        {vista === 'semana' ? (
+          <Card className="overflow-hidden mb-6">
+            {SEMANA.map(d => {
+              const r = doDia(d)
+              const ehHoje = d === hojeDia
+              return (
+                <div key={d} role="button" tabIndex={0} onClick={() => setDiaAberto(d)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setDiaAberto(d) }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-line/40 last:border-0 text-left active:bg-surface-2 cursor-pointer ${
+                    ehHoje ? 'bg-accent/8' : ''
+                  }`}>
+                  <span className={`w-10 shrink-0 text-[12px] font-bold ${ehHoje ? 'text-accent' : 'text-muted'}`}>
+                    {diaCurto(d)}
+                  </span>
+                  {r ? (
+                    <>
+                      <span className="w-1 self-stretch rounded-full shrink-0 min-h-[32px]" style={{ background: r.cor }} />
+                      <div className="flex-1 min-w-0 py-0.5">
+                        <p className="text-[13.5px] font-semibold leading-tight line-clamp-2">{r.nome}</p>
+                        <p className="text-[11px] text-muted mt-0.5">
+                          {pl(r.itens.length, 'exercicio')}
+                        </p>
+                      </div>
+                      {ehHoje && r.itens.length > 0 && (
+                        <div onClick={e => e.stopPropagation()}>
+                          <Btn size="sm" variant="primary" onClick={() => comecar(r)}>Treinar</Btn>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <span className="flex-1 text-[13px] text-muted/60">Descanso</span>
+                  )}
+                </div>
+              )
+            })}
+          </Card>
+        ) : rotinas.length === 0 ? (
           <Vazio icone="halter" titulo="Nenhum treino ainda"
             texto="Pegue um programa pronto ou monte a sua rotina do zero."
             acao={<Btn variant="primary" onClick={() => nav('/treinos/programas')}>Ver programas</Btn>} />
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 mb-6">
             {rotinas.map(r => {
               const grupos = [...new Set(
                 r.itens.map(i => mapaEx.get(i.exercicioId)?.grupo).filter(Boolean) as GrupoMuscular[],
@@ -150,10 +165,16 @@ export default function Treinos() {
                             {r.dias?.length ? ' - ' + r.dias.map(diaCurto).join(', ') : ' - sem dia fixo'}
                           </p>
                         </Link>
-                        <button onClick={() => setApagar(r.id)}
-                          className="w-8 h-8 shrink-0 rounded-lg text-muted active:bg-surface-2 text-lg leading-none">
-                          ×
-                        </button>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button onClick={() => duplicar(r)} aria-label="Duplicar treino"
+                            className="w-8 h-8 rounded-lg text-muted active:bg-surface-2 flex items-center justify-center">
+                            <Icone nome="copiar" tamanho={16} />
+                          </button>
+                          <button onClick={() => setApagar(r.id)} aria-label="Apagar treino"
+                            className="w-8 h-8 rounded-lg text-muted active:bg-surface-2 text-lg leading-none flex items-center justify-center">
+                            ×
+                          </button>
+                        </div>
                       </div>
 
                       {grupos.length > 0 && (

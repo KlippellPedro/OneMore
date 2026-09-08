@@ -1,16 +1,52 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useUI, vibrar } from '../state/ui'
 import { rankDoNivel } from '../lib/xp'
+import { tocarNivel, tocarRank, tocarConquista } from '../lib/som'
 import { Btn } from './ui'
 import { Icone } from './Icone'
+
+const CORES_CONFETE = ['#8b6dd6', '#9b7fc7', '#d9b654', '#4caf87', '#4f9aad', '#c25f70']
+
+/** Confete de puro CSS - sem lib, algumas divs caindo com rotacao e cor aleatoria. */
+function Confete({ quantidade = 24 }: { quantidade?: number }) {
+  const pecas = useMemo(() => Array.from({ length: quantidade }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    delay: Math.random() * 0.35,
+    duracao: 1.1 + Math.random() * 0.7,
+    cor: CORES_CONFETE[i % CORES_CONFETE.length],
+    rotacao: Math.round(Math.random() * 360),
+  })), [quantidade])
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {pecas.map(p => (
+        <span key={p.id} className="confete" style={{
+          left: `${p.left}%`, background: p.cor,
+          animationDelay: `${p.delay}s`, animationDuration: `${p.duracao}s`,
+          transform: `rotate(${p.rotacao}deg)`,
+        }} />
+      ))}
+    </div>
+  )
+}
 
 export function Feedback() {
   const { toasts, levelUp, conquista, fecharLevelUp, proximaConquista } = useUI()
 
-  useEffect(() => { if (levelUp) vibrar([30, 60, 30, 60, 90]) }, [levelUp])
-  useEffect(() => { if (conquista) vibrar([20, 50, 60]) }, [conquista])
+  useEffect(() => {
+    if (!levelUp) return
+    if (levelUp.subiuRank) { vibrar([30, 50, 30, 50, 30, 80, 120]); tocarRank() }
+    else { vibrar([30, 60, 30, 60, 90]); tocarNivel() }
+  }, [levelUp])
 
-  const rank = levelUp ? rankDoNivel(levelUp) : null
+  useEffect(() => {
+    if (!conquista) return
+    vibrar([20, 50, 60])
+    tocarConquista()
+  }, [conquista])
+
+  const rank = levelUp ? rankDoNivel(levelUp.nivel) : null
 
   return (
     <>
@@ -37,31 +73,52 @@ export function Feedback() {
         ))}
       </div>
 
-      {/* level up */}
+      {/* level up / rank up - janela do "sistema", deliberadamente fora do visual roxo do resto do app */}
       {levelUp && rank && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6" onClick={fecharLevelUp}>
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
-          <div className="relative text-center anim-pop">
-            <p className="text-[13px] font-bold uppercase tracking-[0.3em] text-accent mb-4">Subiu de nivel</p>
-            <div className="relative mx-auto w-36 h-36 mb-5">
-              <div className="absolute inset-0 rounded-full anim-ring"
-                style={{ background: `radial-gradient(circle, ${rank.cor}33, transparent 70%)` }} />
-              <div className="absolute inset-2 rounded-full border-4 flex items-center justify-center"
-                style={{ borderColor: rank.cor, background: 'var(--color-surface)' }}>
-                <span className="text-5xl font-black" style={{ color: rank.cor }}>{levelUp}</span>
-              </div>
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-6 overflow-hidden" onClick={fecharLevelUp}>
+          <div className="absolute inset-0 bg-black/88 backdrop-blur-sm" />
+          <Confete quantidade={levelUp.subiuRank ? 42 : 22} />
+          <div className="painel-sistema relative w-full max-w-[340px] rounded-lg p-6 text-center anim-pop font-mono"
+            style={levelUp.subiuRank ? { boxShadow: '0 0 0 1px var(--color-accent-2), 0 10px 34px -12px rgba(0,0,0,.8)' } : undefined}>
+            <span className="canto canto-tl" /><span className="canto canto-tr" />
+            <span className="canto canto-bl" /><span className="canto canto-br" />
+
+            <p className="text-[11px] font-bold uppercase tracking-[0.35em] mb-5" style={{ color: 'var(--color-accent-2)' }}>
+              [ SISTEMA ]<span className="cursor-sistema">_</span>
+            </p>
+
+            <p className="text-[13px] uppercase tracking-widest mb-1" style={{ color: 'var(--color-accent-2)' }}>
+              {levelUp.subiuRank ? '>> novo rank desbloqueado' : '>> voce subiu de nivel'}
+            </p>
+
+            <div className="my-5 py-4 border-y" style={{ borderColor: 'color-mix(in srgb, var(--color-accent-2) 35%, transparent)' }}>
+              <p className="text-[11px] text-muted uppercase tracking-widest mb-1">Nivel</p>
+              <p className="text-6xl font-black leading-none" style={{ color: rank.cor }}>{levelUp.nivel}</p>
             </div>
-            <p className="text-2xl font-black mb-1">Nivel {levelUp}</p>
-            <p className="text-sm font-semibold mb-6" style={{ color: rank.cor }}>Rank {rank.nome}</p>
-            <Btn variant="primary" size="lg" onClick={fecharLevelUp}>Continuar</Btn>
+
+            <p className="text-sm mb-6">
+              RANK: <span className="font-bold" style={{ color: rank.cor }}>{rank.nome.toUpperCase()}</span>
+              {' '}
+              <span className="px-1.5 border rounded" style={{ borderColor: rank.cor, color: rank.cor }}>{rank.letra}</span>
+            </p>
+
+            <button onClick={fecharLevelUp}
+              className="w-full h-11 rounded-md font-bold text-sm tracking-widest uppercase transition-colors"
+              style={{
+                border: `1px solid var(--color-accent-2)`, color: 'var(--color-accent-2)',
+                background: 'color-mix(in srgb, var(--color-accent-2) 10%, transparent)',
+              }}>
+              [ Continuar ]
+            </button>
           </div>
         </div>
       )}
 
       {/* conquista */}
       {conquista && !levelUp && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center p-6" onClick={proximaConquista}>
+        <div className="fixed inset-0 z-[75] flex items-center justify-center p-6 overflow-hidden" onClick={proximaConquista}>
           <div className="absolute inset-0 bg-black/85 backdrop-blur-sm" />
+          <Confete quantidade={16} />
           <div className="relative w-full max-w-[320px] bg-surface border border-xp/40 rounded-3xl p-6 text-center anim-pop">
             <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-xp mb-4">Conquista desbloqueada</p>
             <div className="flex justify-center mb-4 text-xp">

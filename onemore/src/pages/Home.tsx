@@ -109,8 +109,9 @@ export default function Home() {
             <span className="text-2xl font-black" style={{ color: rank.cor }}>{nivel}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest" style={{ color: rank.cor }}>
+            <p className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-1.5" style={{ color: rank.cor }}>
               Rank {rank.nome}
+              <span className="font-mono px-1.5 rounded border" style={{ borderColor: rank.cor }}>{rank.letra}</span>
             </p>
             <p className="text-[15px] font-bold">Nivel {nivel}</p>
             <p className="text-[11.5px] text-muted">
@@ -209,14 +210,14 @@ export default function Home() {
           <div className="grid grid-cols-3 gap-3">
             <MacroMini nome="Proteina" atual={total.prot} meta={perfil.metaProt} cor="var(--color-good)" />
             <MacroMini nome="Carbo" atual={total.carb} meta={perfil.metaCarb} cor="var(--color-warn)" />
-            <MacroMini nome="Gordura" atual={total.gord} meta={perfil.metaGord} cor="#c084fc" />
+            <MacroMini nome="Gordura" atual={total.gord} meta={perfil.metaGord} cor="#9b7fc7" />
           </div>
         </Card>
       </Secao>
 
       {/* -------- glicemia -------- */}
       {perfil.diabetesTipo1 === true && (
-        <Secao titulo="Glicemia de hoje">
+        <Secao titulo="Glicemia de hoje" acao={<Link to="/diario" className="text-[12.5px] font-semibold text-accent">Ver diario</Link>}>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
@@ -264,7 +265,13 @@ export default function Home() {
 
       {/* -------- missoes -------- */}
       <Secao titulo={`Missoes de hoje - ${feitas}/${missoes.length}`}>
-        <Card className="p-2">
+        {feitas === missoes.length && (
+          <div className="flex items-center gap-2.5 mb-2.5 px-3.5 py-2.5 rounded-2xl bg-xp/12 border border-xp/30 anim-pop">
+            <Icone nome="trofeu" tamanho={18} className="text-xp shrink-0" />
+            <p className="text-[12.5px] font-bold text-xp">Dia perfeito! Todas as missoes concluidas.</p>
+          </div>
+        )}
+        <Card className={`p-2 ${feitas === missoes.length ? 'border-xp/30' : ''}`}>
           {missoes.map(m => (
             <div key={m.id} className="flex items-center gap-3 px-2.5 py-2.5">
               <div className={`w-8 h-8 shrink-0 rounded-xl flex items-center justify-center ${

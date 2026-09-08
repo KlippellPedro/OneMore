@@ -9,6 +9,8 @@ import { Grafico } from '../components/Grafico'
 import { useUI } from '../state/ui'
 import { youtubeId, dataNumerica, n0, peso } from '../lib/format'
 import { Icone, BotaoFavorito } from '../components/Icone'
+import { ImagemExercicio } from '../components/ImagemExercicio'
+import { imagemExercicio } from '../db/imagensExercicios'
 
 export default function DetalheExercicio() {
   const { id = '' } = useParams()
@@ -41,6 +43,7 @@ export default function DetalheExercicio() {
   if (!ex) return <div className="p-10 text-center text-muted text-sm">Carregando...</div>
 
   const yt = youtubeId(ex.videoUrl)
+  const temIlustracao = !!imagemExercicio(ex.id)
   const recorde = historico.reduce((m, [, v]) => Math.max(m, v.carga), 0)
   const volumeTotal = historico.reduce((t, [, v]) => t + v.volume, 0)
 
@@ -67,6 +70,16 @@ export default function DetalheExercicio() {
             {nomeEquip(ex.equipamento)}
           </span>
         </div>
+
+        {/* -------- ilustracao da execucao -------- */}
+        {temIlustracao && (
+          <Card className="p-3 mb-3">
+            <ImagemExercicio exercicioId={ex.id} />
+            <p className="text-[11px] text-muted text-center mt-1">
+              Inicio e fim do movimento
+            </p>
+          </Card>
+        )}
 
         {/* -------- video -------- */}
         {yt ? (

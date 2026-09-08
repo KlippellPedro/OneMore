@@ -154,6 +154,12 @@ export async function removerRegistro(id: string) {
   await db.dieta.delete(id)
 }
 
+/** Desfaz uma refeicao inteira - tira do diario tudo que foi lancado nela naquele dia. */
+export async function removerRefeicaoDoDia(data: string, refeicao: string) {
+  const ids = await db.dieta.where('[data+refeicao]').equals([data, refeicao]).primaryKeys()
+  await db.dieta.bulkDelete(ids)
+}
+
 /**
  * Checa se o dia bateu as metas e concede o XP diario (uma vez por dia).
  * Chamado depois de qualquer alteracao no diario.
@@ -320,4 +326,69 @@ export function classificarGlicemia(v: number) {
   if (v <= FAIXA_ALVO.max) return { rotulo: 'No alvo', cor: 'var(--color-good)' }
   if (v <= 250) return { rotulo: 'Alta', cor: 'var(--color-warn)' }
   return { rotulo: 'Muito alta', cor: 'var(--color-bad)' }
+}
+
+/**
+ * Faixas no padrao internacional de "tempo no alvo" (consenso AGP/ATTD para
+ * diabetes tipo 1: <54 muito baixa, 54-69 baixa, 70-180 alvo, 181-250 alta,
+ * >250 muito alta). Aqui e "% das medicoes" - o app nao tem sensor continuo,
+ * entao nao da pra falar em "% do tempo" de verdade, so por leitura.
+ */
+export const BANDAS_GLICEMIA = [
+  { id: 'muito-baixa', teste: (v: number) => v < 54, rotulo: 'Muito baixa', legenda: '<54', cor: '#7f1d1d' },
+  { id: 'baixa', teste: (v: number) => v >= 54 && v < FAIXA_ALVO.min, rotulo: 'Baixa', legenda: '54-69', cor: 'var(--color-bad)' },
+  { id: 'alvo', teste: (v: number) => v >= FAIXA_ALVO.min && v <= FAIXA_ALVO.max, rotulo: 'No alvo', legenda: `${FAIXA_ALVO.min}-${FAIXA_ALVO.max}`, cor: 'var(--color-good)' },
+  { id: 'alta', teste: (v: number) => v > FAIXA_ALVO.max && v <= 250, rotulo: 'Alta', legenda: '181-250', cor: 'var(--color-warn)' },
+  { id: 'muito-alta', teste: (v: number) => v > 250, rotulo: 'Muito alta', legenda: '>250', cor: '#f97316' },
+] as const
+
+export interface EstatisticaGlicemia {
+  total: number
+  media: number
+  desvio: number
+  /** Coeficiente de variacao (%) - abaixo de 36% e considerado estavel. */
+  cv: number
+  minimo: number
+  maximo: number
+  bandas: { id: string; rotulo: string; legenda: string; cor: string; count: number; pct: number }[]
+  pctAlvo: number
+  porMomento: { momento: MomentoGlicemia; media: number; count: number }[]
+}
+
+/** Estatisticas do periodo, no formato que relatorios de glicemia (AGP, apps de CGM) costumam usar. */
+export function estatisticasGlicemia(registros: { valor: number; momento: MomentoGlicemia }[]): EstatisticaGlicemia {
+  const total = registros.length
+  if (!total) {
+    return {
+      total: 0, media: 0, desvio: 0, cv: 0, minimo: 0, maximo: 0, pctAlvo: 0,
+      bandas: BANDAS_GLICEMIA.map(b => ({ id: b.id, rotulo: b.rotulo, legenda: b.legenda, cor: b.cor, count: 0, pct: 0 })),
+      porMomento: [],
+    }
+  }
+
+  const valores = registros.map(r => r.valor)
+  const media = valores.reduce((t, v) => t + v, 0) / total
+  const variancia = valores.reduce((t, v) => t + (v - media) ** 2, 0) / total
+  const desvio = Math.sqrt(variancia)
+
+  const bandas = BANDAS_GLICEMIA.map(b => {
+    const count = valores.filter(b.teste).length
+    return { id: b.id, rotulo: b.rotulo, legenda: b.legenda, cor: b.cor, count, pct: count / total }
+  })
+
+  const porMomentoMapa = new Map<MomentoGlicemia, number[]>()
+  for (const r of registros) {
+    if (!porMomentoMapa.has(r.momento)) porMomentoMapa.set(r.momento, [])
+    porMomentoMapa.get(r.momento)!.push(r.valor)
+  }
+  const porMomento = [...porMomentoMapa.entries()]
+    .map(([momento, vs]) => ({ momento, media: vs.reduce((t, v) => t + v, 0) / vs.length, count: vs.length }))
+    .sort((a, b) => b.count - a.count)
+
+  return {
+    total, media, desvio, cv: media ? (desvio / media) * 100 : 0,
+    minimo: Math.min(...valores), maximo: Math.max(...valores),
+    pctAlvo: bandas.find(b => b.id === 'alvo')!.pct,
+    bandas, porMomento,
+  }
 }

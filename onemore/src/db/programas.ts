@@ -33,9 +33,9 @@ const it = (
 ): ItemRotina => ({ exercicioId, series, repsAlvo, descansoSeg, obs })
 
 const C = {
-  push: '#a855f7', pull: '#22d3ee', legs: '#34d399',
-  upper: '#f472b6', lower: '#fbbf24', full: '#818cf8',
-  casa: '#c084fc', extra: '#fb7185',
+  push: '#8b6dd6', pull: '#4f9aad', legs: '#4caf87',
+  upper: '#bd7095', lower: '#c9a049', full: '#7b81be',
+  casa: '#9b7fc7', extra: '#c25f70',
 }
 
 /* ================================================================== */
@@ -688,9 +688,9 @@ export const PROGRAMAS: Programa[] = [
 ]
 
 export const NIVEIS = {
-  iniciante: { nome: 'Iniciante', cor: '#34d399' },
-  intermediario: { nome: 'Intermediario', cor: '#fbbf24' },
-  avancado: { nome: 'Avancado', cor: '#fb7185' },
+  iniciante: { nome: 'Iniciante', cor: '#4caf87' },
+  intermediario: { nome: 'Intermediario', cor: '#c9a049' },
+  avancado: { nome: 'Avancado', cor: '#c25f70' },
 } as const
 
 export const getPrograma = (id: string) => PROGRAMAS.find(p => p.id === id)

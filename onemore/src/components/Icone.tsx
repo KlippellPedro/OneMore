@@ -13,6 +13,19 @@ const ICONES: Record<string, ReactNode> = {
   alerta: <><path d="M12 3.2 2.3 20.3h19.4z" /><path d="M12 9.5v4.3M12 17.1h.01" /></>,
   'chevron-cima': <path d="M6 14.5 12 8.5l6 6" />,
   'chevron-baixo': <path d="M6 9.5 12 15.5l6-6" />,
+  arrastar: <>
+    <circle cx="9" cy="6" r="1.3" /><circle cx="15" cy="6" r="1.3" />
+    <circle cx="9" cy="12" r="1.3" /><circle cx="15" cy="12" r="1.3" />
+    <circle cx="9" cy="18" r="1.3" /><circle cx="15" cy="18" r="1.3" />
+  </>,
+  lapis: <>
+    <path d="M4 20h4.2l9.6-9.6a2.1 2.1 0 0 0 0-3l-1.2-1.2a2.1 2.1 0 0 0-3 0L4 15.8z" />
+    <path d="M14.4 7.6l2.9 2.9" />
+  </>,
+  copiar: <>
+    <rect x="8.6" y="8.6" width="11.4" height="11.4" rx="2.2" />
+    <path d="M15.4 8.6V6.4a2.2 2.2 0 0 0-2.2-2.2H6.4a2.2 2.2 0 0 0-2.2 2.2v6.8a2.2 2.2 0 0 0 2.2 2.2h2.2" />
+  </>,
   'link-externo': <>
     <path d="M14 3.8h6.2V10" /><path d="M20.2 3.8 10.5 13.5" />
     <path d="M18 14v5.7a1.5 1.5 0 0 1-1.5 1.5H5.3a1.5 1.5 0 0 1-1.5-1.5V8.5A1.5 1.5 0 0 1 5.3 7H11" />

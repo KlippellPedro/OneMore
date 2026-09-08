@@ -1,6 +1,6 @@
 import Dexie, { type Table } from 'dexie'
 import type {
-  Exercicio, Rotina, Sessao, Alimento, PlanoRefeicao,
+  Exercicio, Rotina, Sessao, Alimento, PlanoRefeicao, DietaSalva,
   RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
 } from './types'
 
@@ -16,6 +16,7 @@ export class OneMoreDB extends Dexie {
   perfil!: Table<Perfil, string>
   agua!: Table<Agua, string>
   glicemia!: Table<RegistroGlicemia, string>
+  dietas!: Table<DietaSalva, string>
 
   constructor() {
     super('onemore')
@@ -35,6 +36,11 @@ export class OneMoreDB extends Dexie {
     // v2: registro de glicemia e insulina (diabetes tipo 1)
     this.version(2).stores({
       glicemia: 'id, data, ts, momento',
+    })
+
+    // v3: cardapios salvos com nome, pra ter mais de uma dieta e alternar
+    this.version(3).stores({
+      dietas: 'id, nome, atualizadoEm',
     })
   }
 }

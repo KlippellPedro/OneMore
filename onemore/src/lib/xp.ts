@@ -42,17 +42,18 @@ export function calcNivel(xpTotal: number): EstadoNivel {
   }
 }
 
-export interface Rank { nome: string; cor: string; min: number }
+export interface Rank { nome: string; letra: string; cor: string; min: number }
 
+/** Letra ao estilo classificacao de cacadores - vai de E (Ferro) a SSS (Lenda). */
 export const RANKS: Rank[] = [
-  { nome: 'Ferro', cor: '#8b98a9', min: 1 },
-  { nome: 'Bronze', cor: '#c07b42', min: 5 },
-  { nome: 'Prata', cor: '#cfd8e3', min: 10 },
-  { nome: 'Ouro', cor: '#ffc857', min: 20 },
-  { nome: 'Platina', cor: '#5ee7c4', min: 35 },
-  { nome: 'Diamante', cor: '#6cc5ff', min: 55 },
-  { nome: 'Mestre', cor: '#c084fc', min: 80 },
-  { nome: 'Lenda', cor: '#ff6b35', min: 100 },
+  { nome: 'Ferro', letra: 'E', cor: '#8892a0', min: 1 },
+  { nome: 'Bronze', letra: 'D', cor: '#a97544', min: 5 },
+  { nome: 'Prata', letra: 'C', cor: '#b6bfc9', min: 10 },
+  { nome: 'Ouro', letra: 'B', cor: '#c9a049', min: 20 },
+  { nome: 'Platina', letra: 'A', cor: '#5cae9b', min: 35 },
+  { nome: 'Diamante', letra: 'S', cor: '#6a9ec4', min: 55 },
+  { nome: 'Mestre', letra: 'SS', cor: '#9b7fc7', min: 80 },
+  { nome: 'Lenda', letra: 'SSS', cor: '#c96a4a', min: 100 },
 ]
 
 export function rankDoNivel(nivel: number): Rank {
@@ -87,7 +88,11 @@ export interface GanhoXP {
   xp: number
   motivo: string
   subiuNivel: boolean
+  /** Mudou de rank (Ferro -> Bronze etc), nao so de nivel - merece festa maior. */
+  subiuRank: boolean
   nivel: number
+  streak: number
+  nivelAntes: number
   conquistas: Conquista[]
 }
 
@@ -130,7 +135,10 @@ export async function darXP(
     xp,
     motivo,
     subiuNivel: depois.nivel > antes.nivel,
+    subiuRank: rankDoNivel(antes.nivel).nome !== rankDoNivel(depois.nivel).nome,
     nivel: depois.nivel,
+    nivelAntes: antes.nivel,
+    streak,
     conquistas,
   }
 }

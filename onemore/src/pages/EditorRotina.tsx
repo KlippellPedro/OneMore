@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
@@ -13,7 +13,7 @@ import { diaCurto, tempo, pl } from '../lib/format'
 import { Icone } from '../components/Icone'
 import type { ItemRotina } from '../db/types'
 
-const CORES = ['#ff6b35', '#4dabf7', '#3ddc97', '#ffc857', '#c084fc', '#ff5470', '#22d3ee', '#a3e635']
+const CORES = ['#c96a4a', '#5a8cbf', '#4fa385', '#c9a049', '#9b7fc7', '#c25f70', '#4f9aad', '#8ba055']
 
 export default function EditorRotina() {
   const { id = '' } = useParams()
@@ -27,6 +27,19 @@ export default function EditorRotina() {
   const [config, setConfig] = useState(false)
   const [apagarIdx, setApagarIdx] = useState<number | null>(null)
 
+  // ordem local dos exercicios: espelha rotina.itens, exceto durante um arrasto em andamento
+  const [ordem, setOrdem] = useState<ItemRotina[]>([])
+  const [arrastoId, setArrastoId] = useState<string | null>(null)
+  const [arrastoTop, setArrastoTop] = useState(0)
+  const [arrastoRect, setArrastoRect] = useState<{ left: number; width: number } | null>(null)
+  const cardRefs = useRef<Record<string, HTMLElement | null>>({})
+  const dragInfo = useRef<{ pointerId: number; grabOffsetY: number; height: number } | null>(null)
+  const handlersRef = useRef<{
+    mover: (e: { pointerId: number; clientY: number }) => void
+    soltar: () => void
+    cancelar: () => void
+  }>({ mover: () => {}, soltar: () => {}, cancelar: () => {} })
+
   // rascunho do cabecalho (nome/cor/dias)
   const [nome, setNome] = useState('')
   const [descricao, setDescricao] = useState('')
@@ -38,6 +51,31 @@ export default function EditorRotina() {
     setNome(rotina.nome); setCor(rotina.cor)
     setDias(rotina.dias ?? []); setDescricao(rotina.descricao ?? '')
   }, [rotina?.id])
+
+  useEffect(() => {
+    if (!dragInfo.current) setOrdem(rotina?.itens ?? [])
+  }, [rotina?.itens])
+
+  /**
+   * Enquanto arrasta, os eventos ficam no window - nao no botao. Reordenar a
+   * lista move o no do botao no DOM, o navegador solta o pointer capture e o
+   * pointerup nunca chegaria nele: o arrasto travava com a copia flutuante presa
+   * na tela. No window isso nao acontece, e o cleanup garante que sempre solta.
+   */
+  useEffect(() => {
+    if (!arrastoId) return
+    const mover = (e: PointerEvent) => handlersRef.current.mover(e)
+    const soltar = () => handlersRef.current.soltar()
+    const cancelar = () => handlersRef.current.cancelar()
+    window.addEventListener('pointermove', mover)
+    window.addEventListener('pointerup', soltar)
+    window.addEventListener('pointercancel', cancelar)
+    return () => {
+      window.removeEventListener('pointermove', mover)
+      window.removeEventListener('pointerup', soltar)
+      window.removeEventListener('pointercancel', cancelar)
+    }
+  }, [arrastoId])
 
   if (!rotina) {
     return <div className="p-10 text-center text-muted text-sm">Carregando...</div>
@@ -63,6 +101,67 @@ export default function EditorRotina() {
     vibrar()
     await salvarItens(itens)
   }
+
+  /* ---------------- arrastar pra reordenar (mouse e touch, via Pointer Events) --------------- */
+
+  function iniciarArrasto(e: RPointerEvent, id: string) {
+    const el = cardRefs.current[id]
+    if (!el) return
+    e.preventDefault()
+    const rect = el.getBoundingClientRect()
+    dragInfo.current = { pointerId: e.pointerId, grabOffsetY: e.clientY - rect.top, height: rect.height }
+    setArrastoId(id)
+    setArrastoTop(rect.top)
+    setArrastoRect({ left: rect.left, width: rect.width })
+    vibrar(10)
+  }
+
+  function moverArrasto(e: { pointerId: number; clientY: number }) {
+    const info = dragInfo.current
+    if (!info || e.pointerId !== info.pointerId || !arrastoId) return
+    const novoTop = e.clientY - info.grabOffsetY
+    setArrastoTop(novoTop)
+    const centro = novoTop + info.height / 2
+
+    let alvo = 0
+    for (const it of ordem) {
+      if (it.exercicioId === arrastoId) continue
+      const el = cardRefs.current[it.exercicioId]
+      if (!el) continue
+      const r = el.getBoundingClientRect()
+      if (r.top + r.height / 2 < centro) alvo++
+    }
+
+    const atual = ordem.findIndex(it => it.exercicioId === arrastoId)
+    if (atual !== -1 && alvo !== atual) {
+      setOrdem(prev => {
+        const novo = [...prev]
+        const [item] = novo.splice(atual, 1)
+        novo.splice(alvo, 0, item)
+        return novo
+      })
+    }
+  }
+
+  function finalizarArrasto() {
+    if (!dragInfo.current) return
+    dragInfo.current = null
+    setArrastoId(null)
+    setArrastoRect(null)
+    if (JSON.stringify(ordem) !== JSON.stringify(rotina!.itens)) salvarItens(ordem)
+  }
+
+  function cancelarArrasto() {
+    if (!dragInfo.current) return
+    dragInfo.current = null
+    setArrastoId(null)
+    setArrastoRect(null)
+    setOrdem(rotina!.itens)
+  }
+
+  // os handlers vivem em refs porque os listeners de window sao registrados uma
+  // vez por arrasto, mas precisam enxergar a ordem do render atual
+  handlersRef.current = { mover: moverArrasto, soltar: finalizarArrasto, cancelar: cancelarArrasto }
 
   const totalSeries = rotina.itens.reduce((t, i) => t + i.series, 0)
   const tempoEstimado = rotina.itens.reduce(
@@ -92,45 +191,83 @@ export default function EditorRotina() {
             </div>
 
             <div className="space-y-2">
-              {rotina.itens.map((item, i) => {
+              {ordem.map((item, i) => {
                 const ex = mapaEx.get(item.exercicioId)
+                const arrastando = arrastoId === item.exercicioId
                 return (
-                  <Card key={i} className="p-3">
-                    <div className="flex items-start gap-3">
-                      <span className="w-1 self-stretch rounded-full shrink-0 min-h-[44px]"
-                        style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
+                  <div key={item.exercicioId}
+                    ref={el => { cardRefs.current[item.exercicioId] = el }}
+                    className={arrastando ? 'invisible' : ''}>
+                    <Card className="p-3">
+                      <div className="flex items-start gap-3">
+                        <span className="w-1 self-stretch rounded-full shrink-0 min-h-[44px]"
+                          style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
 
-                      <button className="flex-1 min-w-0 text-left" onClick={() => setEditando(i)}>
-                        <p className="text-[14px] font-semibold leading-tight">
-                          {ex?.nome ?? 'Exercicio removido'}
-                        </p>
-                        <p className="text-[11.5px] text-muted mt-1">
-                          {item.series} x {item.repsAlvo}
-                          {item.cargaAlvo ? ` - ${item.cargaAlvo} kg` : ''}
-                          {' - '}descanso {tempo(item.descansoSeg)}
-                        </p>
-                        {item.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
-                      </button>
+                        <button className="flex-1 min-w-0 text-left" onClick={() => setEditando(i)}>
+                          <p className="text-[14px] font-semibold leading-tight">
+                            {ex?.nome ?? 'Exercicio removido'}
+                          </p>
+                          <p className="text-[11.5px] text-muted mt-1">
+                            {item.series} x {item.repsAlvo}
+                            {item.cargaAlvo ? ` - ${item.cargaAlvo} kg` : ''}
+                            {' - '}descanso {tempo(item.descansoSeg)}
+                          </p>
+                          {item.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
+                        </button>
 
-                      <div className="flex flex-col shrink-0">
-                        <button onClick={() => mover(i, -1)} disabled={i === 0} aria-label="Subir"
-                          className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
-                          <Icone nome="chevron-cima" tamanho={15} traco={2.2} />
+                        <button aria-label="Arrastar para reordenar"
+                          onPointerDown={e => iniciarArrasto(e, item.exercicioId)}
+                          style={{ touchAction: 'none' }}
+                          className="w-7 h-9 shrink-0 flex items-center justify-center text-muted active:text-txt cursor-grab active:cursor-grabbing">
+                          <Icone nome="arrastar" tamanho={16} preenchido />
                         </button>
-                        <button onClick={() => mover(i, 1)} disabled={i === rotina.itens.length - 1} aria-label="Descer"
-                          className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
-                          <Icone nome="chevron-baixo" tamanho={15} traco={2.2} />
-                        </button>
+
+                        <div className="flex flex-col shrink-0">
+                          <button onClick={() => mover(i, -1)} disabled={i === 0} aria-label="Subir"
+                            className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
+                            <Icone nome="chevron-cima" tamanho={15} traco={2.2} />
+                          </button>
+                          <button onClick={() => mover(i, 1)} disabled={i === ordem.length - 1} aria-label="Descer"
+                            className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
+                            <Icone nome="chevron-baixo" tamanho={15} traco={2.2} />
+                          </button>
+                        </div>
+                        <button onClick={() => setApagarIdx(i)} aria-label="Remover exercicio"
+                          className="w-7 h-7 shrink-0 text-muted active:text-bad text-lg leading-none">×</button>
                       </div>
-                      <button onClick={() => setApagarIdx(i)}
-                        className="w-7 h-7 shrink-0 text-muted active:text-bad text-lg leading-none">×</button>
-                    </div>
-                  </Card>
+                    </Card>
+                  </div>
                 )
               })}
             </div>
           </>
         )}
+
+        {/* -------- copia flutuante do item sendo arrastado -------- */}
+        {arrastoId && arrastoRect && (() => {
+          const item = ordem.find(it => it.exercicioId === arrastoId)
+          const ex = item && mapaEx.get(item.exercicioId)
+          if (!item) return null
+          return (
+            <div className="fixed z-50 pointer-events-none"
+              style={{ top: arrastoTop, left: arrastoRect.left, width: arrastoRect.width }}>
+              <Card className="p-3 shadow-2xl ring-2 ring-accent/70">
+                <div className="flex items-start gap-3">
+                  <span className="w-1 self-stretch rounded-full shrink-0 min-h-[44px]"
+                    style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[14px] font-semibold leading-tight">{ex?.nome ?? 'Exercicio removido'}</p>
+                    <p className="text-[11.5px] text-muted mt-1">
+                      {item.series} x {item.repsAlvo}
+                      {item.cargaAlvo ? ` - ${item.cargaAlvo} kg` : ''}
+                      {' - '}descanso {tempo(item.descansoSeg)}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          )
+        })()}
 
         <Btn className="w-full mt-3" onClick={() => setSeletor(true)}>+ Adicionar exercicio</Btn>
 

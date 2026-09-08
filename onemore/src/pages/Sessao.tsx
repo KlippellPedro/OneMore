@@ -11,6 +11,7 @@ import { corGrupo } from '../db/seedExercicios'
 import { Seletor } from '../components/SeletorExercicio'
 import { Btn, Sheet, Confirmar, Textarea, Card } from '../components/ui'
 import { Icone } from '../components/Icone'
+import { ImagemExercicio } from '../components/ImagemExercicio'
 import { useUI, vibrar } from '../state/ui'
 import { tempo, duracao, peso, n0 } from '../lib/format'
 import type { SerieLog } from '../db/types'
@@ -239,10 +240,13 @@ export default function Sessao() {
               <div className="flex items-start gap-2.5 mb-3">
                 <span className="w-1 self-stretch rounded-full shrink-0"
                   style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
+                <Link to={`/exercicios/${g.exercicioId}`} className="shrink-0">
+                  <ImagemExercicio exercicioId={g.exercicioId} tamanho="mini" />
+                </Link>
                 <div className="flex-1 min-w-0">
                   <Link to={`/exercicios/${g.exercicioId}`} className="text-[14.5px] font-bold leading-tight block">
                     {ex?.nome ?? 'Exercicio'}
-                    <span className="text-muted font-normal text-[11px] ml-1.5">ver execucao ›</span>
+                    <span className="text-muted font-normal text-[11px] ml-1.5 whitespace-nowrap">ver execucao ›</span>
                   </Link>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-muted">
                     {item && <span>alvo {item.series}x{item.repsAlvo}</span>}

@@ -1,0 +1,115 @@
+import type { ItemRefeicao } from './types'
+
+export interface RefeicaoPronta {
+  nome: string
+  horario: string
+  itens: ItemRefeicao[]
+  /** Por que essa refeicao e montada assim. Aparece ao abrir a dieta. */
+  nota?: string
+}
+
+export interface DietaPronta {
+  id: string
+  nome: string
+  apelido?: string
+  /** Uma linha: o que e. */
+  resumo: string
+  /** Por que funciona - o criterio pra escolher. */
+  porque: string
+  /** Pra quem NAO serve. */
+  cuidado?: string
+  refeicoes: RefeicaoPronta[]
+}
+
+const i = (alimentoId: string, qtd: number, medida: string, gramas: number): ItemRefeicao =>
+  ({ alimentoId, qtd, medida, gramas })
+
+/* ================================================================== */
+
+export const DIETAS_PRONTAS: DietaPronta[] = [
+  {
+    id: 'dieta-t1d-bulking',
+    nome: 'Ganho de massa com diabetes tipo 1',
+    apelido: 'T1D + bulking',
+    resumo: '~3.050 kcal com carboidrato espalhado igual e ceia anti-hipo.',
+    porque:
+      'Carboidrato distribuido entre 40 e 70 g por refeicao, sem pico: dose parecida '
+      + 'todo dia e dose que voce acerta. O pre-treino nao leva gordura nem fibra, pra '
+      + 'absorcao ser previsivel, e a ceia leva proteina e gordura pra segurar a madrugada '
+      + 'depois de treinar a noite. Proteina alta (cerca de 2,4 g/kg pra 70 kg) porque, alem '
+      + 'do musculo, ela ajuda o tempo no alvo depois do exercicio.',
+    cuidado:
+      'Sao 7 refeicoes. Se voce usa caneta, e bolus demais no dia - junte o lanche da '
+      + 'manha no cafe e vire 6. E confirme tudo com seu endocrinologista antes: mudar '
+      + 'carboidrato muda insulina.',
+    refeicoes: [
+      {
+        nome: 'Cafe da manha', horario: '07:00',
+        itens: [
+          i('al_aveia-em-flocos', 4, 'colher de sopa', 60),
+          i('al_leite-integral', 1, 'copo (200 ml)', 200),
+          i('al_banana-prata', 1, 'unidade media', 70),
+          i('al_ovo-de-galinha-cozido', 2, 'unidade', 100),
+          i('al_pasta-de-amendoim-integral', 1, 'colher de sopa', 15),
+        ],
+      },
+      {
+        nome: 'Lanche da manha', horario: '10:00',
+        itens: [
+          i('al_pao-de-forma-integral', 3, 'fatia', 75),
+          i('al_queijo-minas-frescal', 1, 'fatia', 30),
+          i('al_maca', 1, 'unidade media', 130),
+        ],
+      },
+      {
+        nome: 'Almoco', horario: '12:30',
+        itens: [
+          i('al_arroz-branco-cozido', 2, 'escumadeira', 160),
+          i('al_feijao-carioca-cozido', 1, 'concha media', 80),
+          i('al_peito-de-frango-grelhado', 1, 'file medio', 120),
+          i('al_brocolis-cozido', 1, 'prato', 80),
+          i('al_cenoura-crua', 1, 'colher de sopa', 20),
+          i('al_azeite-de-oliva', 1, 'fio', 5),
+        ],
+      },
+      {
+        nome: 'Lanche da tarde', horario: '16:00',
+        itens: [
+          i('al_iogurte-grego', 1, 'pote', 130),
+          i('al_granola', 2, 'colher de sopa', 30),
+          i('al_mamao-papaia', 1, 'fatia', 100),
+          i('al_castanha-de-caju', 1, 'punhado', 30),
+        ],
+      },
+      {
+        nome: 'Pre-treino', horario: '18:00',
+        nota: 'Sem gordura e sem fibra de proposito - absorve rapido e previsivel.',
+        itens: [
+          i('al_tapioca-goma-hidratada', 1, 'beiju medio', 60),
+          i('al_banana-nanica', 1, 'unidade media', 85),
+        ],
+      },
+      {
+        nome: 'Jantar', horario: '21:00',
+        itens: [
+          i('al_arroz-integral-cozido', 2, 'escumadeira', 160),
+          i('al_feijao-preto-cozido', 1, 'concha media', 80),
+          i('al_patinho-grelhado', 1, 'bife medio', 100),
+          i('al_tomate', 1, 'unidade media', 90),
+          i('al_azeite-de-oliva', 1, 'fio', 5),
+        ],
+      },
+      {
+        nome: 'Ceia', horario: '22:30',
+        nota: 'Proteina e gordura pra atravessar a madrugada depois do treino da noite.',
+        itens: [
+          i('al_iogurte-natural-integral', 1, 'copo', 200),
+          i('al_aveia-em-flocos', 1, 'colher de sopa', 15),
+          i('al_pasta-de-amendoim-integral', 1, 'colher de sopa', 15),
+        ],
+      },
+    ],
+  },
+]
+
+export const getDietaPronta = (id: string) => DIETAS_PRONTAS.find(d => d.id === id)

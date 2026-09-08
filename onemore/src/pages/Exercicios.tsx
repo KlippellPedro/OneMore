@@ -7,6 +7,8 @@ import { normalizar } from '../components/SeletorExercicio'
 import { Cabecalho } from '../components/Cabecalho'
 import { Btn, Input, Chip, Sheet, Campo, Select, Textarea } from '../components/ui'
 import { BotaoFavorito } from '../components/Icone'
+import { ImagemExercicio } from '../components/ImagemExercicio'
+import { CREDITO_IMAGENS } from '../db/imagensExercicios'
 import { useUI } from '../state/ui'
 import type { GrupoMuscular, Equipamento } from '../db/types'
 
@@ -71,6 +73,8 @@ export default function Exercicios() {
                   <Link to={`/exercicios/${e.id}`}
                     className="flex-1 min-w-0 flex items-center gap-3 p-3 rounded-xl bg-surface border border-line/60 active:bg-surface-2">
                     <span className="w-1 h-9 rounded-full shrink-0" style={{ background: corGrupo(e.grupo) }} />
+                    {/* sem animar: sao 126 na lista, animando todas trava a rolagem */}
+                    <ImagemExercicio exercicioId={e.id} tamanho="mini" animar={false} />
                     <div className="flex-1 min-w-0">
                       <p className="text-[14px] font-semibold truncate">{e.nome}</p>
                       <p className="text-[11.5px] text-muted truncate">
@@ -87,6 +91,21 @@ export default function Exercicios() {
             </div>
           </section>
         ))}
+
+        <p className="text-[10.5px] text-muted/70 leading-relaxed text-center px-2 pb-4 pt-2">
+          Ilustracoes de execucao por{' '}
+          <a href={CREDITO_IMAGENS.autorUrl} target="_blank" rel="noreferrer" className="underline">
+            {CREDITO_IMAGENS.autor}
+          </a>{' '}
+          a partir do{' '}
+          <a href={CREDITO_IMAGENS.fonteUrl} target="_blank" rel="noreferrer" className="underline">
+            {CREDITO_IMAGENS.fonte}
+          </a>
+          , sob{' '}
+          <a href={CREDITO_IMAGENS.licencaUrl} target="_blank" rel="noreferrer" className="underline">
+            {CREDITO_IMAGENS.licenca}
+          </a>.
+        </p>
       </div>
 
       <NovoExercicio aberto={novo} fechar={() => setNovo(false)} onCriado={n => toast(`${n} criado`, 'ok')} />

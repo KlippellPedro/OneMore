@@ -51,6 +51,9 @@ Instalado, ele abre em tela cheia, sem barra de navegador, e funciona sem intern
 - **Minha semana**: cada dia da semana recebe uma rotina (ou descanso), com um toque
 - **126 exercícios** no catálogo, em português, com passo a passo de execução e os
   erros mais comuns de cada um
+- **Ilustração de execução em todos os 126**: dois quadros (início e fim do movimento)
+  que alternam sozinhos, em SVG — 5,7 KB em média, funciona offline. Aparece grande na
+  página do exercício e em miniatura no player, do lado de cada série
 - Campo de **link de vídeo** por exercício — cola um YouTube e ele toca dentro do app
 - Monta rotinas (Treino A/B/C…) com séries, repetições alvo, carga alvo e descanso
 - **Player de treino**: marca série por série, cronômetro de descanso automático
@@ -154,6 +157,7 @@ src/
     types.ts            tipos do domínio
     index.ts            Dexie (IndexedDB) + helpers de data
     seedExercicios.ts   catálogo de exercícios
+    imagensExercicios.ts  exercício -> arquivo da ilustração em public/exercicios/
     seedAlimentos.ts    catálogo de alimentos
     programas.ts        biblioteca de programas de treino
     seed.ts             popula na 1ª execução, atualiza sem apagar o que é seu
@@ -186,6 +190,15 @@ explica a ordem de cálculo — ela não é óbvia e mexer nela quebra o total d
 ### Adicionar um programa de treino
 `src/db/programas.ts`. Cada programa tem `porque` e `cuidado`, que é o que aparece
 na tela pra ajudar a escolher.
+
+### Créditos das ilustrações
+As figuras de execução são de **Bryl Lim**
+([workout-guide](https://github.com/bryllim/workout-guide)), derivadas do
+**Everkinetic**, sob [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+Ficam em `public/exercicios/<slug>-1.svg` e `-2.svg`, otimizadas com
+`svgo --precision=0` (de ~20 KB para ~5 KB cada, sem perda visível). Exercícios que
+compartilham o mesmo movimento apontam pro mesmo arquivo, então nada duplica.
+O crédito aparece no rodapé de **Perfil → Exercícios** — a licença exige.
 
 ### Adicionar exercícios ou alimentos ao catálogo
 Edita `seedExercicios.ts` / `seedAlimentos.ts` e sobe o `VERSAO_SEED` em `seed.ts`.

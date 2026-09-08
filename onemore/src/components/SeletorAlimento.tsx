@@ -73,13 +73,16 @@ export function SeletorAlimento({ aberto, fechar, onEscolher, titulo = 'Adiciona
 }
 
 /** Passo 2: dizer quanto. */
-export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, medidaInicial, textoBotao = 'Adicionar' }: {
+export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, medidaInicial, textoBotao = 'Adicionar', onRemover, textoRemover = 'Remover' }: {
   alimento: Alimento | null
   fechar: () => void
   onConfirmar: (qtd: number, medida: string) => void
   qtdInicial?: number
   medidaInicial?: string
   textoBotao?: string
+  /** Quando existe, a sheet ganha a acao de tirar o item de onde ele esta. */
+  onRemover?: () => void
+  textoRemover?: string
 }) {
   const [qtd, setQtd] = useState(100)
   const [medida, setMedida] = useState('g')
@@ -135,10 +138,18 @@ export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, med
         <Bloco rotulo="Gord" valor={n1(m.gord) + 'g'} />
       </div>
 
-      <Btn variant="primary" size="lg" className="w-full"
-        onClick={() => { onConfirmar(qtd, medida); fechar() }} disabled={qtd <= 0}>
-        {textoBotao}
-      </Btn>
+      <div className="flex gap-2">
+        {onRemover && (
+          <Btn variant="danger" size="lg" className="shrink-0 px-4"
+            onClick={() => { onRemover(); fechar() }}>
+            {textoRemover}
+          </Btn>
+        )}
+        <Btn variant="primary" size="lg" className="flex-1"
+          onClick={() => { onConfirmar(qtd, medida); fechar() }} disabled={qtd <= 0}>
+          {textoBotao}
+        </Btn>
+      </div>
     </Sheet>
   )
 }

@@ -427,21 +427,22 @@ export const EXERCICIOS_SEED: Exercicio[] = L.map(([nome, grupo, equipamento, ex
   atualizadoEm: 0,
 }))
 
+/** Cores solidas e dessaturadas - separam os grupos sem virar neon. */
 export const GRUPOS: { id: GrupoMuscular; nome: string; cor: string }[] = [
-  { id: 'peito', nome: 'Peito', cor: '#ff6b35' },
-  { id: 'costas', nome: 'Costas', cor: '#4dabf7' },
-  { id: 'ombro', nome: 'Ombro', cor: '#ffc857' },
-  { id: 'biceps', nome: 'Biceps', cor: '#3ddc97' },
-  { id: 'triceps', nome: 'Triceps', cor: '#c084fc' },
-  { id: 'antebraco', nome: 'Antebraco', cor: '#94a3b8' },
-  { id: 'quadriceps', nome: 'Quadriceps', cor: '#ff5470' },
-  { id: 'posterior', nome: 'Posterior', cor: '#f472b6' },
-  { id: 'gluteo', nome: 'Gluteo', cor: '#fb923c' },
-  { id: 'panturrilha', nome: 'Panturrilha', cor: '#a3e635' },
-  { id: 'abdomen', nome: 'Abdomen', cor: '#22d3ee' },
-  { id: 'lombar', nome: 'Lombar', cor: '#818cf8' },
-  { id: 'cardio', nome: 'Cardio', cor: '#f87171' },
-  { id: 'corpo-inteiro', nome: 'Corpo inteiro', cor: '#e879f9' },
+  { id: 'peito', nome: 'Peito', cor: '#c96a4a' },
+  { id: 'costas', nome: 'Costas', cor: '#5a8cbf' },
+  { id: 'ombro', nome: 'Ombro', cor: '#c9a049' },
+  { id: 'biceps', nome: 'Biceps', cor: '#4fa385' },
+  { id: 'triceps', nome: 'Triceps', cor: '#9b7fc7' },
+  { id: 'antebraco', nome: 'Antebraco', cor: '#8592a5' },
+  { id: 'quadriceps', nome: 'Quadriceps', cor: '#c25f70' },
+  { id: 'posterior', nome: 'Posterior', cor: '#bd7095' },
+  { id: 'gluteo', nome: 'Gluteo', cor: '#c2854e' },
+  { id: 'panturrilha', nome: 'Panturrilha', cor: '#8ba055' },
+  { id: 'abdomen', nome: 'Abdomen', cor: '#4f9aad' },
+  { id: 'lombar', nome: 'Lombar', cor: '#7b81be' },
+  { id: 'cardio', nome: 'Cardio', cor: '#c06a6a' },
+  { id: 'corpo-inteiro', nome: 'Corpo inteiro', cor: '#a86eaf' },
 ]
 
 export const EQUIPAMENTOS: { id: Equipamento; nome: string }[] = [

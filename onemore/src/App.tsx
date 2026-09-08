@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
 import { Feedback } from './components/Feedback'
 import { Icone } from './components/Icone'
-import { useSessaoAtiva } from './state/hooks'
+import { useSessaoAtiva, usePerfil } from './state/hooks'
 import { Link } from 'react-router-dom'
 
 import Home from './pages/Home'
@@ -16,10 +16,13 @@ import DetalheExercicio from './pages/DetalheExercicio'
 import Dieta from './pages/Dieta'
 import PlanoAlimentar from './pages/PlanoAlimentar'
 import Alimentos from './pages/Alimentos'
+import Diario from './pages/Diario'
+import ImprimirDiario from './pages/ImprimirDiario'
+import ImprimirDieta from './pages/ImprimirDieta'
 import Progresso from './pages/Progresso'
 import Perfil from './pages/Perfil'
 
-const TABS = [
+const TABS_BASE = [
   { to: '/', label: 'Inicio', icone: 'casa' },
   { to: '/treinos', label: 'Treino', icone: 'halter' },
   { to: '/dieta', label: 'Dieta', icone: 'prato' },
@@ -27,10 +30,12 @@ const TABS = [
   { to: '/perfil', label: 'Perfil', icone: 'pessoa' },
 ]
 
+const TAB_DIARIO = { to: '/diario', label: 'Diario', icone: 'sangue' }
+
 function BarraSessao() {
   const sessao = useSessaoAtiva()
   const loc = useLocation()
-  if (!sessao || loc.pathname.startsWith('/sessao')) return null
+  if (!sessao || loc.pathname.startsWith('/sessao') || loc.pathname.includes('/imprimir')) return null
   return (
     <Link to={`/sessao/${sessao.id}`}
       className="fixed left-3 right-3 bottom-[72px] z-40 flex items-center gap-3 px-4 h-12 rounded-2xl grad-accent glow-accent text-white shadow-xl anim-up safe-b">
@@ -43,11 +48,17 @@ function BarraSessao() {
 
 function TabBar() {
   const loc = useLocation()
-  if (loc.pathname.startsWith('/sessao/')) return null
+  const perfil = usePerfil()
+  if (loc.pathname.startsWith('/sessao/') || loc.pathname.includes('/imprimir')) return null
+
+  const tabs = perfil.diabetesTipo1 === true
+    ? [...TABS_BASE.slice(0, 3), TAB_DIARIO, ...TABS_BASE.slice(3)]
+    : TABS_BASE
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-bg/95 backdrop-blur-lg border-t border-line safe-b">
       <div className="max-w-[560px] mx-auto flex">
-        {TABS.map(t => (
+        {tabs.map(t => (
           <NavLink key={t.to} to={t.to} end={t.to === '/'}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? 'text-accent' : 'text-muted'}`}>
@@ -68,6 +79,13 @@ function AoTrocarDeRota() {
   const loc = useLocation()
   useEffect(() => { window.scrollTo(0, 0) }, [loc.pathname])
   return null
+}
+
+/** Paginas de impressao (PDF) usam layout proprio, sem a moldura de app nem padding pra nav. */
+function Miolo({ children }: { children: ReactNode }) {
+  const loc = useLocation()
+  if (loc.pathname.includes('/imprimir')) return <>{children}</>
+  return <div className="max-w-[560px] mx-auto pb-24 min-h-full">{children}</div>
 }
 
 export default function App() {
@@ -101,7 +119,7 @@ export default function App() {
   return (
     <HashRouter>
       <AoTrocarDeRota />
-      <div className="max-w-[560px] mx-auto pb-24 min-h-full">
+      <Miolo>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/treinos" element={<Treinos />} />
@@ -112,12 +130,15 @@ export default function App() {
           <Route path="/exercicios/:id" element={<DetalheExercicio />} />
           <Route path="/dieta" element={<Dieta />} />
           <Route path="/dieta/plano" element={<PlanoAlimentar />} />
+          <Route path="/dieta/imprimir" element={<ImprimirDieta />} />
           <Route path="/alimentos" element={<Alimentos />} />
+          <Route path="/diario" element={<Diario />} />
+          <Route path="/diario/imprimir" element={<ImprimirDiario />} />
           <Route path="/progresso" element={<Progresso />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
+      </Miolo>
       <BarraSessao />
       <TabBar />
       <Feedback />

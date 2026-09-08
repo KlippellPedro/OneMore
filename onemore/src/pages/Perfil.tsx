@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { salvarPerfil } from '../db'
 import { usePerfil, useNivel } from '../state/hooks'
-import { sugerirMetas, gastoDiario, tmb, idadeDe } from '../lib/nutricao'
+import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo, SQL_SUPABASE,
   salvarCredenciais, entrar, criarConta, sair, usuarioAtual,
@@ -10,6 +10,7 @@ import {
 } from '../lib/sync'
 import { rodarSeed } from '../db/seed'
 import { Titulo } from '../components/Cabecalho'
+import { SheetMetas } from '../components/SheetMetas'
 import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, n1 } from '../lib/format'
@@ -22,12 +23,6 @@ const ATIVIDADES = [
   { v: 1.55, nome: 'Moderado', desc: 'Exercicio 3 a 5x por semana' },
   { v: 1.725, nome: 'Intenso', desc: 'Exercicio 6 a 7x por semana' },
   { v: 1.9, nome: 'Atleta', desc: 'Treino pesado 2x por dia' },
-] as const
-
-const OBJETIVOS = [
-  { v: 'cutting', nome: 'Perder gordura', desc: '20% abaixo do gasto' },
-  { v: 'manutencao', nome: 'Manter', desc: 'No gasto diario' },
-  { v: 'bulking', nome: 'Ganhar massa', desc: '12% acima do gasto' },
 ] as const
 
 export default function Perfil() {
@@ -64,7 +59,10 @@ export default function Perfil() {
             <div className="flex-1 min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Jogador</p>
               <p className="text-[16px] font-bold truncate leading-tight">{perfil.nome}</p>
-              <p className="text-[12px]" style={{ color: rank.cor }}>Rank {rank.nome}</p>
+              <p className="text-[12px] flex items-center gap-1.5" style={{ color: rank.cor }}>
+                Rank {rank.nome}
+                <span className="font-mono text-[10px] px-1.5 rounded border" style={{ borderColor: rank.cor }}>{rank.letra}</span>
+              </p>
               <p className="text-[11.5px] text-muted">
                 {n0(perfil.xp)} XP - sequencia {perfil.streak} dia{perfil.streak === 1 ? '' : 's'}
               </p>
@@ -252,90 +250,6 @@ function SheetDados({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
         })
         toast('Dados salvos', 'ok'); fechar()
       }}>Salvar</Btn>
-    </Sheet>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-
-function SheetMetas({ aberto, fechar, perfil }: { aberto: boolean; fechar: () => void; perfil: TPerfil }) {
-  const { toast } = useUI()
-  const [f, setF] = useState(perfil)
-  useEffect(() => { if (aberto) setF(perfil) }, [aberto])
-
-  const sugestao = sugerirMetas(f)
-  const kcalDosMacros = f.metaProt * 4 + f.metaCarb * 4 + f.metaGord * 9
-
-  return (
-    <Sheet aberto={aberto} fechar={fechar} titulo="Metas de dieta" alto>
-      <Campo label="Objetivo">
-        <div className="space-y-1.5">
-          {OBJETIVOS.map(o => (
-            <button key={o.v} onClick={() => setF(v => ({ ...v, objetivo: o.v }))}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl border text-left ${
-                f.objetivo === o.v ? 'border-accent bg-accent/10' : 'border-line bg-surface'
-              }`}>
-              <div className="flex-1">
-                <p className="text-[13.5px] font-semibold">{o.nome}</p>
-                <p className="text-[11.5px] text-muted">{o.desc}</p>
-              </div>
-              {f.objetivo === o.v && <Icone nome="check" tamanho={17} traco={2.4} className="text-accent shrink-0" />}
-            </button>
-          ))}
-        </div>
-      </Campo>
-
-      <Card className="p-3.5 mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Sugestao do app</p>
-        <p className="text-[12.5px] text-muted leading-relaxed mb-3">
-          Gasto {n0(sugestao.gasto)} kcal → meta <b className="text-txt">{n0(sugestao.kcal)} kcal</b>,
-          P {n0(sugestao.prot)}g - C {n0(sugestao.carb)}g - G {n0(sugestao.gord)}g
-        </p>
-        <Btn size="sm" onClick={() => setF(v => ({
-          ...v, metaKcal: sugestao.kcal, metaProt: sugestao.prot,
-          metaCarb: sugestao.carb, metaGord: sugestao.gord,
-        }))}>Usar essa sugestao</Btn>
-      </Card>
-
-      <div className="grid grid-cols-2 gap-3">
-        <Campo label="Calorias (kcal)">
-          <Input type="number" inputMode="numeric" value={f.metaKcal || ''}
-            onChange={e => setF(v => ({ ...v, metaKcal: Number(e.target.value || 0) }))} />
-        </Campo>
-        <Campo label="Proteina (g)">
-          <Input type="number" inputMode="numeric" value={f.metaProt || ''}
-            onChange={e => setF(v => ({ ...v, metaProt: Number(e.target.value || 0) }))} />
-        </Campo>
-        <Campo label="Carboidrato (g)">
-          <Input type="number" inputMode="numeric" value={f.metaCarb || ''}
-            onChange={e => setF(v => ({ ...v, metaCarb: Number(e.target.value || 0) }))} />
-        </Campo>
-        <Campo label="Gordura (g)">
-          <Input type="number" inputMode="numeric" value={f.metaGord || ''}
-            onChange={e => setF(v => ({ ...v, metaGord: Number(e.target.value || 0) }))} />
-        </Campo>
-      </div>
-
-      {Math.abs(kcalDosMacros - f.metaKcal) > 60 && (
-        <Card className="p-3 mb-4 border-warn/30">
-          <p className="text-[12px] text-warn leading-relaxed">
-            Seus macros somam {n0(kcalDosMacros)} kcal, mas a meta esta em {n0(f.metaKcal)} kcal.
-          </p>
-        </Card>
-      )}
-
-      <Campo label="Meta de agua (ml)">
-        <Input type="number" inputMode="numeric" value={f.metaAgua || ''}
-          onChange={e => setF(v => ({ ...v, metaAgua: Number(e.target.value || 0) }))} />
-      </Campo>
-
-      <Btn variant="primary" size="lg" className="w-full" onClick={async () => {
-        await salvarPerfil({
-          objetivo: f.objetivo, metaKcal: f.metaKcal, metaProt: f.metaProt,
-          metaCarb: f.metaCarb, metaGord: f.metaGord, metaAgua: f.metaAgua,
-        })
-        toast('Metas salvas', 'ok'); fechar()
-      }}>Salvar metas</Btn>
     </Sheet>
   )
 }

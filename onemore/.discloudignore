@@ -1,0 +1,13 @@
+# sobe so o que o servidor precisa: dist/, servidor.js e o discloud.config.
+# o build e feito aqui antes de subir - la nao roda npm run build.
+node_modules
+src
+public
+index.html
+vite.config.ts
+tsconfig*.json
+package-lock.json
+.oxlintrc.json
+README.md
+.gitignore
+.git

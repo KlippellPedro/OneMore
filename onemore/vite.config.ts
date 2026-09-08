@@ -21,7 +21,10 @@ export default defineConfig({
         background_color: '#0a0714',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
+        // relativo de proposito: resolve contra a pasta do manifest, entao
+        // funciona tanto na raiz quanto publicado num subcaminho
+        // (usuario.github.io/onemore/) sem precisar mexer aqui
+        start_url: '.',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

@@ -1,20 +1,23 @@
 import { useState } from 'react'
 import { db, uid, salvarPerfil } from '../db'
-import { usePerfil, useMapaAlimentos, usePlanos } from '../state/hooks'
+import { usePerfil, useMapaAlimentos, usePlanos, useDietasSalvas } from '../state/hooks'
 import { macrosDe, somaMacros, paraGramas, ZERO } from '../lib/nutricao'
 import { gerarPlano, paraPlanoRefeicao } from '../lib/gerarPlano'
+import { DIETAS_PRONTAS, type DietaPronta } from '../db/dietasProntas'
 import { SeletorAlimento, SheetQuantidade } from '../components/SeletorAlimento'
+import { SheetMetas } from '../components/SheetMetas'
 import { Cabecalho } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Confirmar, Barra, Vazio } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, nq, clamp } from '../lib/format'
 import { Icone } from '../components/Icone'
-import type { Alimento, ItemRefeicao, PlanoRefeicao } from '../db/types'
+import type { Alimento, ItemRefeicao, PlanoRefeicao, DietaSalva } from '../db/types'
 
 export default function PlanoAlimentar() {
   const { toast } = useUI()
   const perfil = usePerfil()
   const planos = usePlanos()
+  const dietas = useDietasSalvas()
   const mapa = useMapaAlimentos()
 
   const [refAlvo, setRefAlvo] = useState<PlanoRefeicao | null>(null)
@@ -27,6 +30,14 @@ export default function PlanoAlimentar() {
   const [config, setConfig] = useState<PlanoRefeicao | null>(null)
   const [gerar, setGerar] = useState(false)
   const [alinhar, setAlinhar] = useState(false)
+  const [editarMetas, setEditarMetas] = useState(false)
+  const [dietaPronta, setDietaPronta] = useState<DietaPronta | null>(null)
+
+  // dietas salvas
+  const [salvarNome, setSalvarNome] = useState<string | null>(null)
+  const [carregar, setCarregar] = useState<DietaSalva | null>(null)
+  const [apagarDieta, setApagarDieta] = useState<DietaSalva | null>(null)
+  const [sobrescrever, setSobrescrever] = useState<DietaSalva | null>(null)
 
   const fora = (atual: number, meta: number) => meta > 0 && Math.abs(atual - meta) / meta > 0.1
 
@@ -85,11 +96,70 @@ export default function PlanoAlimentar() {
     setNome(''); setHorario('12:00'); setNovaRef(false)
   }
 
+  /* ---------------- dietas salvas ---------------- */
+
+  const instantaneo = () => planos.map(p => ({
+    nome: p.nome, horario: p.horario, itens: p.itens.map(i => ({ ...i })), ordem: p.ordem,
+  }))
+
+  async function salvarDieta(nomeDieta: string) {
+    if (!nomeDieta.trim()) return toast('Da um nome pra dieta', 'erro')
+    if (!planos.length) return toast('Monte as refeicoes antes de salvar', 'erro')
+    const agora = Date.now()
+    await db.dietas.put({
+      id: uid(), nome: nomeDieta.trim(), refeicoes: instantaneo(),
+      criadoEm: agora, atualizadoEm: agora,
+    })
+    setSalvarNome(null)
+    toast(`Dieta "${nomeDieta.trim()}" salva`, 'ok')
+  }
+
+  async function atualizarDieta(d: DietaSalva) {
+    await db.dietas.update(d.id, { refeicoes: instantaneo(), atualizadoEm: Date.now() })
+    setSobrescrever(null)
+    toast(`"${d.nome}" atualizada`, 'ok')
+  }
+
+  async function carregarDieta(d: DietaSalva) {
+    await db.planos.clear()
+    await db.planos.bulkPut(d.refeicoes.map((r, i) => ({
+      id: uid(), nome: r.nome, horario: r.horario,
+      itens: r.itens.map(it => ({ ...it })),
+      ordem: r.ordem ?? i, atualizadoEm: Date.now(),
+    })))
+    setCarregar(null)
+    toast(`"${d.nome}" carregada`, 'ok')
+  }
+
+  /** Traz uma dieta pronta do catalogo do app pro plano em uso. */
+  async function aplicarDietaPronta(d: DietaPronta) {
+    await db.planos.clear()
+    await db.planos.bulkPut(d.refeicoes.map((r, idx) => ({
+      id: uid(), nome: r.nome, horario: r.horario,
+      itens: r.itens.map(it => ({ ...it })), ordem: idx, atualizadoEm: Date.now(),
+    })))
+    setDietaPronta(null)
+    toast(`"${d.nome}" aplicada`, 'ok')
+  }
+
+  const macrosDeRefeicoes = (refeicoes: { itens: { alimentoId: string; gramas: number }[] }[]) =>
+    somaMacros(...refeicoes.flatMap(r => r.itens.map(i => {
+      const a = mapa.get(i.alimentoId)
+      return a ? macrosDe(a, i.gramas) : ZERO
+    })))
+
+  const kcalDeDieta = (d: DietaSalva) => somaMacros(
+    ...d.refeicoes.flatMap(r => r.itens.map(i => {
+      const a = mapa.get(i.alimentoId)
+      return a ? macrosDe(a, i.gramas) : ZERO
+    })),
+  ).kcal
+
   return (
     <div>
       <Cabecalho titulo="Plano alimentar" voltarPara="/dieta"
         sub="O cardapio padrao que voce lanca com um toque"
-        acao={<Btn size="sm" variant="primary" onClick={() => setNovaRef(true)}>+</Btn>} />
+        acao={<Btn size="sm" variant="primary" onClick={() => setNovaRef(true)}>+ Refeicao</Btn>} />
 
       <div className="px-4 pt-4">
         {/* -------- total do plano vs metas -------- */}
@@ -103,11 +173,16 @@ export default function PlanoAlimentar() {
             </span>
           </div>
           <div className="mb-3"><Barra valor={totalPlano.kcal / perfil.metaKcal} altura={8} /></div>
-          <div className="grid grid-cols-3 gap-3">
+          <button onClick={() => setEditarMetas(true)} className="w-full grid grid-cols-3 gap-3 text-left">
             <Alvo nome="Prot" atual={totalPlano.prot} meta={perfil.metaProt} cor="var(--color-good)" />
             <Alvo nome="Carb" atual={totalPlano.carb} meta={perfil.metaCarb} cor="var(--color-warn)" />
-            <Alvo nome="Gord" atual={totalPlano.gord} meta={perfil.metaGord} cor="#c084fc" />
-          </div>
+            <Alvo nome="Gord" atual={totalPlano.gord} meta={perfil.metaGord} cor="#9b7fc7" />
+          </button>
+          <button onClick={() => setEditarMetas(true)}
+            className="w-full mt-3 pt-3 border-t border-line/50 flex items-center justify-center gap-1.5 text-[11.5px] font-semibold text-muted active:text-accent">
+            <Icone nome="lapis" tamanho={13} />
+            Editar metas do dia
+          </button>
           {totalPlano.kcal > 0 && desalinhado && (
             <div className="mt-3 pt-3 border-t border-line/50">
               <p className="text-[11.5px] text-muted leading-relaxed mb-2.5">
@@ -127,27 +202,56 @@ export default function PlanoAlimentar() {
           )}
         </Card>
 
-        <Card className="p-4 mb-4 border-accent/25">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 shrink-0 rounded-xl grad-accent flex items-center justify-center text-white">
-              <Icone nome="faisca" tamanho={20} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[14px] font-bold">Gerar cardapio automatico</p>
-              <p className="text-[11.5px] text-muted mt-0.5 leading-relaxed">
-                Monta as 6 refeicoes em cima das suas metas, com carboidrato
-                distribuido de forma parecida entre elas.
-              </p>
-              <Btn size="sm" variant="primary" className="mt-3" onClick={() => setGerar(true)}>
-                {planos.some(p => p.itens.length) ? 'Refazer o plano' : 'Gerar agora'}
-              </Btn>
-            </div>
-          </div>
+        {/* -------- minhas dietas -------- */}
+        <div className="flex items-end justify-between mb-2 px-1">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">Minhas dietas</h2>
+          {planos.length > 0 && (
+            <button onClick={() => setSalvarNome('')}
+              className="text-[12px] font-semibold text-accent">
+              Salvar esta
+            </button>
+          )}
+        </div>
+
+        <Card className="overflow-hidden mb-6">
+          {dietas.length === 0 ? (
+            <p className="px-4 py-4 text-[12.5px] text-muted leading-relaxed">
+              Monte o cardapio do seu jeito nas refeicoes abaixo e toque em
+              <span className="text-accent font-semibold"> Salvar esta</span> pra guardar
+              como uma dieta sua. Da pra ter varias e alternar entre elas.
+            </p>
+          ) : (
+            dietas.map(d => (
+              <div key={d.id}
+                className="flex items-center gap-2 px-3.5 py-3 border-b border-line/40 last:border-0">
+                <button onClick={() => setCarregar(d)} className="flex-1 min-w-0 text-left">
+                  <p className="text-[13.5px] font-semibold truncate">{d.nome}</p>
+                  <p className="text-[11px] text-muted">
+                    {d.refeicoes.length} refeic{d.refeicoes.length === 1 ? 'ao' : 'oes'}
+                    {' - '}{n0(kcalDeDieta(d))} kcal
+                  </p>
+                </button>
+                <button onClick={() => setSobrescrever(d)} aria-label="Atualizar com o plano atual"
+                  className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted active:bg-surface-2 active:text-accent">
+                  <Icone nome="copiar" tamanho={15} />
+                </button>
+                <button onClick={() => setApagarDieta(d)} aria-label="Apagar dieta"
+                  className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted active:bg-surface-2 active:text-bad text-lg leading-none">
+                  ×
+                </button>
+              </div>
+            ))
+          )}
         </Card>
+
+        {/* -------- refeicoes -------- */}
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 px-1">
+          Refeicoes do plano
+        </h2>
 
         {planos.length === 0 && (
           <Vazio icone="prato" titulo="Nenhuma refeicao"
-            texto="Crie as refeicoes do seu dia e monte o cardapio de cada uma."
+            texto="Crie as refeicoes do seu dia e monte o cardapio de cada uma do seu jeito."
             acao={<Btn variant="primary" onClick={() => setNovaRef(true)}>Criar refeicao</Btn>} />
         )}
 
@@ -199,6 +303,61 @@ export default function PlanoAlimentar() {
             </div>
           )
         })}
+
+        {/* -------- dietas prontas do app -------- */}
+        <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 px-1 mt-6">
+          Dietas prontas
+        </h2>
+        {DIETAS_PRONTAS.map(d => {
+          const m = macrosDeRefeicoes(d.refeicoes)
+          return (
+            <Card key={d.id} className="p-4 mb-3 border-accent/25">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 shrink-0 rounded-xl grad-accent flex items-center justify-center text-white">
+                  <Icone nome="prato" tamanho={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-bold leading-tight">{d.nome}</p>
+                  <p className="text-[11.5px] text-muted mt-0.5">{d.resumo}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-surface-2 text-muted">
+                      {d.refeicoes.length} refeicoes
+                    </span>
+                    <span className="text-[10.5px] font-black px-2 py-0.5 rounded-md bg-accent/12 text-accent tabular-nums">
+                      {n0(m.carb)} g carbo
+                    </span>
+                    <span className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md bg-surface-2 text-muted tabular-nums">
+                      {n0(m.kcal)} kcal - P {n0(m.prot)} G {n0(m.gord)}
+                    </span>
+                  </div>
+                  <Btn size="sm" variant="primary" className="mt-3" onClick={() => setDietaPronta(d)}>
+                    Ver e usar
+                  </Btn>
+                </div>
+              </div>
+            </Card>
+          )
+        })}
+
+        {/* -------- gerador: atalho, nao o caminho principal -------- */}
+        <Card className="p-4 mt-6 mb-4">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 shrink-0 rounded-xl bg-surface-2 flex items-center justify-center text-muted">
+              <Icone nome="faisca" tamanho={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[14px] font-bold">Gerar um cardapio pronto</p>
+              <p className="text-[11.5px] text-muted mt-0.5 leading-relaxed">
+                Atalho pra ter um ponto de partida: monta 6 refeicoes nas suas metas e
+                voce edita o que quiser depois. Substitui as refeicoes atuais - salve a
+                sua dieta antes se nao quiser perder.
+              </p>
+              <Btn size="sm" className="mt-3" onClick={() => setGerar(true)}>
+                {planos.some(p => p.itens.length) ? 'Refazer o plano' : 'Gerar agora'}
+              </Btn>
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* -------- sheets -------- */}
@@ -215,7 +374,16 @@ export default function PlanoAlimentar() {
           qtdInicial={editando.plano.itens[editando.idx].qtd}
           medidaInicial={editando.plano.itens[editando.idx].medida}
           textoBotao="Salvar"
+          textoRemover="Remover"
           fechar={() => setEditando(null)}
+          onRemover={async () => {
+            const { plano, idx } = editando
+            await db.planos.update(plano.id, {
+              itens: plano.itens.filter((_, i) => i !== idx), atualizadoEm: Date.now(),
+            })
+            setEditando(null)
+            toast('Item removido do plano', 'ok')
+          }}
           onConfirmar={async (q, md) => {
             const { plano, idx } = editando
             const a = mapa.get(plano.itens[idx].alimentoId)
@@ -226,26 +394,71 @@ export default function PlanoAlimentar() {
             setEditando(null)
           }} />
       )}
-      {editando && (
-        <button
-          onClick={async () => {
-            const { plano, idx } = editando
-            await db.planos.update(plano.id, {
-              itens: plano.itens.filter((_, i) => i !== idx), atualizadoEm: Date.now(),
-            })
-            setEditando(null)
-            toast('Item removido do plano', 'ok')
-          }}
-          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[55] h-10 px-5 rounded-xl bg-bad/20 border border-bad/40 text-bad text-[13px] font-semibold">
-          Remover do plano
-        </button>
-      )}
+
+      <SheetMetas aberto={editarMetas} fechar={() => setEditarMetas(false)} perfil={perfil} />
+
+      <Sheet aberto={!!dietaPronta} fechar={() => setDietaPronta(null)} titulo={dietaPronta?.nome} alto>
+        {dietaPronta && (
+          <>
+            <p className="text-[12.5px] text-muted leading-relaxed mb-3">{dietaPronta.porque}</p>
+            {dietaPronta.cuidado && (
+              <Card className="p-3 mb-4 border-warn/30">
+                <p className="text-[11px] font-bold uppercase tracking-widest text-warn mb-1">Atencao</p>
+                <p className="text-[12px] text-muted leading-relaxed">{dietaPronta.cuidado}</p>
+              </Card>
+            )}
+
+            <div className="space-y-2 mb-4">
+              {dietaPronta.refeicoes.map(r => {
+                const m = macrosDeRefeicoes([r])
+                return (
+                  <Card key={r.nome} className="p-3">
+                    <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                      <p className="text-[13px] font-bold truncate">{r.horario} {r.nome}</p>
+                      <span className="text-[11px] font-black text-accent tabular-nums shrink-0">
+                        {n0(m.carb)} g carbo
+                      </span>
+                    </div>
+                    <p className="text-[11.5px] text-muted leading-relaxed">
+                      {r.itens.map(it => mapa.get(it.alimentoId)?.nome ?? '?').join(', ')}
+                    </p>
+                    {r.nota && <p className="text-[11px] text-accent/90 mt-1.5 leading-relaxed">{r.nota}</p>}
+                  </Card>
+                )
+              })}
+            </div>
+
+            <p className="text-[11.5px] text-muted mb-4 leading-relaxed">
+              Aplicar substitui as refeicoes do plano atual. Salve a sua dieta antes se
+              nao quiser perder - e depois use "Ajustar metas a este plano" pra suas
+              metas baterem com o cardapio.
+            </p>
+            <Btn variant="primary" size="lg" className="w-full"
+              onClick={() => aplicarDietaPronta(dietaPronta)}>
+              Usar essa dieta
+            </Btn>
+          </>
+        )}
+      </Sheet>
 
       <Sheet aberto={novaRef} fechar={() => setNovaRef(false)} titulo="Nova refeicao">
         <Campo label="Nome"><Input value={nome} onChange={e => setNome(e.target.value)}
           placeholder="Ceia" autoFocus /></Campo>
         <Campo label="Horario"><Input type="time" value={horario} onChange={e => setHorario(e.target.value)} /></Campo>
         <Btn variant="primary" size="lg" className="w-full mt-2" onClick={criarRefeicao}>Criar</Btn>
+      </Sheet>
+
+      <Sheet aberto={salvarNome !== null} fechar={() => setSalvarNome(null)} titulo="Salvar dieta">
+        <Campo label="Nome da dieta" hint="Ex: bulking, cutting, dia de treino.">
+          <Input value={salvarNome ?? ''} onChange={e => setSalvarNome(e.target.value)}
+            placeholder="Minha dieta" autoFocus />
+        </Campo>
+        <p className="text-[11.5px] text-muted mb-4 leading-relaxed">
+          Guarda as {planos.length} refeicoes do plano atual do jeito que estao. Depois e
+          so tocar nela pra voltar a usar esse cardapio.
+        </p>
+        <Btn variant="primary" size="lg" className="w-full"
+          onClick={() => salvarDieta(salvarNome ?? '')}>Salvar dieta</Btn>
       </Sheet>
 
       <Sheet aberto={!!config} fechar={() => setConfig(null)} titulo={config?.nome}>
@@ -276,6 +489,25 @@ export default function PlanoAlimentar() {
       <Confirmar aberto={gerar} titulo="Gerar o cardapio?"
         texto="As refeicoes atuais do plano sao substituidas por um cardapio novo, calculado nas suas metas. O que ja foi registrado no diario nao muda."
         onNao={() => setGerar(false)} onSim={gerarAutomatico} />
+
+      <Confirmar aberto={!!carregar} titulo={`Usar "${carregar?.nome}"?`}
+        texto="As refeicoes do plano atual sao substituidas pelas dessa dieta. O diario ja registrado nao muda."
+        onNao={() => setCarregar(null)}
+        onSim={() => carregar && carregarDieta(carregar)} />
+
+      <Confirmar aberto={!!sobrescrever} titulo={`Atualizar "${sobrescrever?.nome}"?`}
+        texto="A dieta salva passa a guardar as refeicoes do plano atual."
+        onNao={() => setSobrescrever(null)}
+        onSim={() => sobrescrever && atualizarDieta(sobrescrever)} />
+
+      <Confirmar aberto={!!apagarDieta} perigo titulo="Apagar essa dieta?"
+        texto="So a dieta salva se perde. O plano que esta em uso continua."
+        onNao={() => setApagarDieta(null)}
+        onSim={async () => {
+          if (apagarDieta) await db.dietas.delete(apagarDieta.id)
+          setApagarDieta(null)
+          toast('Dieta apagada', 'ok')
+        }} />
 
       <Confirmar aberto={!!apagarRef} perigo titulo="Apagar refeicao?"
         texto="O cardapio dela se perde. O diario ja registrado continua."

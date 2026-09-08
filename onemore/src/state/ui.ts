@@ -8,9 +8,11 @@ export interface Toast {
   tipo: 'xp' | 'ok' | 'erro' | 'info'
 }
 
+export interface LevelUpInfo { nivel: number; subiuRank: boolean }
+
 interface UIState {
   toasts: Toast[]
-  levelUp: number | null
+  levelUp: LevelUpInfo | null
   conquista: Conquista | null
   filaConquistas: Conquista[]
 
@@ -42,7 +44,7 @@ export const useUI = create<UIState>((set, get) => ({
     if (g.xp > 0) get().toast(`+${g.xp} XP`, 'xp', g.motivo)
     const fila = g.conquistas
     set(s => ({
-      levelUp: g.subiuNivel ? g.nivel : s.levelUp,
+      levelUp: g.subiuNivel ? { nivel: g.nivel, subiuRank: g.subiuRank } : s.levelUp,
       filaConquistas: [...s.filaConquistas, ...fila],
     }))
     if (!get().conquista) get().proximaConquista()

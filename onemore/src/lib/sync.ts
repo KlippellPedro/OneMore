@@ -16,7 +16,7 @@ export interface Backup {
 }
 
 const TABELAS = [
-  'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos',
+  'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos', 'dietas',
   'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
 ] as const
 
