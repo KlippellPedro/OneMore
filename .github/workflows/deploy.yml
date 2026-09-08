@@ -19,9 +19,6 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: onemore
     steps:
       - uses: actions/checkout@v4
 
@@ -29,13 +26,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: onemore/package-lock.json
 
       - run: npm ci
 
       - name: Descobrir o caminho base
         id: base
-        working-directory: .
         # repo chamado usuario.github.io fica na raiz; qualquer outro fica em
         # /nome-do-repo/, e o build precisa saber disso pros caminhos baterem
         run: |
@@ -51,7 +46,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: onemore/dist
+          path: dist
 
   deploy:
     needs: build

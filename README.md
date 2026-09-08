@@ -13,7 +13,6 @@ metas e o catálogo completo. Não abre num formulário em branco.
 ## Rodando
 
 ```bash
-cd onemore
 npm install
 npm run dev
 ```
