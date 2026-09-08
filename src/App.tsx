@@ -19,6 +19,7 @@ import Alimentos from './pages/Alimentos'
 import Diario from './pages/Diario'
 import ImprimirDiario from './pages/ImprimirDiario'
 import ImprimirDieta from './pages/ImprimirDieta'
+import ListaCompras from './pages/ListaCompras'
 import Progresso from './pages/Progresso'
 import Perfil from './pages/Perfil'
 
@@ -131,6 +132,7 @@ export default function App() {
           <Route path="/dieta" element={<Dieta />} />
           <Route path="/dieta/plano" element={<PlanoAlimentar />} />
           <Route path="/dieta/imprimir" element={<ImprimirDieta />} />
+          <Route path="/dieta/compras/imprimir" element={<ListaCompras />} />
           <Route path="/alimentos" element={<Alimentos />} />
           <Route path="/diario" element={<Diario />} />
           <Route path="/diario/imprimir" element={<ImprimirDiario />} />

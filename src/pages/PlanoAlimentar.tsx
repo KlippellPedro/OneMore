@@ -5,6 +5,7 @@ import { macrosDe, somaMacros, paraGramas, ZERO } from '../lib/nutricao'
 import { gerarPlano, paraPlanoRefeicao } from '../lib/gerarPlano'
 import { DIETAS_PRONTAS, type DietaPronta } from '../db/dietasProntas'
 import { SeletorAlimento, SheetQuantidade } from '../components/SeletorAlimento'
+import { SheetSubstituir, type AlvoTroca } from '../components/Substituicoes'
 import { SheetMetas } from '../components/SheetMetas'
 import { Cabecalho } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Confirmar, Barra, Vazio } from '../components/ui'
@@ -32,6 +33,7 @@ export default function PlanoAlimentar() {
   const [alinhar, setAlinhar] = useState(false)
   const [editarMetas, setEditarMetas] = useState(false)
   const [dietaPronta, setDietaPronta] = useState<DietaPronta | null>(null)
+  const [trocar, setTrocar] = useState<{ plano: PlanoRefeicao; idx: number; alvo: AlvoTroca } | null>(null)
 
   // dietas salvas
   const [salvarNome, setSalvarNome] = useState<string | null>(null)
@@ -85,6 +87,16 @@ export default function PlanoAlimentar() {
     })
     setAlinhar(false)
     toast('Metas ajustadas ao plano', 'ok')
+  }
+
+  /** Substitui um item do cardapio por um equivalente, ja na porcao sugerida. */
+  async function trocarItem(plano: PlanoRefeicao, idx: number, a: Alimento, qtd: number, medida: string) {
+    const antigo = mapa.get(plano.itens[idx].alimentoId)?.nome ?? 'Item'
+    const itens = [...plano.itens]
+    itens[idx] = { alimentoId: a.id, qtd, medida, gramas: paraGramas(a, qtd, medida) }
+    await db.planos.update(plano.id, { itens, atualizadoEm: Date.now() })
+    setTrocar(null)
+    toast(`${antigo} trocado por ${a.nome}`, 'ok')
   }
 
   async function criarRefeicao() {
@@ -375,6 +387,16 @@ export default function PlanoAlimentar() {
           medidaInicial={editando.plano.itens[editando.idx].medida}
           textoBotao="Salvar"
           textoRemover="Remover"
+          extra={
+            <Btn className="w-full mb-3" onClick={() => {
+              const { plano, idx } = editando
+              const it = plano.itens[idx]
+              const a = mapa.get(it.alimentoId)
+              if (!a) return
+              setTrocar({ plano, idx, alvo: { alimento: a, qtd: it.qtd, medida: it.medida, gramas: it.gramas } })
+              setEditando(null)
+            }}>Ver equivalentes</Btn>
+          }
           fechar={() => setEditando(null)}
           onRemover={async () => {
             const { plano, idx } = editando
@@ -394,6 +416,13 @@ export default function PlanoAlimentar() {
             setEditando(null)
           }} />
       )}
+
+      <SheetSubstituir alvo={trocar?.alvo ?? null} fechar={() => setTrocar(null)}
+        priorizarCarbo={perfil.diabetesTipo1 === true}
+        acaoTexto="Toque num equivalente pra trocar no cardapio"
+        onEscolher={sub => {
+          if (trocar) trocarItem(trocar.plano, trocar.idx, sub.alimento, sub.qtd, sub.medida)
+        }} />
 
       <SheetMetas aberto={editarMetas} fechar={() => setEditarMetas(false)} perfil={perfil} />
 

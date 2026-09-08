@@ -141,11 +141,13 @@ export function volumeSessao(s: Sessao) {
 
 export async function registrarAlimento(
   data: string, refeicao: string, alimento: Alimento, qtd: number, medida: string,
+  /** Item do plano que esse lancamento veio substituir, se for uma troca. */
+  noLugarDe?: string,
 ) {
   const gramas = paraGramas(alimento, qtd, medida)
   await db.dieta.put({
     id: uid(), data, refeicao, alimentoId: alimento.id,
-    qtd, medida, gramas, ts: Date.now(), atualizadoEm: Date.now(),
+    qtd, medida, gramas, noLugarDe, ts: Date.now(), atualizadoEm: Date.now(),
   })
   return macrosDe(alimento, gramas)
 }

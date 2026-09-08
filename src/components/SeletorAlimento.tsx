@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { db } from '../db'
 import { useAlimentos } from '../state/hooks'
 import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
@@ -73,7 +73,7 @@ export function SeletorAlimento({ aberto, fechar, onEscolher, titulo = 'Adiciona
 }
 
 /** Passo 2: dizer quanto. */
-export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, medidaInicial, textoBotao = 'Adicionar', onRemover, textoRemover = 'Remover' }: {
+export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, medidaInicial, textoBotao = 'Adicionar', onRemover, textoRemover = 'Remover', extra }: {
   alimento: Alimento | null
   fechar: () => void
   onConfirmar: (qtd: number, medida: string) => void
@@ -83,6 +83,8 @@ export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, med
   /** Quando existe, a sheet ganha a acao de tirar o item de onde ele esta. */
   onRemover?: () => void
   textoRemover?: string
+  /** Acao extra acima dos botoes - usada pra abrir os equivalentes. */
+  extra?: ReactNode
 }) {
   const [qtd, setQtd] = useState(100)
   const [medida, setMedida] = useState('g')
@@ -137,6 +139,8 @@ export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, med
         <Bloco rotulo="Carb" valor={n1(m.carb) + 'g'} />
         <Bloco rotulo="Gord" valor={n1(m.gord) + 'g'} />
       </div>
+
+      {extra}
 
       <div className="flex gap-2">
         {onRemover && (

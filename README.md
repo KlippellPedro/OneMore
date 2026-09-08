@@ -68,6 +68,14 @@ Instalado, ele abre em tela cheia, sem barra de navegador, e funciona sem intern
   (colher de sopa, concha, fatia, unidade, scoop…) — dá pra registrar sem balança
 - Diário por dia e por refeição, com navegação entre datas
 - **Plano alimentar**: monta o cardápio padrão de cada refeição e lança tudo com um toque
+- **Substituições**: toca num alimento e vê o que dá pra comer no lugar, com a porção
+  já ajustada pra entregar o mesmo tanto do macro que importa — "não tenho aveia agora"
+  vira "6 torradas integrais (48 g), mesmos 34 g de carbo"
+- Refeição pode ser comida em pedaços: troca um item e o resto do plano continua ali,
+  esperando o "comi o resto da refeição"
+- **Lista de compras em PDF**: junta o cardápio inteiro num só lugar, agrupado por
+  corredor de mercado, multiplicado pelos dias que você escolher (1 a 30) e com as
+  trocas de cada item — dá pra marcar o que já tem em casa antes de imprimir
 - Copiar o dia de ontem inteiro
 - Calcula TMB (Mifflin-St Jeor) e gasto diário, e sugere kcal + macros pro seu objetivo
 - Cadastro de alimentos próprios, com validação: se os macros não batem com as
@@ -79,6 +87,8 @@ O app é usado por quem conta carboidrato pra dosar insulina, então o carboidra
 não é "mais um macro":
 
 - **Carboidrato em destaque** em cada refeição e em cada alimento, antes das calorias
+- As substituições travam no **carboidrato** sempre que o alimento tem carbo pra valer:
+  a troca mantém a dose, não a caloria
 - O cardápio gerado mantém o **carboidrato parecido entre as refeições** (≈ 60 g cada,
   em vez de concentrar tudo no almoço) — dose previsível vale mais do que otimizar timing
 - **Registro de glicemia** com contexto (jejum, pré-treino, pós-treino, hipo…), insulina

@@ -136,6 +136,11 @@ export interface RegistroDieta {
   qtd: number
   medida: string
   gramas: number
+  /**
+   * Id do alimento do plano que esse registro substituiu. Sem isso o item
+   * trocado continuaria aparecendo como pendente na refeicao.
+   */
+  noLugarDe?: string
   ts: number
   atualizadoEm: number
 }

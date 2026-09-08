@@ -46,6 +46,28 @@ export function totalDoPlano(
   }))
 }
 
+/**
+ * Itens do plano que ainda nao foram lancados no diario. Deixa a refeicao ser
+ * comida em pedacos (trocando um item, comendo o resto depois) sem sumir com o
+ * que falta nem duplicar o que ja entrou.
+ */
+export function pendentesDoPlano(
+  itens: ItemRefeicao[],
+  registros: RegistroDieta[],
+): ItemRefeicao[] {
+  const jaLancados = new Map<string, number>()
+  for (const r of registros) {
+    // um item trocado por equivalente aponta pro alimento que ele substituiu
+    const chave = r.noLugarDe ?? r.alimentoId
+    jaLancados.set(chave, (jaLancados.get(chave) ?? 0) + 1)
+  }
+  return itens.filter(i => {
+    const n = jaLancados.get(i.alimentoId) ?? 0
+    if (n > 0) { jaLancados.set(i.alimentoId, n - 1); return false }
+    return true
+  })
+}
+
 /** Converte uma quantidade numa medida caseira para gramas. */
 export function paraGramas(a: Alimento, qtd: number, medida: string): number {
   if (medida === 'g' || medida === 'ml') return qtd
