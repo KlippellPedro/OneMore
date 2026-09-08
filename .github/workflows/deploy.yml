@@ -1,0 +1,64 @@
+name: Publicar no GitHub Pages
+
+on:
+  push:
+    branches: [master, main]
+  # permite publicar na mao pela aba Actions
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# uma publicacao por vez; se empurrar de novo no meio, a nova espera a atual
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: onemore
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: onemore/package-lock.json
+
+      - run: npm ci
+
+      - name: Descobrir o caminho base
+        id: base
+        working-directory: .
+        # repo chamado usuario.github.io fica na raiz; qualquer outro fica em
+        # /nome-do-repo/, e o build precisa saber disso pros caminhos baterem
+        run: |
+          if [[ "${{ github.event.repository.name }}" == *.github.io ]]; then
+            echo "caminho=/" >> "$GITHUB_OUTPUT"
+          else
+            echo "caminho=/${{ github.event.repository.name }}/" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: npm run build -- --base=${{ steps.base.outputs.caminho }}
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: onemore/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
