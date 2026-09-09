@@ -167,6 +167,43 @@ export interface EventoXP {
   data: string            // YYYY-MM-DD
 }
 
+/* ------------------------------------------------------------------ */
+/* LEMBRETES                                                           */
+/* ------------------------------------------------------------------ */
+
+export type TipoLembrete = 'agua' | 'refeicao' | 'treino' | 'glicemia'
+
+export interface ConfigLembretes {
+  /** Chave geral: desliga tudo sem perder a configuracao de cada um. */
+  ativo: boolean
+  agua: { ativo: boolean; intervaloMin: number; inicio: string; fim: string }
+  /** Usa os horarios do plano alimentar; so escolhe a antecedencia. */
+  refeicoes: { ativo: boolean; antecedenciaMin: number }
+  treino: { ativo: boolean; horario: string; dias: number[]; antecedenciaMin: number }
+  glicemia: { ativo: boolean; horarios: string[] }
+}
+
+/**
+ * Um aviso agendado. Fica numa tabela propria (nao entra no backup) porque e
+ * coisa deste aparelho: o service worker le daqui pra avisar com o app fechado.
+ */
+export interface Lembrete {
+  id: string
+  tipo: TipoLembrete
+  /** Quando deve tocar. */
+  ts: number
+  data: string            // YYYY-MM-DD do dia a que se refere
+  titulo: string
+  corpo: string
+  /** Rota que abre ao tocar na notificacao. */
+  rota: string
+  /** Nome da refeicao, quando for lembrete de refeicao. */
+  ref?: string
+  /** Meta de agua do dia, pro service worker saber se ainda falta beber. */
+  metaMl?: number
+  disparadoEm?: number
+}
+
 export interface Perfil {
   id: 'me'
   nome: string
@@ -186,6 +223,7 @@ export interface Perfil {
   metaTreinosSemana: number
   /** Liga os recursos de glicemia e destaque de carboidrato. */
   diabetesTipo1?: boolean
+  lembretes?: ConfigLembretes
   xp: number
   streak: number
   melhorStreak: number

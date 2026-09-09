@@ -2,6 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type {
   Exercicio, Rotina, Sessao, Alimento, PlanoRefeicao, DietaSalva,
   RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
+  Lembrete,
 } from './types'
 
 export class OneMoreDB extends Dexie {
@@ -17,6 +18,7 @@ export class OneMoreDB extends Dexie {
   agua!: Table<Agua, string>
   glicemia!: Table<RegistroGlicemia, string>
   dietas!: Table<DietaSalva, string>
+  lembretes!: Table<Lembrete, string>
 
   constructor() {
     super('onemore')
@@ -41,6 +43,11 @@ export class OneMoreDB extends Dexie {
     // v3: cardapios salvos com nome, pra ter mais de uma dieta e alternar
     this.version(3).stores({
       dietas: 'id, nome, atualizadoEm',
+    })
+
+    // v4: agenda de lembretes - o service worker le essa tabela direto
+    this.version(4).stores({
+      lembretes: 'id, ts, tipo',
     })
   }
 }

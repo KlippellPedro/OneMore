@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
+import { iniciarLembretes } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
 import { Icone } from './components/Icone'
 import { useSessaoAtiva, usePerfil } from './state/hooks'
@@ -22,6 +23,7 @@ import ImprimirDieta from './pages/ImprimirDieta'
 import ListaCompras from './pages/ListaCompras'
 import Progresso from './pages/Progresso'
 import Perfil from './pages/Perfil'
+import Lembretes from './pages/Lembretes'
 
 const TABS_BASE = [
   { to: '/', label: 'Inicio', icone: 'casa' },
@@ -97,6 +99,12 @@ export default function App() {
     rodarSeed().then(() => setPronto(true)).catch(e => setErro(String(e)))
   }, [])
 
+  // rodizio dos lembretes: so faz algo depois que o usuario liberou notificacao
+  useEffect(() => {
+    if (!pronto) return
+    return iniciarLembretes()
+  }, [pronto])
+
   if (erro) {
     return (
       <div className="min-h-full flex items-center justify-center p-8 text-center">
@@ -138,6 +146,7 @@ export default function App() {
           <Route path="/diario/imprimir" element={<ImprimirDiario />} />
           <Route path="/progresso" element={<Progresso />} />
           <Route path="/perfil" element={<Perfil />} />
+          <Route path="/lembretes" element={<Lembretes />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Miolo>

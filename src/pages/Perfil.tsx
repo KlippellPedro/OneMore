@@ -82,6 +82,11 @@ export default function Perfil() {
             onClick={() => setAberto('metas')} />
         </Grupo>
 
+        <Grupo titulo="Avisos">
+          <LinhaLink to="/lembretes" titulo="Lembretes"
+            sub="Agua, refeicao, treino e glicemia no celular" />
+        </Grupo>
+
         <Grupo titulo="Saude">
           <Linha titulo="Diabetes tipo 1"
             sub={perfil.diabetesTipo1

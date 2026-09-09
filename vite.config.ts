@@ -34,6 +34,9 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: 'index.html',
+        // o sw.js gerado nao sabe nada de lembrete: esse arquivo e quem mostra
+        // a notificacao quando o Android acorda o app com ele fechado
+        importScripts: ['lembretes-sw.js'],
       },
     }),
   ],

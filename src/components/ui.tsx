@@ -240,6 +240,22 @@ export function Chip({ ativo, onClick, children, cor }: {
   )
 }
 
+/** Liga/desliga. O mesmo botao que ja existia na tela de saude. */
+export function Switch({ ligado, onChange, rotulo }: {
+  ligado: boolean; onChange: (v: boolean) => void; rotulo?: string
+}) {
+  return (
+    <button onClick={() => onChange(!ligado)} role="switch" aria-checked={ligado} aria-label={rotulo}
+      className={`w-12 h-7 shrink-0 rounded-full transition-colors relative ${
+        ligado ? 'grad-accent' : 'bg-surface-2 border border-line'
+      }`}>
+      <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
+        ligado ? 'left-6' : 'left-1'
+      }`} />
+    </button>
+  )
+}
+
 export function Vazio({ icone, titulo, texto, acao }: {
   /** Nome do icone em components/Icone.tsx. */
   icone: string; titulo: string; texto?: string; acao?: ReactNode

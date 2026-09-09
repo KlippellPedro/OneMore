@@ -82,6 +82,23 @@ Instalado, ele abre em tela cheia, sem barra de navegador, e funciona sem intern
   calorias que você digitou, ele avisa
 - Controle de água
 
+### Lembretes no celular
+Em **Perfil > Lembretes**. O app monta uma agenda e avisa:
+
+- **Água** de X em X horas dentro da sua janela do dia, dizendo quanto falta pra meta
+- **Refeições** nos horários do plano alimentar, com a antecedência que você escolher
+- **Treino** nos dias e horário que você marcar
+- **Glicemia** nos horários que você cadastrar
+
+Aviso que não faz mais sentido não sai: se você já bateu a meta de água, já lançou
+aquela refeição, já treinou no dia ou já mediu a glicemia por perto do horário, ele
+fica quieto.
+
+Com o app **aberto**, o disparo é no minuto certo. Com o app **fechado**, quem acorda
+o OneMore é o Android (Periodic Background Sync, só com o app instalado na tela de
+início) — então pode atrasar. Aviso na hora exata com o app fechado exige um servidor
+de push; o agendamento já está pronto pra plugar um.
+
 ### Diabetes tipo 1
 O app é usado por quem conta carboidrato pra dosar insulina, então o carboidrato
 não é "mais um macro":
