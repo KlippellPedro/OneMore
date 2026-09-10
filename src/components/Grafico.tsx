@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useId, useMemo } from 'react'
 import { n0, n1, dataNumerica } from '../lib/format'
 
 export interface Ponto { x: string; y: number }
@@ -15,6 +15,10 @@ export function Grafico({ pontos, cor = 'var(--color-accent)', sufixo = '', altu
   /** Forca o eixo Y a comecar no zero (bom pra volume, ruim pra peso corporal). */
   minimoZero?: boolean
 }) {
+  // id derivado dos dados colidia entre dois graficos com mesma contagem de
+  // pontos e mesmo maximo - os dois passavam a usar o mesmo gradiente.
+  // Fica aqui em cima porque abaixo tem um return antecipado.
+  const gid = `grad${useId().replace(/:/g, '')}`
   const W = 320
   const H = altura
   const padY = 18
@@ -49,7 +53,6 @@ export function Grafico({ pontos, cor = 'var(--color-accent)', sufixo = '', altu
   }
 
   const fmt = (v: number) => (v >= 100 ? n0(v) : n1(v)) + sufixo
-  const gid = `g${Math.round(pontos.length * 977 + max)}`
 
   return (
     <div>

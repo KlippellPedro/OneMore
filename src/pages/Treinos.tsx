@@ -38,7 +38,7 @@ export default function Treinos() {
     const id = uid()
     await db.rotinas.put({
       id, nome: nome.trim(), cor, dias: [], itens: [],
-      ordem: rotinas.length, atualizadoEm: Date.now(),
+      ordem: rotinas.length, arquivada: 0, atualizadoEm: Date.now(),
     })
     setNovo(false); setNome(''); setCor(CORES[0])
     nav(`/treinos/${id}`)
@@ -58,6 +58,7 @@ export default function Treinos() {
       dias: [],
       itens: r.itens.map(i => ({ ...i })),
       ordem: rotinas.length,
+      arquivada: 0,
       atualizadoEm: Date.now(),
     })
     vibrar()
@@ -165,14 +166,14 @@ export default function Treinos() {
                             {r.dias?.length ? ' - ' + r.dias.map(diaCurto).join(', ') : ' - sem dia fixo'}
                           </p>
                         </Link>
-                        <div className="flex items-center gap-0.5 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button onClick={() => duplicar(r)} aria-label="Duplicar treino"
-                            className="w-8 h-8 rounded-lg text-muted active:bg-surface-2 flex items-center justify-center">
-                            <Icone nome="copiar" tamanho={16} />
+                            className="w-11 h-11 rounded-lg text-muted active:bg-surface-2 flex items-center justify-center">
+                            <Icone nome="copiar" tamanho={17} />
                           </button>
                           <button onClick={() => setApagar(r.id)} aria-label="Apagar treino"
-                            className="w-8 h-8 rounded-lg text-muted active:bg-surface-2 text-lg leading-none flex items-center justify-center">
-                            ×
+                            className="w-11 h-11 rounded-lg text-muted active:bg-surface-2 active:text-bad flex items-center justify-center">
+                            <Icone nome="lixeira" tamanho={17} />
                           </button>
                         </div>
                       </div>
@@ -252,7 +253,7 @@ export default function Treinos() {
         <Campo label="Cor">
           <div className="flex gap-2 flex-wrap">
             {CORES.map(c => (
-              <button key={c} onClick={() => setCor(c)} className="w-9 h-9 rounded-xl"
+              <button key={c} onClick={() => setCor(c)} aria-label={`Cor ${c}`} className="w-11 h-11 rounded-xl"
                 style={{ background: c, boxShadow: cor === c ? `0 0 0 3px var(--color-bg-soft), 0 0 0 5px ${c}` : undefined }} />
             ))}
           </div>

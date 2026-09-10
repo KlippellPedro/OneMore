@@ -84,7 +84,7 @@ export default function Exercicios() {
                       </p>
                     </div>
                   </Link>
-                  <BotaoFavorito ativo={e.favorito} className="w-10 h-10 rounded-xl"
+                  <BotaoFavorito ativo={e.favorito} className="toque w-10 h-10 rounded-xl"
                     onClick={() => db.exercicios.update(e.id, { favorito: !e.favorito })} />
                 </div>
               ))}
@@ -94,15 +94,15 @@ export default function Exercicios() {
 
         <p className="text-[10.5px] text-muted/70 leading-relaxed text-center px-2 pb-4 pt-2">
           Ilustracoes de execucao por{' '}
-          <a href={CREDITO_IMAGENS.autorUrl} target="_blank" rel="noreferrer" className="underline">
+          <a href={CREDITO_IMAGENS.autorUrl} target="_blank" rel="noreferrer" className="underline inline-block py-1.5">
             {CREDITO_IMAGENS.autor}
           </a>{' '}
           a partir do{' '}
-          <a href={CREDITO_IMAGENS.fonteUrl} target="_blank" rel="noreferrer" className="underline">
+          <a href={CREDITO_IMAGENS.fonteUrl} target="_blank" rel="noreferrer" className="underline inline-block py-1.5">
             {CREDITO_IMAGENS.fonte}
           </a>
           , sob{' '}
-          <a href={CREDITO_IMAGENS.licencaUrl} target="_blank" rel="noreferrer" className="underline">
+          <a href={CREDITO_IMAGENS.licencaUrl} target="_blank" rel="noreferrer" className="underline inline-block py-1.5">
             {CREDITO_IMAGENS.licenca}
           </a>.
         </p>

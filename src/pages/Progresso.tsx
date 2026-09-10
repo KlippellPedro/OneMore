@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, hoje, isoDia, diaMais } from '../db'
 import { usePerfil, useNivel } from '../state/hooks'
@@ -14,6 +15,7 @@ import { n0, n1, pl, peso, dataCurta, duracao, dataNumerica } from '../lib/forma
 type Aba = 'treino' | 'corpo' | 'conquistas'
 
 export default function Progresso() {
+  const nav = useNavigate()
   const { celebrar, toast } = useUI()
   const perfil = usePerfil()
   const { nivel, rank, progresso, xpNoNivel, xpParaProximo } = useNivel()
@@ -22,7 +24,7 @@ export default function Progresso() {
 
   const stats = useLiveQuery(() => coletarStats(perfil), [perfil.xp, perfil.conquistas.length])
   const sessoes = useLiveQuery(async () => {
-    const s = await db.sessoes.filter(x => x.concluida).toArray()
+    const s = await db.sessoes.where('concluida').equals(1).toArray()
     return s.sort((a, b) => b.inicio - a.inicio)
   }, [], []) ?? []
   const corpo = useLiveQuery(() => db.corpo.orderBy('data').toArray(), [], []) ?? []
@@ -137,7 +139,7 @@ export default function Progresso() {
             ) : (
               <div className="space-y-2 pb-4">
                 {sessoes.slice(0, 40).map(s => (
-                  <Card key={s.id} className="p-3.5">
+                  <Card key={s.id} className="p-3.5" onClick={() => nav(`/historico/${s.id}`)}>
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-[13.5px] font-semibold truncate">{s.nome}</p>
@@ -148,9 +150,12 @@ export default function Progresso() {
                         </p>
                         {s.notas && <p className="text-[11.5px] text-muted/80 mt-1 italic">{s.notas}</p>}
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-[13px] font-bold">{peso(volumeSessao(s))}</p>
-                        <p className="text-[11px] text-xp font-semibold">+{s.xpGanho ?? 0} XP</p>
+                      <div className="text-right shrink-0 flex items-center gap-2">
+                        <div>
+                          <p className="text-[13px] font-bold">{peso(volumeSessao(s))}</p>
+                          <p className="text-[11px] text-xp font-semibold">+{s.xpGanho ?? 0} XP</p>
+                        </div>
+                        <span className="text-muted">›</span>
                       </div>
                     </div>
                   </Card>

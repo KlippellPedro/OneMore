@@ -5,7 +5,7 @@ import { db } from '../db'
 import { useMapaExercicios } from '../state/hooks'
 import {
   concluirSessao, descartarSessao, ultimaCarga, recordeDe, volumeSessao,
-  type ResumoSessao,
+  renumerarSeries, type ResumoSessao, type Recorde,
 } from '../lib/acoes'
 import { corGrupo } from '../db/seedExercicios'
 import { Seletor } from '../components/SeletorExercicio'
@@ -15,6 +15,8 @@ import { ImagemExercicio } from '../components/ImagemExercicio'
 import { useUI, vibrar } from '../state/ui'
 import { tempo, duracao, peso, n0 } from '../lib/format'
 import type { SerieLog } from '../db/types'
+
+const SEM_RECORDE: Recorde = { carga: 0, reps: 0, volume: 0 }
 
 /* ------------------------------------------------------------------ */
 /* CRONOMETRO DE DESCANSO                                              */
@@ -73,7 +75,8 @@ export default function Sessao() {
   const { id = '' } = useParams()
   const nav = useNavigate()
   const { celebrar, toast } = useUI()
-  const sessao = useLiveQuery(() => db.sessoes.get(id), [id])
+  // `?? null` separa "carregando" de "nao existe" - ver DetalheSessao
+  const sessao = useLiveQuery(() => db.sessoes.get(id).then(s => s ?? null), [id])
   const mapaEx = useMapaExercicios()
   const rotina = useLiveQuery(
     () => (sessao?.rotinaId ? db.rotinas.get(sessao.rotinaId) : undefined),
@@ -83,11 +86,12 @@ export default function Sessao() {
   const descanso = useDescanso()
   const [agora, setAgora] = useState(Date.now())
   const [seletor, setSeletor] = useState(false)
+  const [removerEx, setRemoverEx] = useState<string | null>(null)
   const [confirmarFim, setConfirmarFim] = useState(false)
   const [confirmarSair, setConfirmarSair] = useState(false)
   const [resumo, setResumo] = useState<ResumoSessao | null>(null)
   const [notas, setNotas] = useState(false)
-  const [recordes, setRecordes] = useState<Record<string, number>>({})
+  const [recordes, setRecordes] = useState<Record<string, Recorde>>({})
   const [anteriores, setAnteriores] = useState<Record<string, { carga: number; reps: number } | null>>({})
 
   useEffect(() => {
@@ -104,10 +108,10 @@ export default function Sessao() {
     if (!idsEx) return
     let vivo = true
     ;(async () => {
-      const recs: Record<string, number> = {}
+      const recs: Record<string, Recorde> = {}
       const ants: Record<string, { carga: number; reps: number } | null> = {}
       for (const exId of idsEx.split(',')) {
-        recs[exId] = (await recordeDe(exId, id)).carga
+        recs[exId] = await recordeDe(exId)
         ants[exId] = await ultimaCarga(exId)
       }
       if (vivo) { setRecordes(recs); setAnteriores(ants) }
@@ -115,8 +119,16 @@ export default function Sessao() {
     return () => { vivo = false }
   }, [idsEx, id])
 
-  if (!sessao) {
+  if (sessao === undefined) {
     return <div className="p-10 text-center text-muted text-sm">Carregando treino...</div>
+  }
+  if (sessao === null) {
+    return (
+      <div className="p-10 text-center">
+        <p className="text-sm text-muted mb-4">Esse treino nao existe mais.</p>
+        <Btn variant="primary" onClick={() => nav('/')}>Voltar ao inicio</Btn>
+      </div>
+    )
   }
   if (sessao.concluida && !resumo) {
     return (
@@ -160,11 +172,19 @@ export default function Sessao() {
     await alterar(i, { feito: true, ts: Date.now() })
 
     // recorde novo? avisa na hora - e o momento de maior dopamina do treino
-    const rec = recordes[s.exercicioId] ?? 0
-    if (!s.aquecimento && rec > 0 && s.carga > rec) {
-      setRecordes(r => ({ ...r, [s.exercicioId]: s.carga }))
-      toast('RECORDE PESSOAL!', 'xp', `${s.carga} kg - antes era ${rec} kg`)
-      vibrar([40, 60, 40, 60, 120])
+    const rec = recordes[s.exercicioId] ?? SEM_RECORDE
+    const volume = s.carga * s.reps
+    if (!s.aquecimento && rec.carga > 0) {
+      if (s.carga > rec.carga) {
+        setRecordes(r => ({ ...r, [s.exercicioId]: { ...rec, carga: s.carga, reps: s.reps, volume: Math.max(rec.volume, volume) } }))
+        toast('RECORDE PESSOAL!', 'xp', `${s.carga} kg - antes era ${rec.carga} kg`)
+        vibrar([40, 60, 40, 60, 120])
+      } else if (volume > rec.volume) {
+        // mesma carga, mais repeticoes: antes isso passava batido
+        setRecordes(r => ({ ...r, [s.exercicioId]: { ...rec, volume } }))
+        toast('MELHOR SERIE!', 'xp', `${s.carga} kg x ${s.reps} - mais que qualquer outra`)
+        vibrar([30, 50, 30, 80])
+      }
     }
 
     // descanso automatico com o tempo da rotina
@@ -181,11 +201,16 @@ export default function Sessao() {
       exercicioId, serie: doEx.length + 1,
       reps: ultima?.reps ?? 0, carga: ultima?.carga ?? 0, feito: false,
     })
-    await salvar(renumerar(series))
+    await salvar(renumerarSeries(series))
   }
 
   async function removerSerie(i: number) {
-    await salvar(renumerar(sessao!.series.filter((_, k) => k !== i)))
+    await salvar(renumerarSeries(sessao!.series.filter((_, k) => k !== i)))
+  }
+
+  /** Tira o exercicio inteiro - todas as series dele - de dentro da sessao. */
+  async function removerExercicio(exercicioId: string) {
+    await salvar(renumerarSeries(sessao!.series.filter(s => s.exercicioId !== exercicioId)))
   }
 
   async function finalizar() {
@@ -203,7 +228,7 @@ export default function Sessao() {
       <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur-lg border-b border-line safe-t">
         <div className="flex items-center gap-2 px-3 h-14">
           <button onClick={() => setConfirmarSair(true)}
-            className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-muted active:bg-surface-2 text-lg">
+            className="toque w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-muted active:bg-surface-2 text-lg">
             ×
           </button>
           <div className="flex-1 min-w-0">
@@ -234,7 +259,7 @@ export default function Sessao() {
           const ex = mapaEx.get(g.exercicioId)
           const item = rotina?.itens.find(it => it.exercicioId === g.exercicioId)
           const ant = anteriores[g.exercicioId]
-          const rec = recordes[g.exercicioId] ?? 0
+          const rec = recordes[g.exercicioId] ?? SEM_RECORDE
           return (
             <Card key={g.exercicioId} className="p-3">
               <div className="flex items-start gap-2.5 mb-3">
@@ -251,10 +276,15 @@ export default function Sessao() {
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-muted">
                     {item && <span>alvo {item.series}x{item.repsAlvo}</span>}
                     {ant && <span>anterior {ant.carga} kg x {ant.reps}</span>}
-                    {rec > 0 && <span className="text-xp">recorde {rec} kg</span>}
+                    {rec.carga > 0 && <span className="text-xp">recorde {rec.carga} kg</span>}
                   </div>
                   {item?.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
                 </div>
+                <button onClick={() => setRemoverEx(g.exercicioId)}
+                  aria-label={`Tirar ${ex?.nome ?? 'exercicio'} do treino`}
+                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted active:bg-bad/15 active:text-bad">
+                  <Icone nome="lixeira" tamanho={16} />
+                </button>
               </div>
 
               <div className="space-y-1.5">
@@ -267,7 +297,8 @@ export default function Sessao() {
                 {g.series.map(({ s, i }) => (
                   <LinhaSerie
                     key={i} serie={s}
-                    ehRecorde={!s.aquecimento && rec > 0 && s.carga > rec}
+                    ehRecorde={!s.aquecimento && rec.carga > 0
+                      && (s.carga > rec.carga || s.carga * s.reps > rec.volume)}
                     onCarga={v => alterar(i, { carga: v })}
                     onReps={v => alterar(i, { reps: v })}
                     onMarcar={() => marcar(i)}
@@ -278,7 +309,7 @@ export default function Sessao() {
               </div>
 
               <button onClick={() => addSerie(g.exercicioId)}
-                className="w-full mt-2 h-9 rounded-xl text-[12.5px] font-semibold text-muted bg-surface-2/60 active:bg-surface-2">
+                className="w-full mt-2 h-11 rounded-xl text-[12.5px] font-semibold text-muted bg-surface-2/60 active:bg-surface-2">
                 + Adicionar serie
               </button>
             </Card>
@@ -326,8 +357,8 @@ export default function Sessao() {
           }))
           await salvar([...sessao.series, ...novas])
           setAnteriores(a => ({ ...a, [ex.id]: ant }))
-          setRecordes(r => ({ ...r, [ex.id]: 0 }))
-          recordeDe(ex.id, id).then(rec => setRecordes(r => ({ ...r, [ex.id]: rec.carga })))
+          setRecordes(r => ({ ...r, [ex.id]: SEM_RECORDE }))
+          recordeDe(ex.id).then(rec => setRecordes(r => ({ ...r, [ex.id]: rec })))
           setSeletor(false)
         }} />
 
@@ -337,6 +368,25 @@ export default function Sessao() {
           onBlur={e => db.sessoes.update(id, { notas: e.target.value })} />
         <Btn variant="primary" className="w-full mt-3" onClick={() => setNotas(false)}>Pronto</Btn>
       </Sheet>
+
+      <Confirmar aberto={!!removerEx} perigo titulo="Tirar do treino?"
+        texto={(() => {
+          if (!removerEx) return undefined
+          const nome = mapaEx.get(removerEx)?.nome ?? 'Esse exercicio'
+          const feitasEx = sessao.series.filter(s => s.exercicioId === removerEx && s.feito).length
+          return feitasEx > 0
+            ? `${nome} sai do treino de hoje e ${feitasEx === 1
+                ? 'a serie ja marcada nao vai contar'
+                : `as ${feitasEx} series ja marcadas nao vao contar`}.`
+            : `${nome} sai do treino de hoje. Da pra adicionar de novo depois.`
+        })()}
+        onNao={() => setRemoverEx(null)}
+        onSim={async () => {
+          const nome = mapaEx.get(removerEx!)?.nome
+          await removerExercicio(removerEx!)
+          setRemoverEx(null)
+          toast(nome ? `${nome} saiu do treino` : 'Exercicio removido', 'ok')
+        }} />
 
       <Confirmar aberto={confirmarFim} titulo="Finalizar treino?"
         texto={feitas < totalSeries
@@ -361,14 +411,6 @@ export default function Sessao() {
 
 /* ------------------------------------------------------------------ */
 
-function renumerar(series: SerieLog[]): SerieLog[] {
-  const cont: Record<string, number> = {}
-  return series.map(s => {
-    cont[s.exercicioId] = (cont[s.exercicioId] ?? 0) + 1
-    return { ...s, serie: cont[s.exercicioId] }
-  })
-}
-
 function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento, onRemover }: {
   serie: SerieLog; ehRecorde: boolean
   onCarga: (v: number) => void; onReps: (v: number) => void
@@ -380,8 +422,8 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
       <div className={`flex items-center gap-2 rounded-xl transition-colors ${
         serie.feito ? 'bg-good/10' : ''
       }`}>
-        <button onClick={() => setMenu(true)}
-          className={`w-8 h-10 shrink-0 rounded-lg text-[12px] font-bold ${
+        <button onClick={() => setMenu(true)} aria-label={`Opcoes da serie ${serie.serie}`}
+          className={`w-9 h-11 shrink-0 rounded-lg text-[12px] font-bold ${
             serie.aquecimento ? 'text-warn' : serie.feito ? 'text-good' : 'text-muted'
           }`}>
           {serie.aquecimento ? 'A' : serie.serie}
@@ -391,7 +433,7 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
         <NumInput valor={serie.reps} onChange={onReps} passo={1} feito={serie.feito} inteiro />
 
         <button onClick={onMarcar}
-          className={`w-10 h-10 shrink-0 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90 ${
+          className={`w-11 h-11 shrink-0 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90 ${
             serie.feito
               ? 'bg-good border-good text-[#0a0714]'
               : 'border-line text-muted active:border-accent'
@@ -422,9 +464,10 @@ function NumInput({ valor, onChange, passo, feito, inteiro, destaque }: {
   feito?: boolean; inteiro?: boolean; destaque?: boolean
 }) {
   return (
-    <div className="flex-1 flex items-center rounded-xl bg-bg-soft border border-line overflow-hidden h-10">
+    <div className="flex-1 flex items-center rounded-xl bg-bg-soft border border-line overflow-hidden h-11">
       <button onClick={() => onChange(Math.max(0, Number((valor - passo).toFixed(2))))}
-        className="w-8 h-full shrink-0 text-muted text-base active:bg-surface-2">-</button>
+        aria-label="Diminuir"
+        className="w-9 h-full shrink-0 text-muted text-base active:bg-surface-2">-</button>
       <input
         type="number" inputMode="decimal"
         value={valor === 0 ? '' : valor} placeholder="0"
@@ -436,7 +479,8 @@ function NumInput({ valor, onChange, passo, feito, inteiro, destaque }: {
           destaque ? 'text-xp' : feito ? 'text-good' : 'text-txt'
         }`} />
       <button onClick={() => onChange(Number((valor + passo).toFixed(2)))}
-        className="w-8 h-full shrink-0 text-muted text-base active:bg-surface-2">+</button>
+        aria-label="Aumentar"
+        className="w-9 h-full shrink-0 text-muted text-base active:bg-surface-2">+</button>
     </div>
   )
 }
@@ -470,14 +514,21 @@ function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
             <p className="text-[11px] font-bold uppercase tracking-widest text-xp mb-3">
               {resumo.prs.length} recorde{resumo.prs.length > 1 ? 's' : ''} pessoal{resumo.prs.length > 1 ? 'is' : ''}
             </p>
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {resumo.prs.map(pr => (
-                <div key={pr.exercicioId} className="flex items-center justify-between">
-                  <span className="text-[13.5px] font-semibold truncate pr-3">
-                    {mapaEx.get(pr.exercicioId)?.nome ?? 'Exercicio'}
-                  </span>
-                  <span className="text-[13px] font-bold text-xp shrink-0 tabular-nums">
-                    {pr.anterior} → {pr.carga} kg
+                <div key={pr.exercicioId} className="flex items-baseline justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13.5px] font-semibold truncate">
+                      {mapaEx.get(pr.exercicioId)?.nome ?? 'Exercicio'}
+                    </p>
+                    <p className="text-[10.5px] uppercase tracking-wider text-muted">
+                      {pr.tipo === 'carga' ? 'carga' : 'melhor serie'}
+                    </p>
+                  </div>
+                  <span className="text-[13px] font-bold text-xp shrink-0 tabular-nums text-right">
+                    {pr.tipo === 'carga'
+                      ? `${pr.anterior} → ${pr.valor} kg`
+                      : `${pr.carga} kg x ${pr.reps}`}
                   </span>
                 </div>
               ))}

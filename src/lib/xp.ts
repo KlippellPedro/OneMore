@@ -84,6 +84,22 @@ export function multiplicadorStreak(streak: number) {
   return 1 + Math.min(streak, 30) * 0.02
 }
 
+/**
+ * O streak que a pessoa REALMENTE tem agora.
+ *
+ * `perfil.streak` so e recalculado dentro do darXP, entao quem parou de usar o
+ * app fica com o numero congelado - a tela mostrava "12 dias" pra quem sumiu
+ * fazia uma semana, e prometia um multiplicador que o proximo darXP ia zerar.
+ * Aqui vale a mesma regra do darXP: ativo hoje ou ontem, o streak esta vivo;
+ * mais que isso, ja quebrou.
+ */
+export function streakVivo(
+  p: Pick<Perfil, 'streak' | 'ultimoDiaAtivo'>, hj = hoje(),
+): number {
+  if (!p.ultimoDiaAtivo || p.streak <= 0) return 0
+  return diffDias(p.ultimoDiaAtivo, hj) <= 1 ? p.streak : 0
+}
+
 export interface GanhoXP {
   xp: number
   motivo: string
@@ -197,8 +213,8 @@ export const CONQUISTAS: Conquista[] = [
   c('d7', 'Dieta na Regua', '7 dias batendo a meta de calorias', 'folha', 200, s => s.diasDieta, 7),
   c('d30', 'Chef do Shape', '30 dias batendo a meta de calorias', 'chapeu', 700, s => s.diasDieta, 30),
 
-  c('pr10', 'Mais Forte', 'Bata 10 recordes de carga', 'foguete', 250, s => s.prs, 10),
-  c('pr50', 'Evolucao Constante', 'Bata 50 recordes de carga', 'barras', 900, s => s.prs, 50),
+  c('pr10', 'Mais Forte', 'Bata 10 recordes pessoais', 'foguete', 250, s => s.prs, 10),
+  c('pr50', 'Evolucao Constante', 'Bata 50 recordes pessoais', 'barras', 900, s => s.prs, 50),
 
   c('ex20', 'Explorador', 'Treine 20 exercicios diferentes', 'bussola', 150, s => s.exerciciosDistintos, 20),
   c('p10', 'Sob Controle', 'Registre seu peso 10 vezes', 'balanca', 120, s => s.pesosRegistrados, 10),
@@ -212,7 +228,7 @@ export const CONQUISTAS: Conquista[] = [
 
 export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {
   const p = perfil ?? await getPerfil()
-  const sessoes = await db.sessoes.filter(s => s.concluida).toArray()
+  const sessoes = await db.sessoes.where('concluida').equals(1).toArray()
 
   let series = 0
   let volume = 0

@@ -19,7 +19,8 @@ export default function EditorRotina() {
   const { id = '' } = useParams()
   const nav = useNavigate()
   const { toast } = useUI()
-  const rotina = useLiveQuery(() => db.rotinas.get(id), [id])
+  // `?? null` separa "carregando" de "nao existe" - ver DetalheSessao
+  const rotina = useLiveQuery(() => db.rotinas.get(id).then(r => r ?? null), [id])
   const mapaEx = useMapaExercicios()
 
   const [seletor, setSeletor] = useState(false)
@@ -77,8 +78,18 @@ export default function EditorRotina() {
     }
   }, [arrastoId])
 
-  if (!rotina) {
+  if (rotina === undefined) {
     return <div className="p-10 text-center text-muted text-sm">Carregando...</div>
+  }
+  if (rotina === null) {
+    return (
+      <div>
+        <Cabecalho titulo="Treino" voltarPara="/treinos" />
+        <Vazio icone="prancheta" titulo="Treino nao encontrado"
+          texto="Ele pode ter sido apagado."
+          acao={<Btn variant="primary" onClick={() => nav('/treinos')}>Ver meus treinos</Btn>} />
+      </div>
+    )
   }
 
   const salvarItens = (itens: ItemRotina[]) =>
@@ -91,15 +102,6 @@ export default function EditorRotina() {
       atualizadoEm: Date.now(),
     })
     setConfig(false)
-  }
-
-  async function mover(i: number, delta: number) {
-    const itens = [...rotina!.itens]
-    const j = i + delta
-    if (j < 0 || j >= itens.length) return
-    ;[itens[i], itens[j]] = [itens[j], itens[i]]
-    vibrar()
-    await salvarItens(itens)
   }
 
   /* ---------------- arrastar pra reordenar (mouse e touch, via Pointer Events) --------------- */
@@ -215,25 +217,19 @@ export default function EditorRotina() {
                           {item.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
                         </button>
 
+                        {/* Duas acoes de 44px em vez de quatro apertadas. Subir/descer
+                            foram pra ficha do exercicio (um toque no nome), onde cabem
+                            inteiras - na linha elas eram alvos de 28x24. */}
                         <button aria-label="Arrastar para reordenar"
                           onPointerDown={e => iniciarArrasto(e, item.exercicioId)}
                           style={{ touchAction: 'none' }}
-                          className="w-7 h-9 shrink-0 flex items-center justify-center text-muted active:text-txt cursor-grab active:cursor-grabbing">
-                          <Icone nome="arrastar" tamanho={16} preenchido />
+                          className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted active:bg-surface-2 active:text-txt cursor-grab active:cursor-grabbing">
+                          <Icone nome="arrastar" tamanho={17} preenchido />
                         </button>
-
-                        <div className="flex flex-col shrink-0">
-                          <button onClick={() => mover(i, -1)} disabled={i === 0} aria-label="Subir"
-                            className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
-                            <Icone nome="chevron-cima" tamanho={15} traco={2.2} />
-                          </button>
-                          <button onClick={() => mover(i, 1)} disabled={i === ordem.length - 1} aria-label="Descer"
-                            className="w-7 h-6 flex items-center justify-center text-muted disabled:opacity-25 active:text-txt">
-                            <Icone nome="chevron-baixo" tamanho={15} traco={2.2} />
-                          </button>
-                        </div>
-                        <button onClick={() => setApagarIdx(i)} aria-label="Remover exercicio"
-                          className="w-7 h-7 shrink-0 text-muted active:text-bad text-lg leading-none">×</button>
+                        <button onClick={() => setApagarIdx(i)} aria-label={`Tirar ${ex?.nome ?? 'exercicio'} do treino`}
+                          className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted active:bg-bad/15 active:text-bad">
+                          <Icone nome="lixeira" tamanho={17} />
+                        </button>
                       </div>
                     </Card>
                   </div>
@@ -299,6 +295,21 @@ export default function EditorRotina() {
         nomeEx={editando != null ? (mapaEx.get(rotina.itens[editando].exercicioId)?.nome ?? '') : ''}
         grupoEx={editando != null ? mapaEx.get(rotina.itens[editando].exercicioId)?.grupo : undefined}
         fechar={() => setEditando(null)}
+        remover={() => { const i = editando!; setEditando(null); setApagarIdx(i) }}
+        mover={async (delta, emEdicao) => {
+          // grava o que estava no formulario junto com a troca de lugar: a ficha
+          // e remontada no indice novo e perderia o que ainda nao foi salvo
+          const i = editando!
+          const j = i + delta
+          const itens = [...rotina.itens]
+          itens[i] = emEdicao
+          ;[itens[i], itens[j]] = [itens[j], itens[i]]
+          vibrar()
+          await salvarItens(itens)
+          setEditando(j)   // a ficha acompanha o exercicio que mudou de lugar
+        }}
+        podeSubir={editando != null && editando > 0}
+        podeDescer={editando != null && editando < rotina.itens.length - 1}
         salvar={async novo => {
           const itens = [...rotina.itens]
           itens[editando!] = novo
@@ -316,7 +327,7 @@ export default function EditorRotina() {
         <Campo label="Cor">
           <div className="flex gap-2 flex-wrap">
             {CORES.map(c => (
-              <button key={c} onClick={() => setCor(c)} className="w-9 h-9 rounded-xl"
+              <button key={c} onClick={() => setCor(c)} aria-label={`Cor ${c}`} className="w-11 h-11 rounded-xl"
                 style={{ background: c, boxShadow: cor === c ? `0 0 0 3px var(--color-bg-soft), 0 0 0 5px ${c}` : undefined }} />
             ))}
           </div>
@@ -335,10 +346,15 @@ export default function EditorRotina() {
       </Sheet>
 
       <Confirmar aberto={apagarIdx != null} perigo titulo="Tirar do treino?"
+        texto={apagarIdx != null
+          ? `${mapaEx.get(rotina.itens[apagarIdx]?.exercicioId ?? '')?.nome ?? 'O exercicio'} sai dessa rotina. Os treinos ja registrados no historico continuam la.`
+          : undefined}
         onNao={() => setApagarIdx(null)}
         onSim={async () => {
+          const fora = mapaEx.get(rotina.itens[apagarIdx!]?.exercicioId ?? '')?.nome
           await salvarItens(rotina.itens.filter((_, i) => i !== apagarIdx))
           setApagarIdx(null)
+          toast(fora ? `${fora} saiu do treino` : 'Exercicio removido', 'ok')
         }} />
     </div>
   )
@@ -349,13 +365,19 @@ export default function EditorRotina() {
 const REPS_RAPIDAS = ['5', '6-8', '8-12', '10-12', '12-15', '15-20', '30s', '45s', '60s', 'ate a falha']
 const DESCANSOS = [30, 45, 60, 90, 120, 150, 180]
 
-function EditorItem({ indice, item, nomeEx, grupoEx, fechar, salvar }: {
+function EditorItem({
+  indice, item, nomeEx, grupoEx, fechar, salvar, remover, mover, podeSubir, podeDescer,
+}: {
   indice: number | null
   item: ItemRotina | null
   nomeEx: string
   grupoEx?: string
   fechar: () => void
   salvar: (i: ItemRotina) => void
+  remover: () => void
+  mover: (delta: number, emEdicao: ItemRotina) => void
+  podeSubir: boolean
+  podeDescer: boolean
 }) {
   const [series, setSeries] = useState(3)
   const [reps, setReps] = useState('8-12')
@@ -370,6 +392,11 @@ function EditorItem({ indice, item, nomeEx, grupoEx, fechar, salvar }: {
   }, [indice])
 
   if (indice == null || !item) return null
+
+  const doFormulario = (): ItemRotina => ({
+    ...item, series, repsAlvo: reps.trim() || '8-12',
+    cargaAlvo: carga || undefined, descansoSeg: descanso, obs: obs.trim() || undefined,
+  })
 
   return (
     <Sheet aberto fechar={fechar} titulo={nomeEx}>
@@ -404,15 +431,27 @@ function EditorItem({ indice, item, nomeEx, grupoEx, fechar, salvar }: {
         </div>
       </Campo>
 
+      <Campo label="Posicao no treino">
+        <div className="flex gap-2">
+          <Btn className="flex-1" disabled={!podeSubir} onClick={() => mover(-1, doFormulario())}>
+            <Icone nome="chevron-cima" tamanho={16} traco={2.2} /> Subir
+          </Btn>
+          <Btn className="flex-1" disabled={!podeDescer} onClick={() => mover(1, doFormulario())}>
+            <Icone nome="chevron-baixo" tamanho={16} traco={2.2} /> Descer
+          </Btn>
+        </div>
+      </Campo>
+
       <Campo label="Observacao">
         <Input value={obs} onChange={e => setObs(e.target.value)} placeholder="Ex: pegada aberta, cadencia 3-1-1" />
       </Campo>
 
-      <Btn variant="primary" size="lg" className="w-full mt-2" onClick={() => salvar({
-        ...item, series, repsAlvo: reps.trim() || '8-12',
-        cargaAlvo: carga || undefined, descansoSeg: descanso, obs: obs.trim() || undefined,
-      })}>
+      <Btn variant="primary" size="lg" className="w-full mt-2" onClick={() => salvar(doFormulario())}>
         Salvar
+      </Btn>
+
+      <Btn variant="danger" className="w-full mt-2" onClick={remover}>
+        Tirar esse exercicio do treino
       </Btn>
     </Sheet>
   )

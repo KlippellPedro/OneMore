@@ -5,7 +5,7 @@ import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
 import { normalizar } from '../components/SeletorExercicio'
 import { Cabecalho } from '../components/Cabecalho'
 import { Btn, Input, Chip, Sheet, Campo, Select, Confirmar, Card } from '../components/ui'
-import { BotaoFavorito } from '../components/Icone'
+import { BotaoFavorito, Icone } from '../components/Icone'
 import { useUI } from '../state/ui'
 import { n0, n1 } from '../lib/format'
 import type { Alimento, Medida } from '../db/types'
@@ -66,7 +66,7 @@ export default function Alimentos() {
                   </p>
                 </div>
               </button>
-              <BotaoFavorito ativo={a.favorito} className="w-10 h-10 rounded-xl"
+              <BotaoFavorito ativo={a.favorito} className="toque w-10 h-10 rounded-xl"
                 onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })} />
             </div>
           ))}
@@ -204,7 +204,7 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
       <div className="flex items-center justify-between mb-2 mt-2">
         <p className="text-[11px] font-bold uppercase tracking-widest text-muted">Medidas caseiras</p>
         <button onClick={() => setMedidas(m => [...m, { nome: '', gramas: 0 }])}
-          className="text-[12px] font-semibold text-accent">+ Adicionar</button>
+          className="toque text-[12px] font-semibold text-accent">+ Adicionar</button>
       </div>
       <p className="text-[11px] text-muted mb-3 leading-relaxed">
         Ex: "colher de sopa" = 25 g. Assim voce registra sem pesar tudo.
@@ -219,7 +219,10 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
               value={m.gramas === 0 ? '' : m.gramas} placeholder={f.unidadeBase}
               onChange={e => setMedidas(v => v.map((x, k) => k === i ? { ...x, gramas: Number(e.target.value || 0) } : x))} />
             <button onClick={() => setMedidas(v => v.filter((_, k) => k !== i))}
-              className="w-10 shrink-0 text-muted text-lg active:text-bad">×</button>
+              aria-label="Remover medida"
+              className="w-11 h-11 shrink-0 flex items-center justify-center text-muted active:text-bad">
+              <Icone nome="lixeira" tamanho={16} />
+            </button>
           </div>
         ))}
         {medidas.length === 0 && (

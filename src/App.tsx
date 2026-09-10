@@ -4,7 +4,7 @@ import { rodarSeed } from './db/seed'
 import { iniciarLembretes } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
 import { Icone } from './components/Icone'
-import { useSessaoAtiva, usePerfil } from './state/hooks'
+import { useSessaoAtiva, usePerfil, usePerfilCarregado } from './state/hooks'
 import { Link } from 'react-router-dom'
 
 import Home from './pages/Home'
@@ -12,6 +12,7 @@ import Treinos from './pages/Treinos'
 import Programas from './pages/Programas'
 import EditorRotina from './pages/EditorRotina'
 import Sessao from './pages/Sessao'
+import DetalheSessao from './pages/DetalheSessao'
 import Exercicios from './pages/Exercicios'
 import DetalheExercicio from './pages/DetalheExercicio'
 import Dieta from './pages/Dieta'
@@ -84,6 +85,18 @@ function AoTrocarDeRota() {
   return null
 }
 
+/**
+ * Glicemia so existe pra quem ligou diabetes tipo 1 no perfil. Esconder a aba
+ * nao basta: sem isso o /diario continua abrindo por link, por atalho da tela
+ * inicial ou por historico do navegador.
+ */
+function SoDiabetes({ children }: { children: ReactNode }) {
+  const perfil = usePerfilCarregado()
+  if (!perfil) return null
+  if (perfil.diabetesTipo1 !== true) return <Navigate to="/" replace />
+  return <>{children}</>
+}
+
 /** Paginas de impressao (PDF) usam layout proprio, sem a moldura de app nem padding pra nav. */
 function Miolo({ children }: { children: ReactNode }) {
   const loc = useLocation()
@@ -135,6 +148,7 @@ export default function App() {
           <Route path="/treinos/programas" element={<Programas />} />
           <Route path="/treinos/:id" element={<EditorRotina />} />
           <Route path="/sessao/:id" element={<Sessao />} />
+          <Route path="/historico/:id" element={<DetalheSessao />} />
           <Route path="/exercicios" element={<Exercicios />} />
           <Route path="/exercicios/:id" element={<DetalheExercicio />} />
           <Route path="/dieta" element={<Dieta />} />
@@ -142,8 +156,8 @@ export default function App() {
           <Route path="/dieta/imprimir" element={<ImprimirDieta />} />
           <Route path="/dieta/compras/imprimir" element={<ListaCompras />} />
           <Route path="/alimentos" element={<Alimentos />} />
-          <Route path="/diario" element={<Diario />} />
-          <Route path="/diario/imprimir" element={<ImprimirDiario />} />
+          <Route path="/diario" element={<SoDiabetes><Diario /></SoDiabetes>} />
+          <Route path="/diario/imprimir" element={<SoDiabetes><ImprimirDiario /></SoDiabetes>} />
           <Route path="/progresso" element={<Progresso />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/lembretes" element={<Lembretes />} />

@@ -8,12 +8,23 @@ import {
 } from '../state/hooks'
 import { totalDoDia } from '../lib/nutricao'
 import { iniciarSessao, addAgua, volumeSessao } from '../lib/acoes'
-import { multiplicadorStreak } from '../lib/xp'
+import { multiplicadorStreak, streakVivo, XP } from '../lib/xp'
 import { useUI, vibrar } from '../state/ui'
 import { Card, Btn, Barra, Anel, Secao } from '../components/ui'
 import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
 import { Icone } from '../components/Icone'
 import { n0, n1, pl, peso, dataCurta, duracao, clamp } from '../lib/format'
+
+interface Missao {
+  id: string
+  icone: string
+  nome: string
+  ok: boolean
+  xp: number
+  prog?: number
+  /** O ganho real e MAIOR que esse numero (series, recordes). Mostra "+". */
+  aPartirDe?: boolean
+}
 
 export default function Home() {
   const nav = useNavigate()
@@ -28,11 +39,15 @@ export default function Home() {
   const glicemias = useGlicemiaDoDia()
   const [medir, setMedir] = useState(false)
   const hj = hoje()
+  // o streak do perfil so e recalculado quando cai XP: pra mostrar, vale o vivo
+  const streak = streakVivo(perfil, hj)
 
-  const recentes = useLiveQuery(async () => {
-    const s = await db.sessoes.filter(x => x.concluida).toArray()
-    return s.sort((a, b) => b.inicio - a.inicio).slice(0, 3)
-  }, [], []) ?? []
+  // pelo indice de `inicio`, de tras pra frente: o cursor para nas 3 primeiras
+  // em vez de carregar o historico inteiro so pra jogar quase tudo fora
+  const recentes = useLiveQuery(
+    () => db.sessoes.orderBy('inicio').reverse().filter(x => x.concluida === 1).limit(3).toArray(),
+    [], [],
+  ) ?? []
 
   const pesoHoje = useLiveQuery(() => db.corpo.get(hj), [hj], undefined)
 
@@ -45,19 +60,26 @@ export default function Home() {
     rotinas.find(r => r.dias?.includes(diaSemana)) ??
     rotinas[0]
 
+  // idem: olha so o que comecou depois da meia-noite de hoje
   const treinouHoje = useLiveQuery(async () => {
-    const s = await db.sessoes.filter(x => x.concluida).toArray()
-    return s.some(x => new Date(x.inicio).toDateString() === new Date().toDateString())
-  }, [], false)
+    const meiaNoite = new Date(); meiaNoite.setHours(0, 0, 0, 0)
+    const n = await db.sessoes.where('inicio').aboveOrEqual(meiaNoite.getTime())
+      .filter(x => x.concluida === 1).count()
+    return n > 0
+  }, [hj], false)
 
-  /* ---------------- missoes do dia ---------------- */
-  const missoes = [
-    { id: 'treino', icone: 'halter', nome: 'Fazer o treino de hoje', ok: !!treinouHoje, xp: 60 },
-    { id: 'prot', icone: 'talheres', nome: `Bater ${perfil.metaProt} g de proteina`, ok: total.prot >= perfil.metaProt * 0.9, xp: 30, prog: total.prot / perfil.metaProt },
-    { id: 'agua', icone: 'gota', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de agua`, ok: mlAgua >= perfil.metaAgua, xp: 15, prog: mlAgua / perfil.metaAgua },
-    { id: 'peso', icone: 'balanca', nome: 'Registrar o peso', ok: !!pesoHoje?.peso, xp: 15 },
+  /* ---------------- missoes do dia ----------------
+   * O XP vem da tabela em lib/xp.ts, nunca escrito na mao aqui: numero copiado
+   * vira mentira no primeiro ajuste do balanceamento. O treino leva "+" porque
+   * o valor cresce com as series e os recordes, e tudo ainda passa pelo
+   * multiplicador de streak. */
+  const missoes: Missao[] = [
+    { id: 'treino', icone: 'halter', nome: 'Fazer o treino de hoje', ok: !!treinouHoje, xp: XP.TREINO, aPartirDe: true },
+    { id: 'prot', icone: 'talheres', nome: `Bater ${perfil.metaProt} g de proteina`, ok: total.prot >= perfil.metaProt * 0.9, xp: XP.PROTEINA_OK, prog: total.prot / perfil.metaProt },
+    { id: 'agua', icone: 'gota', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de agua`, ok: mlAgua >= perfil.metaAgua, xp: XP.AGUA_OK, prog: mlAgua / perfil.metaAgua },
+    { id: 'peso', icone: 'balanca', nome: 'Registrar o peso', ok: !!pesoHoje?.peso, xp: XP.PESO },
     ...(perfil.diabetesTipo1 === true
-      ? [{ id: 'gli', icone: 'sangue', nome: 'Medir a glicemia (4x)', ok: glicemias.length >= 4, xp: 10, prog: glicemias.length / 4 }]
+      ? [{ id: 'gli', icone: 'sangue', nome: 'Medir a glicemia (4x)', ok: glicemias.length >= 4, xp: XP.GLICEMIA, prog: glicemias.length / 4 }]
       : []),
   ]
   const feitas = missoes.filter(m => m.ok).length
@@ -88,11 +110,11 @@ export default function Home() {
           <p className="text-[13px] text-muted">{saudacao},</p>
           <h1 className="text-[26px] font-black leading-tight tracking-tight">{perfil.nome}</h1>
         </div>
-        {perfil.streak > 0 && (
+        {streak > 0 && (
           <div className="flex items-center gap-1.5 h-9 px-3 rounded-full bg-accent/12 border border-accent/25">
             <Icone nome="chama" tamanho={15} className="text-accent" />
-            <span className="text-sm font-black text-accent">{perfil.streak}</span>
-            <span className="text-[10px] text-accent/70 font-semibold">{perfil.streak === 1 ? 'dia' : 'dias'}</span>
+            <span className="text-sm font-black text-accent">{streak}</span>
+            <span className="text-[10px] text-accent/70 font-semibold">{streak === 1 ? 'dia' : 'dias'}</span>
           </div>
         )}
       </div>
@@ -118,10 +140,10 @@ export default function Home() {
               {n0(xpNoNivel)} / {n0(xpParaProximo)} XP para o nivel {nivel + 1}
             </p>
           </div>
-          {perfil.streak > 1 && (
+          {streak > 1 && (
             <div className="text-right shrink-0">
               <p className="text-[10px] text-muted uppercase tracking-wide">Bonus</p>
-              <p className="text-sm font-black text-xp">{multiplicadorStreak(perfil.streak).toFixed(2)}x</p>
+              <p className="text-sm font-black text-xp">{multiplicadorStreak(streak).toFixed(2)}x</p>
             </div>
           )}
         </div>
@@ -130,7 +152,7 @@ export default function Home() {
 
       {/* -------- treino -------- */}
       <Secao titulo="Treino de hoje" acao={
-        <Link to="/treinos" className="text-[12px] font-semibold text-accent">Ver todos</Link>
+        <Link to="/treinos" className="toque text-[12px] font-semibold text-accent">Ver todos</Link>
       }>
         {sessaoAtiva ? (
           <Card className="p-4" onClick={() => nav(`/sessao/${sessaoAtiva.id}`)}>
@@ -187,7 +209,7 @@ export default function Home() {
 
       {/* -------- dieta -------- */}
       <Secao titulo="Dieta de hoje" acao={
-        <Link to="/dieta" className="text-[12px] font-semibold text-accent">Abrir</Link>
+        <Link to="/dieta" className="toque text-[12px] font-semibold text-accent">Abrir</Link>
       }>
         <Card className="p-4" onClick={() => nav('/dieta')}>
           <div className="flex items-center gap-4 mb-4">
@@ -217,7 +239,7 @@ export default function Home() {
 
       {/* -------- glicemia -------- */}
       {perfil.diabetesTipo1 === true && (
-        <Secao titulo="Glicemia de hoje" acao={<Link to="/diario" className="text-[12.5px] font-semibold text-accent">Ver diario</Link>}>
+        <Secao titulo="Glicemia de hoje" acao={<Link to="/diario" className="toque text-[12.5px] font-semibold text-accent">Ver diario</Link>}>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
@@ -288,7 +310,7 @@ export default function Home() {
                 )}
               </div>
               <span className={`text-[12px] font-bold shrink-0 ${m.ok ? 'text-good' : 'text-muted'}`}>
-                +{m.xp} XP
+                +{m.xp}{m.aPartirDe ? '+' : ''} XP
               </span>
             </div>
           ))}
@@ -298,11 +320,12 @@ export default function Home() {
       {/* -------- historico -------- */}
       {recentes.length > 0 && (
         <Secao titulo="Ultimos treinos" acao={
-          <Link to="/progresso" className="text-[12px] font-semibold text-accent">Historico</Link>
+          <Link to="/progresso" className="toque text-[12px] font-semibold text-accent">Historico</Link>
         }>
           <div className="space-y-2">
             {recentes.map(s => (
-              <Card key={s.id} className="p-3.5 flex items-center gap-3">
+              <Card key={s.id} className="p-3.5 flex items-center gap-3"
+                onClick={() => nav(`/historico/${s.id}`)}>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-semibold truncate">{s.nome}</p>
                   <p className="text-[11.5px] text-muted">
@@ -314,6 +337,7 @@ export default function Home() {
                   <p className="text-[13px] font-bold">{peso(volumeSessao(s))}</p>
                   <p className="text-[11px] text-xp font-semibold">+{s.xpGanho ?? 0} XP</p>
                 </div>
+                <span className="text-muted shrink-0">›</span>
               </Card>
             ))}
           </div>

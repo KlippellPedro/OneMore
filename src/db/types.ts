@@ -47,7 +47,12 @@ export interface Rotina {
   /** Dias da semana sugeridos: 0=Dom ... 6=Sab */
   dias?: number[]
   ordem: number
-  arquivada?: boolean
+  /**
+   * 0/1 e nao boolean: e um indice, e o IndexedDB nao indexa boolean nem
+   * undefined - a linha simplesmente ficaria de fora. Obrigatorio pelo mesmo
+   * motivo: rotina sem o campo sumiria da lista. Ver `flag()` em db/index.ts.
+   */
+  arquivada: 0 | 1
   atualizadoEm: number
 }
 
@@ -72,7 +77,8 @@ export interface Sessao {
   series: SerieLog[]
   notas?: string
   xpGanho?: number
-  concluida: boolean
+  /** 0/1 porque e indice - ver a nota em Rotina.arquivada. */
+  concluida: 0 | 1
   atualizadoEm: number
 }
 

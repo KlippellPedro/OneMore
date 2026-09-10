@@ -6,14 +6,15 @@ import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo, SQL_SUPABASE,
   salvarCredenciais, entrar, criarConta, sair, usuarioAtual,
-  enviar, baixar, espiar, ultimoSync, type Backup,
+  enviar, baixar, espiar, ultimoSync, type Backup, type DadosNuvem,
 } from '../lib/sync'
 import { rodarSeed } from '../db/seed'
 import { Titulo } from '../components/Cabecalho'
 import { SheetMetas } from '../components/SheetMetas'
 import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
 import { useUI } from '../state/ui'
-import { n0, n1 } from '../lib/format'
+import { n0, n1, pl } from '../lib/format'
+import { streakVivo } from '../lib/xp'
 import { Icone } from '../components/Icone'
 import type { Perfil as TPerfil } from '../db/types'
 
@@ -64,7 +65,7 @@ export default function Perfil() {
                 <span className="font-mono text-[10px] px-1.5 rounded border" style={{ borderColor: rank.cor }}>{rank.letra}</span>
               </p>
               <p className="text-[11.5px] text-muted">
-                {n0(perfil.xp)} XP - sequencia {perfil.streak} dia{perfil.streak === 1 ? '' : 's'}
+                {n0(perfil.xp)} XP - sequencia {pl(streakVivo(perfil), 'dia')}
               </p>
             </div>
           </div>
@@ -84,7 +85,9 @@ export default function Perfil() {
 
         <Grupo titulo="Avisos">
           <LinhaLink to="/lembretes" titulo="Lembretes"
-            sub="Agua, refeicao, treino e glicemia no celular" />
+            sub={perfil.diabetesTipo1
+              ? 'Agua, refeicao, treino e glicemia no celular'
+              : 'Agua, refeicao e treino no celular'} />
         </Grupo>
 
         <Grupo titulo="Saude">
@@ -270,7 +273,9 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
   const [usuario, setUsuario] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [verSql, setVerSql] = useState(false)
+  const [nuvem, setNuvem] = useState<DadosNuvem | null>(null)
   const [confirmarBaixar, setConfirmarBaixar] = useState(false)
+  const [confirmarEnviar, setConfirmarEnviar] = useState(false)
 
   useEffect(() => {
     if (!aberto) return
@@ -285,6 +290,29 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
     setOcupado(nome)
     try { await fn() } catch (e) { toast('Deu ruim', 'erro', (e as Error).message) }
     finally { setOcupado(null) }
+  }
+
+  async function enviarAgora() {
+    setConfirmarEnviar(false)
+    const q = await enviar()
+    toast('Enviado pra nuvem', 'ok', q.toLocaleString('pt-BR'))
+  }
+
+  /**
+   * A sincronizacao troca o estado INTEIRO, entao enviar por cima de uma nuvem
+   * que outro aparelho atualizou apaga o que ele mandou - sem aviso nenhum.
+   * Se a nuvem mexeu depois da ultima sincronizacao daqui, pergunta antes.
+   */
+  async function enviarComChecagem() {
+    const n = await espiar()
+    const ultima = ultimoSync()
+    const maisNova = n && (!ultima || n.atualizadoEm.getTime() > ultima.getTime() + 10_000)
+    if (maisNova) {
+      setNuvem(n)
+      setConfirmarEnviar(true)
+      return
+    }
+    await enviarAgora()
   }
 
   return (
@@ -356,16 +384,14 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
         </p>
         <div className="flex gap-2">
           <Btn variant="primary" className="flex-1" disabled={ocupado === 'enviar'}
-            onClick={() => tentar('enviar', async () => {
-              const q = await enviar()
-              toast('Enviado pra nuvem', 'ok', q.toLocaleString('pt-BR'))
-            })}>
+            onClick={() => tentar('enviar', enviarComChecagem)}>
             {ocupado === 'enviar' ? 'Enviando...' : 'Enviar deste aparelho'}
           </Btn>
           <Btn className="flex-1" disabled={ocupado === 'espiar'}
             onClick={() => tentar('espiar', async () => {
               const n = await espiar()
               if (!n) return toast('Nada salvo na nuvem ainda', 'info')
+              setNuvem(n)
               setConfirmarBaixar(true)
             })}>Baixar</Btn>
         </div>
@@ -393,7 +419,11 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
       </Sheet>
 
       <Confirmar aberto={confirmarBaixar} perigo titulo="Substituir os dados deste aparelho?"
-        texto="Tudo que esta aqui sera trocado pelo que esta na nuvem."
+        texto={nuvem
+          ? `A nuvem foi salva em ${quando(nuvem.atualizadoEm)}${
+              maisVelhaQueDaqui(nuvem) ? ' - e MAIS ANTIGA que a ultima sincronizacao deste aparelho' : ''
+            }. Tudo que esta aqui sera trocado por ela.`
+          : 'Tudo que esta aqui sera trocado pelo que esta na nuvem.'}
         onNao={() => setConfirmarBaixar(false)}
         onSim={() => tentar('baixar', async () => {
           setConfirmarBaixar(false)
@@ -401,8 +431,25 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
           toast(`${r.registros} registros baixados`, 'ok')
           setTimeout(() => location.reload(), 900)
         })} />
+
+      <Confirmar aberto={confirmarEnviar} perigo titulo="Sobrescrever a nuvem?"
+        texto={nuvem
+          ? `A nuvem foi atualizada em ${quando(nuvem.atualizadoEm)}, depois da ultima `
+            + 'sincronizacao deste aparelho - provavelmente por outro celular ou PC. '
+            + 'Enviar agora apaga o que veio de la. Se tiver duvida, baixe primeiro.'
+          : ''}
+        onNao={() => setConfirmarEnviar(false)}
+        onSim={() => tentar('enviar', enviarAgora)} />
     </Sheet>
   )
+}
+
+const quando = (d: Date) => d.toLocaleString('pt-BR')
+
+/** Baixar uma nuvem mais velha que a ultima sincronizacao daqui e voltar no tempo. */
+function maisVelhaQueDaqui(n: DadosNuvem) {
+  const ultima = ultimoSync()
+  return !!ultima && n.atualizadoEm.getTime() < ultima.getTime() - 10_000
 }
 
 function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () => void; perfil: TPerfil }) {
@@ -425,7 +472,7 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
               await salvarPerfil({ diabetesTipo1: !ligado })
               toast(ligado ? 'Desligado' : 'Ligado', 'ok')
             }}
-            className={`w-12 h-7 shrink-0 rounded-full transition-colors relative ${
+            className={`toque w-12 h-7 shrink-0 rounded-full transition-colors relative ${
               ligado ? 'grad-accent' : 'bg-surface-2 border border-line'
             }`}>
             <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${

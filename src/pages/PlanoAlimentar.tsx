@@ -219,7 +219,7 @@ export default function PlanoAlimentar() {
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">Minhas dietas</h2>
           {planos.length > 0 && (
             <button onClick={() => setSalvarNome('')}
-              className="text-[12px] font-semibold text-accent">
+              className="toque text-[12px] font-semibold text-accent">
               Salvar esta
             </button>
           )}
@@ -244,12 +244,12 @@ export default function PlanoAlimentar() {
                   </p>
                 </button>
                 <button onClick={() => setSobrescrever(d)} aria-label="Atualizar com o plano atual"
-                  className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted active:bg-surface-2 active:text-accent">
-                  <Icone nome="copiar" tamanho={15} />
+                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-muted active:bg-surface-2 active:text-accent">
+                  <Icone nome="copiar" tamanho={16} />
                 </button>
                 <button onClick={() => setApagarDieta(d)} aria-label="Apagar dieta"
-                  className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-muted active:bg-surface-2 active:text-bad text-lg leading-none">
-                  ×
+                  className="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-muted active:bg-surface-2 active:text-bad">
+                  <Icone nome="lixeira" tamanho={16} />
                 </button>
               </div>
             ))
@@ -274,8 +274,9 @@ export default function PlanoAlimentar() {
           }))
           return (
             <div key={p.id} className="mb-4">
-              <div className="flex items-baseline justify-between mb-2 px-1">
-                <button onClick={() => setConfig(p)} className="flex items-baseline gap-2 min-w-0">
+              <div className="flex items-center justify-between mb-1 px-1">
+                <button onClick={() => setConfig(p)} aria-label={`Ajustar ${p.nome}`}
+                  className="flex items-baseline gap-2 min-w-0 h-11 pr-2">
                   <h2 className="text-[13.5px] font-bold truncate">{p.nome}</h2>
                   <span className="text-[11px] text-muted shrink-0">{p.horario}</span>
                 </button>

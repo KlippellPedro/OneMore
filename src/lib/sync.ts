@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { db, getPerfil, salvarPerfil } from '../db'
+import { db, getPerfil, salvarPerfil, normalizarFlags } from '../db'
 import { resetarCacheSeed } from '../db/seed'
+import { reconstruirMelhores } from './acoes'
 
 /* ------------------------------------------------------------------ */
 /* BACKUP LOCAL (JSON)                                                 */
@@ -15,10 +16,21 @@ export interface Backup {
   dados: Record<string, unknown[]>
 }
 
+/** O que entra no backup: dado que a pessoa criou. */
 const TABELAS = [
   'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos', 'dietas',
   'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
 ] as const
+
+/**
+ * Tabelas derivadas: nao vao pro backup (sao recalculadas), mas TEM que ser
+ * limpas junto. A agenda de lembretes ficava pra tras num "apagar tudo" e o
+ * service worker seguia avisando de refeicao de um plano que nao existia mais.
+ */
+const TABELAS_DERIVADAS = ['lembretes', 'melhores'] as const
+
+const limpar = (t: string) =>
+  (db as unknown as Record<string, { clear(): Promise<void> }>)[t].clear()
 
 export async function exportar(): Promise<Backup> {
   const dados: Record<string, unknown[]> = {}
@@ -59,13 +71,20 @@ export async function importar(backup: Backup): Promise<ResultadoImport> {
     registros += linhas.length
     tabelas++
   }
+  // um backup de antes da v6 traz `concluida`/`arquivada` como boolean, e nesse
+  // formato a linha NAO entra no indice: as rotinas sumiriam da lista e o
+  // historico ficaria invisivel. Normaliza antes de qualquer leitura
+  await normalizarFlags()
+  // o backup traz sessoes novas: os recordes derivados precisam ser refeitos,
+  // e a agenda de lembretes velha aponta pra um plano que ja era
+  await limpar('lembretes')
+  await reconstruirMelhores()
+
   return { tabelas, registros }
 }
 
 export async function apagarTudo() {
-  for (const t of TABELAS) {
-    await (db as unknown as Record<string, { clear(): Promise<void> }>)[t].clear()
-  }
+  for (const t of [...TABELAS, ...TABELAS_DERIVADAS]) await limpar(t)
   localStorage.removeItem('onemore:seed')
   resetarCacheSeed()
 }

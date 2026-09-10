@@ -274,9 +274,13 @@ export async function aindaVale(l: Lembrete): Promise<{ vale: boolean; corpo: st
   }
 
   if (l.tipo === 'treino') {
-    const sessoes = await db.sessoes.toArray()
-    const treinouHoje = sessoes.some(s => s.concluida && isoDia(new Date(s.inicio)) === l.data)
-    return { vale: !treinouHoje, corpo: l.corpo }
+    // pelo indice de `inicio`, limitado ao dia - varrer todas as sessoes so pra
+    // saber se treinou hoje custa o historico inteiro a cada checagem
+    const ini = quando(l.data, '00:00')
+    const treinou = await db.sessoes.where('inicio')
+      .between(ini, ini + 24 * 60 * MIN, true, false)
+      .filter(s => s.concluida === 1).count()
+    return { vale: treinou === 0, corpo: l.corpo }
   }
 
   if (l.tipo === 'glicemia') {

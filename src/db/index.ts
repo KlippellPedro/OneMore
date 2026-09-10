@@ -4,6 +4,7 @@ import type {
   RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
   Lembrete,
 } from './types'
+import { calcularMelhores, type MelhorExercicio } from './melhores'
 
 export class OneMoreDB extends Dexie {
   exercicios!: Table<Exercicio, string>
@@ -19,6 +20,7 @@ export class OneMoreDB extends Dexie {
   glicemia!: Table<RegistroGlicemia, string>
   dietas!: Table<DietaSalva, string>
   lembretes!: Table<Lembrete, string>
+  melhores!: Table<MelhorExercicio, string>
 
   constructor() {
     super('onemore')
@@ -49,10 +51,53 @@ export class OneMoreDB extends Dexie {
     this.version(4).stores({
       lembretes: 'id, ts, tipo',
     })
+
+    // v5: resumo por exercicio (recorde e ultima carga). Dado derivado: existe
+    // so pra nao varrer o historico inteiro a cada exercicio. Ver db/melhores.ts
+    this.version(5).stores({
+      melhores: 'exercicioId',
+    }).upgrade(async tx => {
+      const sessoes = await tx.table('sessoes').toArray()
+      const linhas = calcularMelhores(sessoes)
+      if (linhas.length) await tx.table('melhores').bulkPut(linhas)
+    })
+
+    /**
+     * v6: flags indexadas viram 0/1.
+     *
+     * `concluida` e `arquivada` eram boolean, e o IndexedDB nao aceita boolean
+     * como chave: o indice existia no schema mas nao indexava nada, entao toda
+     * consulta caia em varredura da tabela inteira.
+     *
+     * `favorito` e `custom` saem do schema em vez de virar 0/1: as duas listas
+     * sao carregadas inteiras pra montar os mapas, o filtro acontece em memoria
+     * e nunca passou por indice nenhum.
+     */
+    this.version(6).stores({
+      exercicios: 'id, nome, grupo, equipamento',
+      alimentos: 'id, nome, categoria',
+    }).upgrade(async tx => {
+      await tx.table('sessoes').toCollection().modify(s => { s.concluida = s.concluida ? 1 : 0 })
+      await tx.table('rotinas').toCollection().modify(r => { r.arquivada = r.arquivada ? 1 : 0 })
+    })
   }
 }
 
 export const db = new OneMoreDB()
+
+/** Converte pra 0/1 - o formato que o IndexedDB aceita indexar. */
+export const flag = (v: unknown): 0 | 1 => (v ? 1 : 0)
+
+/**
+ * Poe as flags indexadas no formato certo. Alem da migracao v6, precisa rodar
+ * depois de QUALQUER importacao: backup antigo chega com boolean/undefined, e
+ * nesse formato a linha nao entra no indice - as rotinas sumiriam da lista e o
+ * historico de treinos ficaria invisivel.
+ */
+export async function normalizarFlags() {
+  await db.sessoes.toCollection().modify(s => { s.concluida = flag(s.concluida) })
+  await db.rotinas.toCollection().modify(r => { r.arquivada = flag(r.arquivada) })
+}
 
 export const uid = () =>
   Date.now().toString(36) + Math.random().toString(36).slice(2, 8)

@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, isoDia } from '../db'
+import { apagarExercicio, ondeUsam } from '../lib/acoes'
 import { corGrupo, nomeGrupo, nomeEquip } from '../db/seedExercicios'
 import { Cabecalho } from '../components/Cabecalho'
-import { Card, Btn, Sheet, Campo, Input, Confirmar } from '../components/ui'
+import { Card, Btn, Vazio, Sheet, Campo, Input, Confirmar } from '../components/ui'
 import { Grafico } from '../components/Grafico'
 import { useUI } from '../state/ui'
-import { youtubeId, dataNumerica, n0, peso } from '../lib/format'
+import { youtubeId, dataNumerica, n0, peso, pl } from '../lib/format'
 import { Icone, BotaoFavorito } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
 import { imagemExercicio } from '../db/imagensExercicios'
@@ -15,14 +16,16 @@ import { imagemExercicio } from '../db/imagensExercicios'
 export default function DetalheExercicio() {
   const { id = '' } = useParams()
   const { toast } = useUI()
-  const ex = useLiveQuery(() => db.exercicios.get(id), [id])
+  // `?? null` separa "carregando" de "nao existe" - ver DetalheSessao
+  const ex = useLiveQuery(() => db.exercicios.get(id).then(e => e ?? null), [id])
   const [editVideo, setEditVideo] = useState(false)
   const [url, setUrl] = useState('')
   const [apagar, setApagar] = useState(false)
+  const usos = useLiveQuery(() => (apagar ? ondeUsam(id) : undefined), [apagar, id])
 
   // historico: melhor carga por dia
   const historico = useLiveQuery(async () => {
-    const sessoes = await db.sessoes.filter(s => s.concluida).toArray()
+    const sessoes = await db.sessoes.where('concluida').equals(1).toArray()
     const porDia = new Map<string, { carga: number; volume: number; reps: number }>()
     for (const s of sessoes) {
       const doEx = s.series.filter(g => g.exercicioId === id && g.feito && !g.aquecimento)
@@ -40,7 +43,16 @@ export default function DetalheExercicio() {
     return [...porDia.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   }, [id], []) ?? []
 
-  if (!ex) return <div className="p-10 text-center text-muted text-sm">Carregando...</div>
+  if (ex === undefined) return <div className="p-10 text-center text-muted text-sm">Carregando...</div>
+  if (ex === null) {
+    return (
+      <div>
+        <Cabecalho titulo="Exercicio" voltarPara="/exercicios" />
+        <Vazio icone="halter" titulo="Exercicio nao encontrado"
+          texto="Ele pode ter sido apagado do catalogo." />
+      </div>
+    )
+  }
 
   const yt = youtubeId(ex.videoUrl)
   const temIlustracao = !!imagemExercicio(ex.id)
@@ -51,7 +63,7 @@ export default function DetalheExercicio() {
     <div>
       <Cabecalho titulo={ex.nome} sub={`${nomeGrupo(ex.grupo)} - ${nomeEquip(ex.equipamento)}`}
         acao={
-          <BotaoFavorito ativo={ex.favorito} className="w-9 h-9 rounded-xl"
+          <BotaoFavorito ativo={ex.favorito} className="toque w-9 h-9 rounded-xl"
             onClick={() => db.exercicios.update(id, { favorito: !ex.favorito })} />
         } />
 
@@ -200,11 +212,29 @@ export default function DetalheExercicio() {
       </Sheet>
 
       <Confirmar aberto={apagar} perigo titulo="Apagar exercicio?"
-        texto="Ele sai do catalogo e das rotinas que o usam."
+        texto={textoApagar(usos)}
         onNao={() => setApagar(false)}
-        onSim={async () => { await db.exercicios.delete(id); history.back() }} />
+        onSim={async () => {
+          await apagarExercicio(id)
+          toast(`${ex.nome} apagado`, 'ok')
+          history.back()
+        }} />
     </div>
   )
+}
+
+const FIM = 'Os treinos ja registrados no historico continuam la.'
+
+/** Diz de onde o exercicio vai sumir, com o numero na frente: "das rotinas que
+ *  usam" era vago demais pra decidir se pode apagar. */
+function textoApagar(usos?: { rotinas: number; sessoesAbertas: number }) {
+  if (!usos) return `Ele sai do catalogo. ${FIM}`
+  const partes = ['do catalogo']
+  if (usos.rotinas > 0) partes.push(`de ${pl(usos.rotinas, 'rotina')}`)
+  if (usos.sessoesAbertas > 0) partes.push('do treino em andamento')
+  const ultimo = partes.pop()!
+  const onde = partes.length ? `${partes.join(', ')} e ${ultimo}` : ultimo
+  return `Ele sai ${onde}. ${FIM}`
 }
 
 function Mini({ rotulo, valor, destaque }: { rotulo: string; valor: string; destaque?: boolean }) {

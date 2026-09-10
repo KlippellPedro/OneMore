@@ -1,4 +1,5 @@
 import { db, uid, hoje, getPerfil } from '../db'
+import { calcularMelhores, dobrarSessao, porExercicio } from '../db/melhores'
 import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia } from '../db/types'
 import type { Programa } from '../db/programas'
 import { darXP, XP, type GanhoXP } from './xp'
@@ -11,7 +12,7 @@ import { macrosDe, totalDoDia, diaBatido, paraGramas } from './nutricao'
 /** Cria a sessao a partir de uma rotina, ja com as series planejadas. */
 export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promise<string> {
   // so pode existir uma sessao aberta; a anterior vira lixo se estiver vazia
-  const abertas = await db.sessoes.filter(s => !s.concluida).toArray()
+  const abertas = await db.sessoes.where('concluida').equals(0).toArray()
   for (const a of abertas) {
     if (a.series.every(s => !s.feito)) await db.sessoes.delete(a.id)
   }
@@ -39,47 +40,80 @@ export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promis
     nome: nomeLivre ?? rotina?.nome ?? 'Treino livre',
     inicio: Date.now(),
     series,
-    concluida: false,
+    concluida: 0,
     atualizadoEm: Date.now(),
   })
   return id
 }
 
-/** Ultima carga usada num exercicio (pra ja vir preenchido na proxima). */
+/**
+ * Ultima carga usada num exercicio (pra ja vir preenchido na proxima).
+ * Leitura por chave na tabela `melhores` - antes isso varria todo o historico.
+ */
 export async function ultimaCarga(exercicioId: string): Promise<{ carga: number; reps: number } | null> {
-  const sessoes = await db.sessoes.filter(s => s.concluida).toArray()
-  sessoes.sort((a, b) => b.inicio - a.inicio)
-  for (const s of sessoes) {
-    const feitas = s.series.filter(g => g.exercicioId === exercicioId && g.feito && !g.aquecimento)
-    if (feitas.length) {
-      const melhor = feitas.reduce((a, b) => (b.carga > a.carga ? b : a))
-      return { carga: melhor.carga, reps: melhor.reps }
-    }
-  }
-  return null
+  const m = await db.melhores.get(exercicioId)
+  return m ? { carga: m.ultimaCarga, reps: m.ultimaReps } : null
 }
 
 export interface Recorde { carga: number; reps: number; volume: number }
 
-/** Melhor marca historica de um exercicio (ignora a sessao informada). */
-export async function recordeDe(exercicioId: string, exceto?: string): Promise<Recorde> {
-  const sessoes = await db.sessoes.filter(s => s.concluida && s.id !== exceto).toArray()
-  let carga = 0, reps = 0, volume = 0
-  for (const s of sessoes) {
-    for (const g of s.series) {
-      if (g.exercicioId !== exercicioId || !g.feito || g.aquecimento) continue
-      if (g.carga > carga) { carga = g.carga; reps = g.reps }
-      volume = Math.max(volume, g.carga * g.reps)
-    }
+/**
+ * Melhor marca historica de um exercicio.
+ *
+ * O treino em andamento nunca esta aqui: `melhores` so recebe sessao concluida.
+ * Por isso quem esta no meio do treino (ou fechando ele) le a marca ANTERIOR,
+ * que e exatamente o que a deteccao de recorde precisa.
+ */
+export async function recordeDe(exercicioId: string): Promise<Recorde> {
+  const m = await db.melhores.get(exercicioId)
+  if (!m) return { carga: 0, reps: 0, volume: 0 }
+  return { carga: m.recordeCarga, reps: m.recordeReps, volume: m.recordeVolume }
+}
+
+/** Dobra uma sessao concluida no resumo por exercicio. */
+async function registrarMelhores(s: Sessao) {
+  for (const [exId, series] of porExercicio(s.series)) {
+    const novo = dobrarSessao(await db.melhores.get(exId), exId, series, s.inicio)
+    if (novo) await db.melhores.put(novo)
   }
-  return { carga, reps, volume }
+}
+
+/**
+ * Refaz a tabela `melhores` do zero. Precisa rodar sempre que as sessoes forem
+ * trocadas por fora do fluxo normal - importar backup, baixar da nuvem.
+ */
+export async function reconstruirMelhores(): Promise<number> {
+  const sessoes = await db.sessoes.toArray()
+  const linhas = calcularMelhores(sessoes)
+  await db.melhores.clear()
+  if (linhas.length) await db.melhores.bulkPut(linhas)
+  return linhas.length
+}
+
+/**
+ * `carga` = subiu o peso. `serie` = mesma carga (ou menos) mas a melhor serie
+ * rendeu mais trabalho que qualquer outra - na pratica, mais repeticoes no
+ * mesmo peso. Sem esse segundo tipo, sair de 100x5 pra 100x12 nao era recorde
+ * nenhum pro app.
+ */
+export type TipoPR = 'carga' | 'serie'
+
+export interface PR {
+  exercicioId: string
+  tipo: TipoPR
+  /** kg no tipo 'carga'; carga x reps da melhor serie no tipo 'serie'. */
+  valor: number
+  anterior: number
+  /** So no tipo 'serie': o peso e as reps que formaram o numero. */
+  carga?: number
+  reps?: number
 }
 
 export interface ResumoSessao {
   series: number
   volume: number
   duracaoMs: number
-  prs: { exercicioId: string; carga: number; anterior: number }[]
+  prs: PR[]
   ganho: GanhoXP
 }
 
@@ -92,26 +126,41 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
   const volume = feitas.reduce((t, g) => t + g.reps * g.carga, 0)
 
   // recordes: compara com o historico ANTES de marcar essa sessao como concluida
-  const prs: ResumoSessao['prs'] = []
-  const porExercicio = new Map<string, number>()
-  for (const g of feitas) {
-    porExercicio.set(g.exercicioId, Math.max(porExercicio.get(g.exercicioId) ?? 0, g.carga))
-  }
-  for (const [exId, carga] of porExercicio) {
-    if (carga <= 0) continue
-    const rec = await recordeDe(exId, id)
-    if (rec.carga > 0 && carga > rec.carga) prs.push({ exercicioId: exId, carga, anterior: rec.carga })
+  const prs: PR[] = []
+  for (const [exId, series] of porExercicio(feitas)) {
+    const rec = await recordeDe(exId)
+    // primeira vez no exercicio nunca e "recorde" - nao ha com o que comparar
+    if (rec.carga <= 0) continue
+
+    const melhorCarga = series.reduce((m, g) => Math.max(m, g.carga), 0)
+    const melhorSerie = series.reduce((a, b) => (b.carga * b.reps > a.carga * a.reps ? b : a))
+    const volume = melhorSerie.carga * melhorSerie.reps
+
+    if (melhorCarga > rec.carga) {
+      prs.push({ exercicioId: exId, tipo: 'carga', valor: melhorCarga, anterior: rec.carga })
+    } else if (volume > rec.volume) {
+      // um so por exercicio: quem subiu a carga quase sempre sobe o volume
+      // junto, e contar os dois seria premiar a mesma coisa duas vezes
+      prs.push({
+        exercicioId: exId, tipo: 'serie', valor: volume, anterior: rec.volume,
+        carga: melhorSerie.carga, reps: melhorSerie.reps,
+      })
+    }
   }
 
   const fim = Date.now()
-  const baseXP = XP.TREINO + feitas.length * XP.SERIE + prs.length * XP.PR_CARGA
+  const baseXP = XP.TREINO + feitas.length * XP.SERIE
+    + prs.reduce((t, p) => t + (p.tipo === 'carga' ? XP.PR_CARGA : XP.PR_REPS), 0)
 
-  await db.sessoes.update(id, { concluida: true, fim, atualizadoEm: fim })
+  await db.sessoes.update(id, { concluida: 1, fim, atualizadoEm: fim })
+  await registrarMelhores({ ...s, concluida: 1, fim })
 
   for (const pr of prs) {
     await db.xp.put({
       id: uid(), ts: fim, tipo: 'pr', xp: 0, data: hoje(),
-      motivo: `Recorde: ${pr.carga} kg`,
+      motivo: pr.tipo === 'carga'
+        ? `Recorde: ${pr.valor} kg`
+        : `Melhor serie: ${pr.carga} kg x ${pr.reps}`,
     })
   }
 
@@ -126,6 +175,59 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
 
 export async function descartarSessao(id: string) {
   await db.sessoes.delete(id)
+}
+
+export interface RefsExercicio { rotinas: number; sessoesAbertas: number }
+
+/** Onde um exercicio esta sendo usado agora (nao conta treino ja finalizado). */
+export async function ondeUsam(exercicioId: string): Promise<RefsExercicio> {
+  const rotinas = await db.rotinas.filter(
+    r => r.itens.some(i => i.exercicioId === exercicioId),
+  ).count()
+  const sessoesAbertas = await db.sessoes.where('concluida').equals(0)
+    .filter(s => s.series.some(g => g.exercicioId === exercicioId)).count()
+  return { rotinas, sessoesAbertas }
+}
+
+/**
+ * Apaga o exercicio do catalogo E de tudo que aponta pra ele agora: rotinas e
+ * treino em andamento. Sem isso o item continuava nas rotinas como "Exercicio
+ * removido" e so dava pra tirar um por um.
+ *
+ * Treino ja finalizado NAO e tocado de proposito - e o historico, e mexer nele
+ * mudaria volume, recorde e XP que ja foram dados.
+ */
+export async function apagarExercicio(exercicioId: string) {
+  const rotinas = await db.rotinas
+    .filter(r => r.itens.some(i => i.exercicioId === exercicioId)).toArray()
+  for (const r of rotinas) {
+    await db.rotinas.update(r.id, {
+      itens: r.itens.filter(i => i.exercicioId !== exercicioId),
+      atualizadoEm: Date.now(),
+    })
+  }
+
+  const abertas = await db.sessoes.where('concluida').equals(0)
+    .filter(s => s.series.some(g => g.exercicioId === exercicioId)).toArray()
+  for (const s of abertas) {
+    await db.sessoes.update(s.id, {
+      series: renumerarSeries(s.series.filter(g => g.exercicioId !== exercicioId)),
+      atualizadoEm: Date.now(),
+    })
+  }
+
+  await db.exercicios.delete(exercicioId)
+  await db.melhores.delete(exercicioId)
+  return { rotinas: rotinas.length, sessoesAbertas: abertas.length }
+}
+
+/** Renumera as series de cada exercicio a partir de 1. */
+export function renumerarSeries(series: SerieLog[]): SerieLog[] {
+  const cont: Record<string, number> = {}
+  return series.map(g => {
+    cont[g.exercicioId] = (cont[g.exercicioId] ?? 0) + 1
+    return { ...g, serie: cont[g.exercicioId] }
+  })
 }
 
 /** Volume total de uma sessao (usado em varios lugares). */
@@ -181,6 +283,18 @@ export async function checarMetasDoDia(data: string): Promise<GanhoXP[]> {
   const tem = (t: string) => jaDados.some(e => e.tipo === t)
 
   const ganhos: GanhoXP[] = []
+
+  // uma vez por refeicao lancada, nao por alimento: premia o habito de anotar
+  // sem virar caca-niquel de quem lanca item por item
+  const jaPremiadas = new Set(
+    jaDados.filter(e => e.tipo === 'refeicao').map(e => e.motivo),
+  )
+  for (const nome of new Set(registros.map(r => r.refeicao))) {
+    const motivo = `${nome} anotada`
+    if (jaPremiadas.has(motivo)) continue
+    ganhos.push(await darXP('refeicao', motivo, XP.REFEICAO))
+  }
+
   if (protOk && !tem('proteina')) {
     ganhos.push(await darXP('proteina', 'Meta de proteina batida', XP.PROTEINA_OK))
   }
@@ -244,9 +358,9 @@ export async function aplicarPrograma(
   opts: { substituir?: boolean; dias?: (number | null)[] } = {},
 ): Promise<Rotina[]> {
   if (opts.substituir) {
-    const atuais = await db.rotinas.filter(r => !r.arquivada).toArray()
+    const atuais = await db.rotinas.where('arquivada').equals(0).toArray()
     for (const r of atuais) {
-      await db.rotinas.update(r.id, { arquivada: true, atualizadoEm: Date.now() })
+      await db.rotinas.update(r.id, { arquivada: 1, atualizadoEm: Date.now() })
     }
   }
 
@@ -262,6 +376,7 @@ export async function aplicarPrograma(
       itens: t.itens,
       dias: d == null ? [] : [d],
       ordem: base + i,
+      arquivada: 0,
       atualizadoEm: Date.now(),
     }
   })
@@ -275,7 +390,7 @@ export async function aplicarPrograma(
  * rotinaId null = dia de descanso.
  */
 export async function atribuirDia(dia: number, rotinaId: string | null) {
-  const rotinas = await db.rotinas.filter(r => !r.arquivada).toArray()
+  const rotinas = await db.rotinas.where('arquivada').equals(0).toArray()
   for (const r of rotinas) {
     const tinha = r.dias?.includes(dia) ?? false
     const deveTer = r.id === rotinaId

@@ -163,7 +163,8 @@ export default function Dieta() {
       <Titulo titulo="Dieta" sub={dataCurta(data)}
         acao={
           <div className="flex items-center gap-2">
-            <Link to="/dieta/imprimir" className="text-[12px] font-semibold text-muted">PDF</Link>
+            <Link to="/dieta/imprimir" aria-label="Abrir versao pra imprimir"
+              className="h-11 px-2 flex items-center text-[12px] font-semibold text-muted">PDF</Link>
             <Link to="/dieta/plano"><Btn size="sm">Plano</Btn></Link>
           </div>
         } />
@@ -171,14 +172,20 @@ export default function Dieta() {
       <div className="px-4">
         {/* -------- navegacao de dia -------- */}
         <div className="flex items-center gap-2 mb-4">
-          <Btn size="sm" onClick={() => setData(d => diaMais(d, -1))}>‹</Btn>
+          <button onClick={() => setData(d => diaMais(d, -1))} aria-label="Dia anterior"
+            className="w-11 h-11 shrink-0 rounded-xl bg-surface-2 border border-line text-txt text-lg leading-none active:bg-line">
+            ‹
+          </button>
           <button onClick={() => setData(hoje())}
-            className={`flex-1 h-9 rounded-xl text-[13px] font-semibold ${
+            className={`flex-1 h-11 rounded-xl text-[13px] font-semibold ${
               ehHoje ? 'bg-surface-2 text-muted' : 'bg-accent/15 text-accent'
             }`}>
             {ehHoje ? 'Hoje' : 'Voltar para hoje'}
           </button>
-          <Btn size="sm" disabled={data >= hoje()} onClick={() => setData(d => diaMais(d, 1))}>›</Btn>
+          <button onClick={() => setData(d => diaMais(d, 1))} disabled={data >= hoje()} aria-label="Proximo dia"
+            className="w-11 h-11 shrink-0 rounded-xl bg-surface-2 border border-line text-txt text-lg leading-none active:bg-line disabled:opacity-40">
+            ›
+          </button>
         </div>
 
         {/* -------- resumo do dia -------- */}
@@ -189,8 +196,8 @@ export default function Dieta() {
               <span className="text-[9px] text-muted mt-0.5">kcal</span>
             </Anel>
             <div className="flex-1 min-w-0">
-              <button onClick={() => setEditarMetas(true)}
-                className="flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted font-semibold active:text-accent">
+              <button onClick={() => setEditarMetas(true)} aria-label="Editar metas do dia"
+                className="toque flex items-center gap-1 text-[11px] uppercase tracking-wider text-muted font-semibold active:text-accent">
                 Meta {n0(perfil.metaKcal)} kcal
                 <Icone nome="lapis" tamanho={12} />
               </button>
@@ -306,8 +313,8 @@ export default function Dieta() {
                 a troca de cada item pro caso de nao ter. Da pra escolher pra quantos dias
                 e baixar em PDF.
               </p>
-              <Link to="/dieta/compras/imprimir">
-                <Btn size="sm" className="mt-3">Montar lista</Btn>
+              <Link to="/dieta/compras/imprimir" className="inline-block mt-3">
+                <Btn size="sm">Montar lista</Btn>
               </Link>
             </div>
           </div>
@@ -455,7 +462,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
         <button onClick={comido ? onDesfazer : (temPlano ? onComer : undefined)}
           disabled={!comido && !temPlano}
           aria-label={comido ? 'Desfazer' : 'Marcar como comida'}
-          className={`w-9 h-9 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
+          className={`toque w-9 h-9 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
             comido && !faltaComer ? 'bg-good border-good text-[#0a0714]'
               : comido ? 'border-good text-good'
               : temPlano ? 'border-accent text-accent/70 active:border-good active:text-good'
@@ -481,7 +488,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
 
         {diabetes && ehHoje && comido && (
           <button onClick={() => onGlicemia(macros.carb)} aria-label="Registrar glicemia dessa refeicao"
-            className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-muted active:text-accent active:bg-surface-2">
+            className="toque shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-muted active:text-accent active:bg-surface-2">
             <Icone nome="sangue" tamanho={17} />
           </button>
         )}

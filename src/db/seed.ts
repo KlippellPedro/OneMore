@@ -113,7 +113,9 @@ async function montarSetupInicial() {
     objetivo: 'bulking' as const,
     metaTreinosSemana: 5,
     metaAgua: 3500,
-    diabetesTipo1: true,
+    // desligado de proposito: glicemia so aparece depois que a pessoa marca
+    // diabetes tipo 1 em Perfil > Saude
+    diabetesTipo1: false,
   }
 
   const metas = sugerirMetas(base)

@@ -67,7 +67,9 @@ export default function Lembretes() {
   return (
     <div>
       <Cabecalho titulo="Lembretes" voltarPara="/perfil"
-        sub="Avisos de agua, refeicao, treino e glicemia" />
+        sub={perfil.diabetesTipo1
+          ? 'Avisos de agua, refeicao, treino e glicemia'
+          : 'Avisos de agua, refeicao e treino'} />
 
       <div className="px-4 pt-4">
         {/* -------- permissao -------- */}

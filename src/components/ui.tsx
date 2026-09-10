@@ -171,7 +171,8 @@ export function Sheet({ aberto, fechar, titulo, children, alto }: {
         {titulo && (
           <div className="shrink-0 px-5 pb-3 pt-1 flex items-center justify-between border-b border-line/60">
             <h3 className="text-base font-bold">{titulo}</h3>
-            <button onClick={fechar} className="w-8 h-8 rounded-lg text-muted active:bg-surface-2 text-xl leading-none">×</button>
+            <button onClick={fechar} aria-label="Fechar"
+              className="toque w-8 h-8 rounded-lg text-muted active:bg-surface-2 text-xl leading-none">×</button>
           </div>
         )}
         <div className="overflow-y-auto px-5 py-4 safe-b flex-1">{children}</div>
@@ -229,7 +230,7 @@ export function Chip({ ativo, onClick, children, cor }: {
 }) {
   return (
     <button onClick={onClick}
-      className={`shrink-0 h-8 px-3 rounded-full text-[12.5px] font-medium border transition-colors ${
+      className={`shrink-0 h-9 px-3.5 rounded-full text-[12.5px] font-medium border transition-colors ${
         ativo
           ? cor ? 'text-[#0a0714] font-semibold' : 'grad-accent text-white font-semibold border-transparent'
           : 'bg-surface-2 border-line text-muted'
@@ -246,7 +247,7 @@ export function Switch({ ligado, onChange, rotulo }: {
 }) {
   return (
     <button onClick={() => onChange(!ligado)} role="switch" aria-checked={ligado} aria-label={rotulo}
-      className={`w-12 h-7 shrink-0 rounded-full transition-colors relative ${
+      className={`toque w-12 h-7 shrink-0 rounded-full transition-colors relative ${
         ligado ? 'grad-accent' : 'bg-surface-2 border border-line'
       }`}>
       <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
