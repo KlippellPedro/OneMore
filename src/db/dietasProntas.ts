@@ -61,7 +61,7 @@ export const DIETAS_PRONTAS: DietaPronta[] = [
         nota:
           'Opção 2: 200 g de macarrão + 120 g de sobrecoxa. Opção 3: 120 g de goma de '
           + 'tapioca + 120 g de sobrecoxa + salada. A salada e a vontade - o alface e o '
-          + 'tomate aqui sao só o mínimo pra conta não ficar zerada.',
+          + 'tomate aqui são só o mínimo pra conta não ficar zerada.',
         itens: [
           i('al_arroz-branco-cozido', 250, 'g', 250),
           i('al_sobrecoxa-assada-sem-pele', 120, 'g', 120),

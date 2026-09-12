@@ -71,7 +71,7 @@ const ICONES: Record<string, ReactNode> = {
   </>,
   escudo: <path d="M12 2.9 19.1 5.8v5.4c0 4.4-2.9 7.4-7.1 8.9-4.2-1.5-7.1-4.5-7.1-8.9V5.8z" />,
   montanha: <path d="M2.4 19.2 9.6 6.8l3.6 6.2 2-3.2 6.4 9.4z" />,
-  'gráfico-linha': <><path d="M3.2 20.2h17.6" /><path d="M5.2 16.4 10.2 10.6l3 3 5.6-6.8" /></>,
+  'grafico-linha': <><path d="M3.2 20.2h17.6" /><path d="M5.2 16.4 10.2 10.6l3 3 5.6-6.8" /></>,
   chip: <>
     <rect x="6.8" y="6.8" width="10.4" height="10.4" rx="2.2" />
     <rect x="10.2" y="10.2" width="3.6" height="3.6" rx="1" />

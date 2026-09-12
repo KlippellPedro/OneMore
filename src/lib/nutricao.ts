@@ -168,7 +168,7 @@ export function diaBatido(t: Macros, p: Pick<Perfil, 'metaKcal' | 'metaProt'>) {
  * Nome da medida do jeito que o catalogo escreve hoje.
  *
  * O item do plano guarda o texto de quando foi criado - quem montou o cardapio
- * antes do catalogo ganhar acento tem "unidade media" salvo. Mostrar a grafia
+ * antes do catalogo ganhar acento tem "unidade média" salvo. Mostrar a grafia
  * do catalogo deixa a tela inteira acentuada sem precisar reescrever o dado da
  * pessoa, e se o alimento sumiu, devolve o que estava salvo mesmo.
  */

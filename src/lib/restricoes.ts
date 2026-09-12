@@ -29,11 +29,11 @@ export function conflitos(alimentoId: string, restricoes: Marcador[]): Marcador[
 export const temConflito = (alimentoId: string, restricoes: Marcador[]) =>
   conflitos(alimentoId, restricoes).length > 0
 
-/** Texto curto pro aviso na tela: "contem leite e glúten". */
+/** Texto curto pro aviso na tela: "contém leite e glúten". */
 export function textoConflito(ms: Marcador[]): string {
   const nomes = ms.map(m => MARCADORES[m].nome.toLowerCase())
-  if (nomes.length === 1) return `contem ${nomes[0]}`
-  return `contem ${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`
+  if (nomes.length === 1) return `contém ${nomes[0]}`
+  return `contém ${nomes.slice(0, -1).join(', ')} e ${nomes[nomes.length - 1]}`
 }
 
 /** Tira da lista o que conflita. Usado na substituicao e no gerador de plano. */

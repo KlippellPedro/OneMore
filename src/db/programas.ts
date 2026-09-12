@@ -63,13 +63,13 @@ export const PROGRAMAS: Programa[] = [
       + 'carga que cabe em 5 a 9 repetições. Duas séries bem feitas nessa faixa dao o '
       + 'estimulo de força e hipertrofia sem encher a semana de trabalho pra recuperar. '
       + 'Os cinco dias batem cada grupo duas vezes - push/pull/legs na primeira metade, '
-      + 'anterior/posterior na segunda - que e a frequencia com mais evidencia a favor. '
+      + 'anterior/posterior na segunda - que e a frequência com mais evidencia a favor. '
       + 'Antes da primeira série de cada agrupamento entram 3 séries de aquecimento '
       + 'subindo a carga (50% x9, 75% x5, 90% x2), pra chegar na série valendo já pronto. '
       + 'Os exercícios marcados como "Extra" na observacao não existem na edição original '
       + 'e foram somados pra tapar buracos que a conta de volume denunciou. Panturrilha: '
       + 'em pe no Legs e sentada no Anterior - em pe pega o gastrocnemio, sentada pega o '
-      + 'soleo, sao dois músculos e não dois nomes. Antebraço: punho no Pull e punho '
+      + 'soleo, são dois músculos e não dois nomes. Antebraço: punho no Pull e punho '
       + 'inverso no Posterior, pra nao treinar so o flexor num programa cheio de rosca. '
       + 'Face pull no Pull e no Posterior, que era o único grupo com zero série na semana. '
       + 'E no Push, que era o dia mais curto: um desenvolvimento, porque o dia de empurrar '
@@ -125,7 +125,7 @@ export const PROGRAMAS: Programa[] = [
         nome: 'Anterior (ombro, peito, quadríceps)', cor: C.anterior,
         descricao: 'Segunda passada na cadeia da frente, com exercícios diferentes dos do Push e do Legs.',
         itens: [
-          it('ex_elevacao-lateral-no-cabo', 2, '5-9', 120, 'Em Y: uma polia em cada mao, cruzadas na frente'),
+          it('ex_elevacao-lateral-no-cabo', 2, '5-9', 120, 'Em Y: uma polia em cada mão, cruzadas na frente'),
           it('ex_desenvolvimento-no-smith', 2, '5-9', 150, AQUECER),
           it('ex_crossover-polia-alta', 2, '5-9', 120),
           it('ex_supino-reto-com-halteres', 2, '5-9', 150),
@@ -163,7 +163,7 @@ export const PROGRAMAS: Programa[] = [
     porque:
       'Cinco dias e onde o split de 3 (PPL) e o de 4 (Upper/Lower) se encontram. '
       + 'Você começa a semana com os três dias pesados e fecha com dois dias de volume, '
-      + 'batendo cada grupo 2x - que e a frequencia com mais evidencia a favor pra hipertrofia. '
+      + 'batendo cada grupo 2x - que e a frequência com mais evidencia a favor pra hipertrofia. '
       + 'E o melhor uso possível de 5 dias.',
     cuidado: 'Exige comer e dormir de verdade. Com 5 dias mal recuperados você rende menos que com 3 bem feitos.',
     sugestaoDias: [1, 2, 3, 5, 6],
@@ -289,7 +289,7 @@ export const PROGRAMAS: Programa[] = [
     resumo: 'Corpo inteiro em cada treino, três vezes por semana.',
     porque:
       'Pra quem está comecando ou voltando, e imbativel: cada músculo recebe estimulo 3x por semana '
-      + 'e você pratica os movimentos principais com mais frequencia - e tecnica se constroi com repetição. '
+      + 'e você prática os movimentos principais com mais frequência - e técnica se constroi com repetição. '
       + 'Três dias também e fácil de manter quando a rotina aperta.',
     cuidado: 'Depois de uns 6 meses o volume por sessão vira o limite. Ai vale migrar pra Upper/Lower.',
     sugestaoDias: [1, 3, 5],
@@ -308,7 +308,7 @@ export const PROGRAMAS: Programa[] = [
       {
         nome: 'Full Body B', cor: C.full,
         itens: [
-          it('ex_levantamento-terra', 3, '5', 210, 'Tecnica antes de carga. Sempre.'),
+          it('ex_levantamento-terra', 3, '5', 210, 'Técnica antes de carga. Sempre.'),
           it('ex_supino-inclinado-com-halteres', 3, '8-12', 120),
           it('ex_puxada-frontal-na-polia', 3, '8-12', 90),
           it('ex_leg-press-45', 3, '10-15', 120),
@@ -339,7 +339,7 @@ export const PROGRAMAS: Programa[] = [
     foco: 'Hipertrofia e força',
     resumo: 'Superior e inferior, duas vezes cada por semana.',
     porque:
-      'O melhor custo-beneficio pra maioria das pessoas. Frequencia 2x por músculo, '
+      'O melhor custo-beneficio pra maioria das pessoas. Frequência 2x por músculo, '
       + 'volume dividido em sessões que cabem em 1 hora, e ainda sobram 3 dias de folga. '
       + 'Se você só consegue 4 dias, comece por aqui.',
     sugestaoDias: [1, 2, 4, 5],
@@ -489,7 +489,7 @@ export const PROGRAMAS: Programa[] = [
     porque:
       'Mesma logica do PPL de 6, mas cabe em três dias. Cada sessão e mais longa e cada músculo '
       + 'só e treinado 1x por semana, entao rende menos que o Full Body de 3 dias pra iniciante - '
-      + 'mas muita gente prefere pela divisao mais clara.',
+      + 'mas muita gente prefere pela divisão mais clara.',
     sugestaoDias: [1, 3, 5],
     treinos: [
       {
@@ -538,7 +538,7 @@ export const PROGRAMAS: Programa[] = [
     foco: 'Força e hipertrofia',
     resumo: 'Dois dias de força pesada e dois de volume, dividido em superior e inferior.',
     porque:
-      'Resolve a briga entre ficar forte e ficar grande: os dois primeiros dias sao de carga baixa '
+      'Resolve a briga entre ficar forte e ficar grande: os dois primeiros dias são de carga baixa '
       + 'em repetição (3-5), os dois últimos de volume (8-15). Você puxa a força nos basicos e '
       + 'constroi tamanho nos acessorios, sem escolher um dos dois.',
     sugestaoDias: [1, 2, 4, 5],
@@ -606,7 +606,7 @@ export const PROGRAMAS: Programa[] = [
     porque:
       'Todo o volume de um músculo cai num dia só, entao da pra atacar de varios angulos e sentir '
       + 'muito o treino. E o split mais fácil de seguir e o mais divertido pra quem gosta de treinar. '
-      + 'A frequencia de 1x por semana rende um pouco menos que 2x, mas volume alto compensa boa parte.',
+      + 'A frequência de 1x por semana rende um pouco menos que 2x, mas volume alto compensa boa parte.',
     cuidado: 'Faltou um dia, o músculo daquele dia fica 2 semanas sem estimulo. Exige presenca.',
     sugestaoDias: [1, 2, 3, 4, 5],
     treinos: [
@@ -684,9 +684,9 @@ export const PROGRAMAS: Programa[] = [
     resumo: 'Peito+costas, ombro+braço, pernas - duas voltas na semana.',
     porque:
       'Junta músculos antagonistas no mesmo dia (peito com costas, bíceps com tríceps), '
-      + 'o que enche a regiao de sangue e deixa o treino bem intenso. Frequencia 2x por semana '
+      + 'o que enche a regiao de sangue e deixa o treino bem intenso. Frequência 2x por semana '
       + 'com volume alto. E o programa que o Arnold usava, e ainda funciona.',
-    cuidado: 'Volume muito alto. So faz sentido com anos de treino, sono e comida em dia.',
+    cuidado: 'Volume muito alto. Só faz sentido com anos de treino, sono e comida em dia.',
     sugestaoDias: [1, 2, 3, 4, 5, 6],
     treinos: [
       {
@@ -770,7 +770,7 @@ export const PROGRAMAS: Programa[] = [
     resumo: 'Cinco exercícios, 5 séries de 5. Subir carga toda semana e o programa inteiro.',
     porque:
       'O programa mais simples que existe e um dos que mais entrega pra quem está comecando. '
-      + 'So movimentos compostos, e a única regra e adicionar 2,5 kg por treino enquanto conseguir. '
+      + 'Só movimentos compostos, e a única regra e adicionar 2,5 kg por treino enquanto conseguir. '
       + 'Constroi a base de força que faz todo o resto render depois.',
     cuidado: 'Pouco volume pra braço e ombro. E um programa de força, não de estetica - use por alguns meses e migre.',
     sugestaoDias: [1, 3, 5],

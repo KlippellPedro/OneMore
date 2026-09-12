@@ -54,7 +54,7 @@ export default function Diario() {
         <Titulo titulo="Diário de glicemia" sub="Registro e histórico" />
         <div className="px-4">
           <Vazio icone="sangue" titulo="Nenhuma medição ainda"
-            texto="Registre a glicemia e o diário monta sozinho: gráfico, tempo no alvo e a tabela pra levar no medico."
+            texto="Registre a glicemia e o diário monta sozinho: gráfico, tempo no alvo e a tabela pra levar no médico."
             acao={<Btn variant="primary" onClick={() => setNovaGlicemia(true)}>Registrar glicemia</Btn>} />
         </div>
         <SheetGlicemia aberto={novaGlicemia} fechar={() => setNovaGlicemia(false)} />
@@ -118,7 +118,7 @@ export default function Diario() {
         {/* -------- evolucao -------- */}
         {pontos.length > 1 && (
           <Card className="p-4 mb-3">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Evolucao</h2>
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Evolução</h2>
             <Grafico pontos={pontos} cor="var(--color-accent)" altura={150} />
           </Card>
         )}

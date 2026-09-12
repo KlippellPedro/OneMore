@@ -181,7 +181,7 @@ export default function PlanoAlimentar() {
   return (
     <div>
       <Cabecalho titulo="Plano alimentar" voltarPara="/dieta"
-        sub="O cardápio padrão que você lanca com um toque"
+        sub="O cardápio padrão que você lança com um toque"
         acao={<Btn size="sm" variant="primary" onClick={() => setNovaRef(true)}>+ Refeição</Btn>} />
 
       <div className="px-4 pt-4">
@@ -529,11 +529,11 @@ export default function PlanoAlimentar() {
         onNao={() => setAlinhar(false)} onSim={alinharMetas} />
 
       <Confirmar aberto={gerar} titulo="Gerar o cardápio?"
-        texto="As refeições atuais do plano sao substituidas por um cardápio novo, calculado nas suas metas. O que já foi registrado no diário não muda."
+        texto="As refeições atuais do plano são substituídas por um cardápio novo, calculado nas suas metas. O que já foi registrado no diário não muda."
         onNao={() => setGerar(false)} onSim={gerarAutomatico} />
 
       <Confirmar aberto={!!carregar} titulo={`Usar "${carregar?.nome}"?`}
-        texto="As refeições do plano atual sao substituidas pelas dessa dieta. O diário já registrado não muda."
+        texto="As refeições do plano atual são substituídas pelas dessa dieta. O diário já registrado não muda."
         onNao={() => setCarregar(null)}
         onSim={() => carregar && carregarDieta(carregar)} />
 
@@ -543,7 +543,7 @@ export default function PlanoAlimentar() {
         onSim={() => sobrescrever && atualizarDieta(sobrescrever)} />
 
       <Confirmar aberto={!!apagarDieta} perigo titulo="Apagar essa dieta?"
-        texto="So a dieta salva se perde. O plano que está em uso continua."
+        texto="Só a dieta salva se perde. O plano que está em uso continua."
         onNao={() => setApagarDieta(null)}
         onSim={async () => {
           if (apagarDieta) await apagarLinha('dietas', apagarDieta.id)

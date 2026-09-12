@@ -108,7 +108,7 @@ export function SheetGlicemia({ aberto, fechar, momentoInicial, carboSugerido }:
       {unidades.trim() !== '' && (
         <Campo label="Tipo de insulina">
           <div className="flex gap-1.5">
-            <Chip ativo={tipo === 'rapida'} onClick={() => setTipo('rapida')}>Rapida / bolus</Chip>
+            <Chip ativo={tipo === 'rapida'} onClick={() => setTipo('rapida')}>Rápida / bolus</Chip>
             <Chip ativo={tipo === 'basal'} onClick={() => setTipo('basal')}>Basal / lenta</Chip>
           </div>
         </Campo>

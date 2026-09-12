@@ -23,7 +23,7 @@ export function CodigoRecuperacao({ codigo, email, onPronto }: {
       await navigator.clipboard.writeText(codigo)
       toast('Código copiado', 'ok')
     } catch {
-      toast('Copie na mao', 'erro', 'O navegador não deixou copiar sozinho')
+      toast('Copie na mão', 'erro', 'O navegador não deixou copiar sozinho')
     }
   }
 

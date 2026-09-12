@@ -346,7 +346,7 @@ export default function Dieta() {
       <SheetSubstituir alvo={troca && !confirmarTroca ? troca.alvo : null}
         fechar={() => setTroca(null)} priorizarCarbo={diabetes}
         acaoTexto={troca?.ctx.tipo === 'plano'
-          ? 'Toque num equivalente pra lancar no lugar'
+          ? 'Toque num equivalente pra lançar no lugar'
           : 'Toque num equivalente pra trocar no diário'}
         manterTexto="Comi esse mesmo"
         onManter={troca?.ctx.tipo === 'plano'
@@ -395,7 +395,7 @@ export default function Dieta() {
       </Sheet>
 
       <Confirmar aberto={!!desfazerAlvo} perigo titulo="Desfazer essa refeição?"
-        texto="Tudo que foi lancado nela hoje sai do diário."
+        texto="Tudo que foi lançado nela hoje sai do diário."
         onNao={() => setDesfazerAlvo(null)}
         onSim={() => desfazerAlvo && desfazer(desfazerAlvo)} />
 

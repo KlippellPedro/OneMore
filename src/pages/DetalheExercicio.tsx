@@ -163,7 +163,7 @@ export default function DetalheExercicio() {
         {/* -------- evolucao -------- */}
         {historico.length > 0 && (
           <Card className="p-4 mb-3">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Sua evolucao</h2>
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Sua evolução</h2>
             <div className="grid grid-cols-3 gap-3 mb-4">
               <Mini rotulo="Recorde" valor={`${n0(recorde)} kg`} destaque />
               <Mini rotulo="Sessões" valor={String(historico.length)} />

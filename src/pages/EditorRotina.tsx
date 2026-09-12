@@ -320,7 +320,7 @@ export default function EditorRotina() {
       {/* -------- ajustes da rotina -------- */}
       <Sheet aberto={config} fechar={() => setConfig(false)} titulo="Ajustes do treino">
         <Campo label="Nome"><Input value={nome} onChange={e => setNome(e.target.value)} /></Campo>
-        <Campo label="Observacoes" hint="Aparece no topo do treino. Bom pra lembrete de tecnica.">
+        <Campo label="Observacoes" hint="Aparece no topo do treino. Bom pra lembrete de técnica.">
           <Textarea rows={3} value={descricao} onChange={e => setDescricao(e.target.value)}
             placeholder="Ex: aquecer 2 séries leves antes do supino" />
         </Campo>

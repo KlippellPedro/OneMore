@@ -90,7 +90,7 @@ const MODELO: Modelo[] = [
   },
   {
     nome: 'Pre-treino', horario: '18:00', carbo: 0.16,
-    nota: 'So carboidrato de proposito: proteína e gordura antes do treino atrapalham a digestao, e você já comeu whey as 16h.',
+    nota: 'Só carboidrato de proposito: proteína e gordura antes do treino atrapalham a digestao, e você já comeu whey as 16h.',
     slots: [
       { alimento: 'al_batata-doce-cozida', papel: 'carbo', peso: 2.5 },
       { alimento: 'al_pao-frances', papel: 'carbo', peso: 1 },

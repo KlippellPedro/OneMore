@@ -214,7 +214,7 @@ export const CONQUISTAS: Conquista[] = [
   c('d30', 'Chef do Shape', '30 dias batendo a meta de calorias', 'chapeu', 700, s => s.diasDieta, 30),
 
   c('pr10', 'Mais Forte', 'Bata 10 recordes pessoais', 'foguete', 250, s => s.prs, 10),
-  c('pr50', 'Evolucao Constante', 'Bata 50 recordes pessoais', 'barras', 900, s => s.prs, 50),
+  c('pr50', 'Evolução Constante', 'Bata 50 recordes pessoais', 'barras', 900, s => s.prs, 50),
 
   c('ex20', 'Explorador', 'Treine 20 exercícios diferentes', 'bussola', 150, s => s.exerciciosDistintos, 20),
   c('p10', 'Sob Controle', 'Registre seu peso 10 vezes', 'balanca', 120, s => s.pesosRegistrados, 10),

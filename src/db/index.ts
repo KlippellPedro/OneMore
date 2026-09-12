@@ -28,7 +28,7 @@ export class OneMoreDB extends Dexie {
     this.version(1).stores({
       exercicios: 'id, nome, grupo, equipamento, favorito, custom',
       rotinas: 'id, nome, ordem, arquivada',
-      sessoes: 'id, rotinaId, inicio, concluída',
+      sessoes: 'id, rotinaId, inicio, concluida',
       alimentos: 'id, nome, categoria, favorito, custom',
       planos: 'id, ordem',
       dieta: 'id, data, refeicao, alimentoId, [data+refeicao]',

@@ -329,7 +329,7 @@ export async function dispararPendentes(): Promise<number> {
 export async function testar() {
   const reg = await navigator.serviceWorker.ready
   await reg.showNotification('Deu certo', {
-    body: `Os lembretes do OneMore vao chegar assim. Agora sao ${hhmm(Date.now())}.`,
+    body: `Os lembretes do OneMore vao chegar assim. Agora são ${hhmm(Date.now())}.`,
     icon: 'icon-192.png',
     badge: 'icon-192.png',
     tag: 'teste',
