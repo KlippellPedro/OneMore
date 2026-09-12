@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { entrar, criarConta } from '../lib/sync'
+import { entrar, criarConta, redefinirSenha } from '../lib/sync'
+import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
 import { Btn, Campo, Input, Chip } from '../components/ui'
 import { Icone } from '../components/Icone'
 import { useUI } from '../state/ui'
@@ -12,26 +13,56 @@ import { useUI } from '../state/ui'
  * funciona sem internet. Exigir login na porta quebraria justamente o cenario
  * pra que ele existe - treinar na academia, onde quase nunca ha sinal.
  */
+type Modo = 'entrar' | 'criar' | 'recuperar'
+
 export default function Entrada({ pronto }: { pronto: () => void }) {
   const { toast } = useUI()
-  const [criando, setCriando] = useState(false)
+  const [modo, setModo] = useState<Modo>('entrar')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [codigo, setCodigo] = useState('')
   const [ocupado, setOcupado] = useState(false)
+  /** Quando preenchido, a tela para tudo e mostra o codigo. */
+  const [mostrarCodigo, setMostrarCodigo] = useState<string | null>(null)
+
+  const criando = modo === 'criar'
+  const recuperando = modo === 'recuperar'
 
   async function autenticar() {
     if (ocupado) return
     setOcupado(true)
     try {
-      const u = await (criando ? criarConta : entrar)(email.trim(), senha)
-      toast(criando ? 'Conta criada' : `Bem-vindo, ${u?.email ?? ''}`, 'ok',
-        criando ? 'Use Perfil > Sua conta pra sincronizar' : undefined)
+      if (recuperando) {
+        const u = await redefinirSenha(email.trim(), codigo, senha)
+        toast('Senha trocada', 'ok', 'Voce ja entrou na conta')
+        // o codigo usado queimou: o servidor devolve um novo e ele precisa ser
+        // guardado antes de a pessoa sair da tela
+        setMostrarCodigo(u!.codigo)
+        return
+      }
+      if (criando) {
+        const u = await criarConta(email.trim(), senha)
+        setMostrarCodigo(u!.codigo)
+        return
+      }
+      const u = await entrar(email.trim(), senha)
+      toast(`Bem-vindo, ${u?.email ?? ''}`, 'ok')
       pronto()
     } catch (e) {
       toast('Nao deu', 'erro', (e as Error).message)
     } finally {
       setOcupado(false)
     }
+  }
+
+  if (mostrarCodigo) {
+    return (
+      <div className="min-h-full flex flex-col justify-center px-6 py-10 max-w-[420px] mx-auto">
+        <h1 className="text-[20px] font-black leading-tight mb-1">Conta pronta</h1>
+        <p className="text-[13px] text-muted mb-5">{email.trim()}</p>
+        <CodigoRecuperacao codigo={mostrarCodigo} email={email.trim()} onPronto={pronto} />
+      </div>
+    )
   }
 
   return (
@@ -47,31 +78,45 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
       </div>
 
       <div className="flex gap-1.5 mb-4">
-        <Chip ativo={!criando} onClick={() => setCriando(false)}>Ja tenho conta</Chip>
-        <Chip ativo={criando} onClick={() => setCriando(true)}>Criar conta</Chip>
+        <Chip ativo={modo === 'entrar'} onClick={() => setModo('entrar')}>Ja tenho conta</Chip>
+        <Chip ativo={criando} onClick={() => setModo('criar')}>Criar conta</Chip>
       </div>
 
       <Campo label="E-mail">
         <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
           autoComplete="email" placeholder="voce@email.com" inputMode="email" />
       </Campo>
-      <Campo label="Senha" hint={criando ? 'Minimo 8 caracteres.' : undefined}>
+      {recuperando && (
+        <Campo label="Codigo de recuperacao" hint="Aquele que apareceu quando voce criou a conta.">
+          <Input value={codigo} onChange={e => setCodigo(e.target.value)}
+            placeholder="ABCD-2345-EFGH" autoCapitalize="characters" autoComplete="off" />
+        </Campo>
+      )}
+
+      <Campo label={recuperando ? 'Nova senha' : 'Senha'}
+        hint={criando || recuperando ? 'Minimo 8 caracteres.' : undefined}>
         <Input type="password" value={senha} onChange={e => setSenha(e.target.value)}
-          autoComplete={criando ? 'new-password' : 'current-password'}
+          autoComplete={criando || recuperando ? 'new-password' : 'current-password'}
           onKeyDown={e => { if (e.key === 'Enter') autenticar() }} />
       </Campo>
 
       <Btn variant="primary" size="lg" className="w-full" disabled={ocupado} onClick={autenticar}>
         {ocupado
-          ? (criando ? 'Criando...' : 'Entrando...')
-          : (criando ? 'Criar conta' : 'Entrar')}
+          ? 'Um instante...'
+          : recuperando ? 'Trocar a senha' : criando ? 'Criar conta' : 'Entrar'}
       </Btn>
 
       {criando && (
         <p className="text-[11px] text-muted leading-relaxed mt-2.5 text-center">
-          Ainda nao da pra recuperar senha por e-mail - anote a sua.
+          Voce vai receber um codigo de recuperacao pra guardar - e o unico jeito
+          de voltar se esquecer a senha.
         </p>
       )}
+
+      <button onClick={() => { setModo(recuperando ? 'entrar' : 'recuperar'); setSenha('') }}
+        className="toque w-full text-[12px] font-semibold text-muted mt-3 py-1 active:text-accent">
+        {recuperando ? 'Voltar pro login' : 'Esqueci a senha'}
+      </button>
 
       <div className="flex items-center gap-3 my-6">
         <span className="flex-1 h-px bg-line" />

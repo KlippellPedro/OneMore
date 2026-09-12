@@ -9,6 +9,8 @@
  *   POST   /api/sessao   entra
  *   DELETE /api/sessao   sai
  *   GET    /api/eu       quem esta logado (204 se ninguem)
+ *   POST   /api/recuperacao  gera um codigo de recuperacao novo (logado)
+ *   POST   /api/senha        troca a senha usando o codigo (sem estar logado)
  *   GET    /api/dados    baixa o backup da conta (204 se ainda nao enviou nada)
  *   PUT    /api/dados    sobe o backup da conta
  */
@@ -16,6 +18,7 @@ import { consultar, configurado, pronto } from './banco.js'
 import {
   COOKIE, hashSenha, conferirSenha, criarSessao, usuarioDaSessao, encerrarSessao,
   criarUsuario, acharPorEmail, normalizarEmail, emailValido,
+  gerarCodigo, hashCodigo, conferirCodigo, trocarSenha,
   lerCookie, cookieSessao, cookieLimpo,
 } from './auth.js'
 
@@ -135,7 +138,56 @@ async function postConta(req, res) {
 
   const { token, expira } = await criarSessao(usuario.id)
   desfrear(req)
-  responder(res, 201, { email: usuario.email }, { 'Set-Cookie': cookieSessao(req, token, expira) })
+  // o codigo de recuperacao volta AQUI e so aqui - depois disso so existe o hash
+  responder(res, 201, { email: usuario.email, codigo: usuario.codigo },
+    { 'Set-Cookie': cookieSessao(req, token, expira) })
+}
+
+/**
+ * Gera um codigo novo pra quem esta logado. Serve pra dois casos: conta criada
+ * antes de existir codigo, e "perdi o papel mas ainda estou dentro".
+ * O codigo antigo para de valer na hora.
+ */
+async function postRecuperacao(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const codigo = gerarCodigo()
+  await consultar('update usuarios set codigo_hash = $2 where id = $1', [u.id, await hashCodigo(codigo)])
+  responder(res, 200, { codigo })
+}
+
+/**
+ * Troca a senha usando o codigo de recuperacao. E a unica porta sem servidor de
+ * e-mail, entao ela e o alvo obvio de quem quiser invadir conta - por isso o
+ * freio por IP vale aqui tambem.
+ *
+ * Erro generico de proposito: dizer "esse e-mail nao existe" ou "o codigo esta
+ * errado" entregaria quem tem conta aqui e ajudaria a garimpar codigo.
+ */
+async function postSenha(req, res) {
+  if (freado(req)) return erro(res, 429, 'Muitas tentativas. Espere uns minutos.')
+
+  const corpo = await lerCorpo(req)
+  const email = normalizarEmail(corpo.email)
+  const senha = String(corpo.senha ?? '')
+  const codigo = String(corpo.codigo ?? '')
+
+  if (senha.length < SENHA_MINIMA) {
+    return erro(res, 400, `A senha precisa de pelo menos ${SENHA_MINIMA} caracteres.`)
+  }
+
+  const usuario = await acharPorEmail(email)
+  const ok = usuario?.codigo_hash
+    ? await conferirCodigo(codigo, usuario.codigo_hash)
+    : (await hashSenha(codigo), false)
+  if (!ok) return erro(res, 401, 'E-mail ou codigo de recuperacao incorretos.')
+
+  const novoCodigo = await trocarSenha(usuario.id, senha)
+  // entra ja logado: a pessoa acabou de provar que e dona da conta
+  const { token, expira } = await criarSessao(usuario.id)
+  desfrear(req)
+  responder(res, 200, { email: usuario.email, codigo: novoCodigo },
+    { 'Set-Cookie': cookieSessao(req, token, expira) })
 }
 
 async function postSessao(req, res) {
@@ -205,6 +257,8 @@ const ROTAS = {
   'POST /api/sessao': postSessao,
   'DELETE /api/sessao': deleteSessao,
   'GET /api/eu': getEu,
+  'POST /api/recuperacao': postRecuperacao,
+  'POST /api/senha': postSenha,
   'GET /api/dados': getDados,
   'PUT /api/dados': putDados,
 }

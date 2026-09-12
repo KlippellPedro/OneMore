@@ -4,7 +4,7 @@
  * modulo nativo pra quebrar em deploy.
  */
 import {
-  randomBytes, randomUUID, scrypt, timingSafeEqual, createHash,
+  randomBytes, randomUUID, randomInt, scrypt, timingSafeEqual, createHash,
 } from 'node:crypto'
 import { promisify } from 'node:util'
 import { consultar } from './banco.js'
@@ -103,18 +103,65 @@ export const emailValido = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) && e.len
 
 export async function criarUsuario(email, senha) {
   const id = randomUUID()
+  const codigo = gerarCodigo()
   await consultar(
-    'insert into usuarios (id, email, senha_hash) values ($1, $2, $3)',
-    [id, email, await hashSenha(senha)],
+    'insert into usuarios (id, email, senha_hash, codigo_hash) values ($1, $2, $3, $4)',
+    [id, email, await hashSenha(senha), await hashCodigo(codigo)],
   )
-  return { id, email }
+  // o codigo volta UMA vez, aqui. Depois disso so existe o hash.
+  return { id, email, codigo }
 }
 
 export async function acharPorEmail(email) {
   const { rows } = await consultar(
-    'select id, email, senha_hash from usuarios where email = $1', [email],
+    'select id, email, senha_hash, codigo_hash from usuarios where email = $1', [email],
   )
   return rows[0] ?? null
+}
+
+/* ------------------------------------------------------------------ */
+/* CODIGO DE RECUPERACAO                                               */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Alfabeto sem 0/O/1/I/L: o codigo vai ser copiado a mao de um papel, e
+ * confundir zero com O e o jeito mais facil de alguem perder a propria conta.
+ */
+const ALFABETO = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+const TAMANHO = 12
+
+/**
+ * Gera um codigo tipo ABCD-2345-EFGH. Sao 12 caracteres de 31 possibilidades,
+ * ou ~59 bits - longe do alcance de quem tenta adivinhar, ainda mais com o
+ * freio por IP na rota de recuperacao.
+ *
+ * randomInt e uniforme; usar randomBytes com modulo enviesaria as primeiras
+ * letras do alfabeto.
+ */
+export function gerarCodigo() {
+  let c = ''
+  for (let i = 0; i < TAMANHO; i++) c += ALFABETO[randomInt(ALFABETO.length)]
+  return `${c.slice(0, 4)}-${c.slice(4, 8)}-${c.slice(8)}`
+}
+
+/** Aceita com ou sem hifen, em qualquer caixa - quem digita a mao erra nisso. */
+export const normalizarCodigo = c =>
+  String(c ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '')
+
+export const hashCodigo = codigo => hashSenha(normalizarCodigo(codigo))
+export const conferirCodigo = (codigo, guardado) =>
+  conferirSenha(normalizarCodigo(codigo), guardado)
+
+/** Troca a senha E o codigo, e derruba todas as sessoes abertas da conta. */
+export async function trocarSenha(usuarioId, novaSenha) {
+  const codigo = gerarCodigo()
+  await consultar(
+    'update usuarios set senha_hash = $2, codigo_hash = $3 where id = $1',
+    [usuarioId, await hashSenha(novaSenha), await hashCodigo(codigo)],
+  )
+  // quem trocou a senha quer justamente expulsar quem estiver dentro
+  await consultar('delete from sessoes where usuario_id = $1', [usuarioId])
+  return codigo
 }
 
 /* ------------------------------------------------------------------ */

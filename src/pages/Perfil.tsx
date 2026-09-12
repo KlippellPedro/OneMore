@@ -5,9 +5,10 @@ import { usePerfil, useNivel } from '../state/hooks'
 import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo,
-  entrar, criarConta, sair, usuarioAtual,
+  entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao,
   sincronizar, ultimoSync, type Backup,
 } from '../lib/sync'
+import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
 import { rodarSeed } from '../db/seed'
 import { restricoesDoPerfil } from '../lib/restricoes'
 import { MARCADORES, PRESETS, type Marcador } from '../db/marcadores'
@@ -274,6 +275,8 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   const [usuario, setUsuario] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [ultima, setUltima] = useState<Date | null>(ultimoSync())
+  /** Codigo recem-gerado, esperando a pessoa confirmar que anotou. */
+  const [codigo, setCodigo] = useState<string | null>(null)
 
   useEffect(() => {
     if (!aberto) return
@@ -288,10 +291,20 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   }
 
   async function autenticar() {
-    const u = await (criando ? criarConta : entrar)(email.trim(), senha)
+    if (criando) {
+      const u = await criarConta(email.trim(), senha)
+      setUsuario(u!.email)
+      setSenha('')
+      // o codigo aparece uma vez so: mostra antes de qualquer outra coisa
+      setCodigo(u!.codigo)
+      toast('Conta criada', 'ok')
+      await sincronizarAgora(true)
+      return
+    }
+    const u = await entrar(email.trim(), senha)
     setUsuario(u?.email ?? null)
     setSenha('')
-    toast(criando ? 'Conta criada' : 'Conectado', 'ok')
+    toast('Conectado', 'ok')
     // primeira sincronizacao logo apos entrar: e o que a pessoa quer de fato
     await sincronizarAgora(true)
   }
@@ -313,15 +326,35 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
         perfil no celular e no PC. Seus dados ficam na sua conta e ninguem mais le.
       </p>
 
+      {codigo && (
+        <div className="mb-4">
+          <CodigoRecuperacao codigo={codigo} email={usuario ?? undefined}
+            onPronto={() => setCodigo(null)} />
+        </div>
+      )}
+
       {/* passo 1 */}
       <Passo n={1} titulo={usuario ? 'Conta' : 'Entrar ou criar conta'} feito={!!usuario}>
         {usuario ? (
-          <div className="flex items-center gap-3">
-            <p className="flex-1 text-[13px] truncate">Conectado como <b>{usuario}</b></p>
-            <Btn size="sm" disabled={ocupado === 'sair'} onClick={() => tentar('sair', async () => {
-              await sair(); setUsuario(null); toast('Voce saiu', 'ok')
-            })}>Sair</Btn>
-          </div>
+          <>
+            <div className="flex items-center gap-3">
+              <p className="flex-1 text-[13px] truncate">Conectado como <b>{usuario}</b></p>
+              <Btn size="sm" disabled={ocupado === 'sair'} onClick={() => tentar('sair', async () => {
+                await sair(); setUsuario(null); toast('Voce saiu', 'ok')
+              })}>Sair</Btn>
+            </div>
+            <p className="text-[11.5px] text-muted leading-relaxed mt-3">
+              Perdeu o codigo de recuperacao? Gere outro enquanto ainda esta
+              logado - o anterior para de valer na hora.
+            </p>
+            <Btn size="sm" className="w-full mt-2" disabled={ocupado === 'codigo'}
+              onClick={() => tentar('codigo', async () => {
+                const r = await novoCodigoRecuperacao()
+                setCodigo(r!.codigo)
+              })}>
+              {ocupado === 'codigo' ? 'Gerando...' : 'Gerar novo codigo de recuperacao'}
+            </Btn>
+          </>
         ) : (
           <>
             <div className="flex gap-1.5 mb-3">
@@ -344,8 +377,10 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
                 : (criando ? 'Criar conta' : 'Entrar')}
             </Btn>
             <p className="text-[11px] text-muted leading-relaxed mt-2.5">
-              Ainda nao da pra recuperar senha esquecida por e-mail - anote a sua.
-              Enquanto isso, use "Baixar backup" pra ter uma copia dos seus dados.
+              Ao criar a conta voce recebe um codigo de recuperacao - guarde. E o
+              unico jeito de trocar a senha se esquecer, porque o app nao envia
+              e-mail. Esqueceu a senha? Saia do app e use "Esqueci a senha" na
+              tela de entrada.
             </p>
           </>
         )}

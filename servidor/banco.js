@@ -61,6 +61,13 @@ create table if not exists usuarios (
   criado_em   timestamptz not null default now()
 );
 
+-- codigo de recuperacao: e o que permite trocar a senha sem servidor de e-mail.
+-- Guardado com o mesmo scrypt da senha, nunca em texto puro. E "add column if
+-- not exists" porque contas criadas antes desta versao existem e ficam com NULL
+-- ate gerarem um codigo pelo Perfil.
+-- (sem crase neste arquivo: isto esta dentro de um template literal)
+alter table usuarios add column if not exists codigo_hash text;
+
 create table if not exists sessoes (
   token_hash  text primary key,
   usuario_id  uuid not null references usuarios(id) on delete cascade,

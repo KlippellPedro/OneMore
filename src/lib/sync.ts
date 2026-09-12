@@ -118,6 +118,13 @@ const API = '/api'
 
 export interface Usuario { email: string }
 
+/**
+ * Resposta de cadastro e de redefinicao. O codigo vem UMA vez e nunca mais:
+ * no servidor so fica o hash dele. Quem nao anotar precisa gerar outro estando
+ * logado (novoCodigoRecuperacao) ou perde o acesso se esquecer a senha.
+ */
+export interface UsuarioComCodigo extends Usuario { codigo: string }
+
 async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null> {
   let r: Response
   try {
@@ -140,7 +147,17 @@ async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null
 export const usuarioAtual = () => chamar<Usuario>('/eu')
 
 export const criarConta = (email: string, senha: string) =>
-  chamar<Usuario>('/conta', { method: 'POST', body: JSON.stringify({ email, senha }) })
+  chamar<UsuarioComCodigo>('/conta', { method: 'POST', body: JSON.stringify({ email, senha }) })
+
+/** Gera um codigo novo (precisa estar logado). O anterior para de valer. */
+export const novoCodigoRecuperacao = () =>
+  chamar<{ codigo: string }>('/recuperacao', { method: 'POST', body: JSON.stringify({}) })
+
+/** Troca a senha com o codigo de recuperacao. Entra logado ja no fim. */
+export const redefinirSenha = (email: string, codigo: string, senha: string) =>
+  chamar<UsuarioComCodigo>('/senha', {
+    method: 'POST', body: JSON.stringify({ email, codigo, senha }),
+  })
 
 export const entrar = (email: string, senha: string) =>
   chamar<Usuario>('/sessao', { method: 'POST', body: JSON.stringify({ email, senha }) })
