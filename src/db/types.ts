@@ -98,6 +98,12 @@ export interface Alimento {
   carb: number
   gord: number
   fibra?: number
+  /**
+   * Sodio em MILIGRAMAS por 100 g, do alimento sem sal adicionado. O sal de
+   * cozinha e um alimento a parte, justamente porque quanto voce poe na panela
+   * o app nao tem como saber.
+   */
+  sodio?: number
   unidadeBase: 'g' | 'ml'
   medidas: Medida[]
   custom?: boolean
@@ -234,6 +240,10 @@ export interface Perfil {
    * marcadores de db/marcadores.ts. O app avisa e filtra - nao diagnostica.
    */
   restricoes?: string[]
+  /** Liga o acompanhamento de sodio na dieta. */
+  hipertensao?: boolean
+  /** Limite diario de sodio em mg. Padrao 2000, que e o teto da OMS. */
+  metaSodio?: number
   lembretes?: ConfigLembretes
   xp: number
   streak: number

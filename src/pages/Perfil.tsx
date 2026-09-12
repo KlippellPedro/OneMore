@@ -444,8 +444,64 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
         </>
       )}
 
+      <Hipertensao perfil={perfil} />
       <Restricoes perfil={perfil} />
     </Sheet>
+  )
+}
+
+/**
+ * Acompanhamento de sodio. Mesma regra do resto: mostra, nao julga.
+ */
+function Hipertensao({ perfil }: { perfil: TPerfil }) {
+  const { toast } = useUI()
+  const ligado = perfil.hipertensao === true
+
+  return (
+    <>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 mt-7 px-1">
+        Pressao alta
+      </h3>
+      <Card className="p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[14px] font-bold">Acompanhar sodio</p>
+            <p className="text-[12px] text-muted leading-relaxed mt-1">
+              Mostra o sodio do dia na Dieta, com o teto de 2.000 mg da OMS.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              await salvarPerfil({ hipertensao: !ligado })
+              toast(ligado ? 'Desligado' : 'Ligado', 'ok')
+            }}
+            className={`toque w-12 h-7 shrink-0 rounded-full transition-colors relative ${
+              ligado ? 'bg-accent' : 'bg-surface-2'}`}>
+            <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
+              ligado ? 'left-6' : 'left-1'}`} />
+          </button>
+        </div>
+      </Card>
+
+      {ligado && (
+        <Card className="p-4 mt-3 border-warn/30">
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-warn mb-2">
+            Leia isto antes de confiar no numero
+          </h3>
+          <p className="text-[12.5px] leading-relaxed text-txt/85">
+            O catalogo traz o sodio do alimento <b>sem sal adicionado</b>. Arroz e
+            feijao cozidos aparecem com quase nada porque e isso que o grao tem - o
+            sal da panela nao esta ai. Pra conta fechar, lance tambem o
+            <b> "Sal de cozinha"</b>: uma colher de cha rasa tem cerca de 1.900 mg,
+            quase o dia inteiro sozinha.
+          </p>
+          <p className="text-[12.5px] leading-relaxed text-txt/85 mt-2.5">
+            Ou seja: o total e um <b>piso</b>, nao um retrato. E ele nao substitui
+            medir a pressao nem conversar com seu medico.
+          </p>
+        </Card>
+      )}
+    </>
   )
 }
 

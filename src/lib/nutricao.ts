@@ -1,8 +1,12 @@
 import type { Alimento, Perfil, RegistroDieta, ItemRefeicao } from '../db/types'
 
-export interface Macros { kcal: number; prot: number; carb: number; gord: number; fibra: number }
+export interface Macros {
+  kcal: number; prot: number; carb: number; gord: number; fibra: number
+  /** Miligramas. So aparece na tela pra quem ligou hipertensao no perfil. */
+  sodio: number
+}
 
-export const ZERO: Macros = { kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0 }
+export const ZERO: Macros = { kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0, sodio: 0 }
 
 /** Macros de `gramas` de um alimento (a tabela e sempre por 100 g). */
 export function macrosDe(a: Alimento, gramas: number): Macros {
@@ -13,6 +17,7 @@ export function macrosDe(a: Alimento, gramas: number): Macros {
     carb: a.carb * f,
     gord: a.gord * f,
     fibra: (a.fibra ?? 0) * f,
+    sodio: (a.sodio ?? 0) * f,
   }
 }
 
@@ -23,6 +28,7 @@ export function somaMacros(...ms: Macros[]): Macros {
     carb: acc.carb + m.carb,
     gord: acc.gord + m.gord,
     fibra: acc.fibra + m.fibra,
+    sodio: acc.sodio + m.sodio,
   }), { ...ZERO })
 }
 
@@ -112,6 +118,9 @@ export interface SugestaoMetas extends Macros { gasto: number; tmb: number }
  * Sugere kcal + macros a partir do perfil.
  * Proteina e gordura por kg de peso; carboidrato leva o que sobra.
  */
+/** Teto diario de sodio recomendado pela OMS, em mg. */
+export const LIMITE_SODIO_OMS = 2000
+
 export function sugerirMetas(
   p: Pick<Perfil, 'sexo' | 'pesoKg' | 'alturaCm' | 'nascimento' | 'idade' | 'atividade' | 'objetivo'>,
 ): SugestaoMetas {
@@ -129,7 +138,14 @@ export function sugerirMetas(
 
   const carb = Math.max(0, Math.round((kcal - prot * 4 - gord * 9) / 4))
 
-  return { kcal, prot, carb, gord, fibra: Math.round(kcal / 1000 * 14), gasto, tmb: base }
+  return {
+    kcal, prot, carb, gord,
+    fibra: Math.round(kcal / 1000 * 14),
+    // 2000 mg e o teto diario da OMS pra adulto. Nao muda com peso nem objetivo,
+    // entao e constante mesmo - nao ha conta a fazer aqui.
+    sodio: LIMITE_SODIO_OMS,
+    gasto, tmb: base,
+  }
 }
 
 /** Percentual da meta atingido, limitado pra barra nao estourar visualmente. */

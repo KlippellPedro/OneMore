@@ -86,6 +86,8 @@ export default function Sessao() {
   const descanso = useDescanso()
   const [agora, setAgora] = useState(Date.now())
   const [seletor, setSeletor] = useState(false)
+  /** id do exercicio que vai ser trocado por outro, mantendo o lugar na lista. */
+  const [trocando, setTrocando] = useState<string | null>(null)
   const [removerEx, setRemoverEx] = useState<string | null>(null)
   const [confirmarFim, setConfirmarFim] = useState(false)
   const [confirmarSair, setConfirmarSair] = useState(false)
@@ -213,6 +215,28 @@ export default function Sessao() {
     await salvar(renumerarSeries(sessao!.series.filter(s => s.exercicioId !== exercicioId)))
   }
 
+  /**
+   * Troca um exercicio por outro sem sair do lugar. O caso e banal na academia:
+   * a maquina esta ocupada e voce faz outra coisa no lugar. Tirar e adicionar
+   * resolveria, mas jogaria o exercicio pro fim da lista e perderia as series
+   * ja marcadas como feitas.
+   *
+   * Serie ja feita e preservada como feita: voce fez aquilo, so nao no aparelho
+   * planejado. A carga vira a ultima daquele exercicio novo, se houver - o peso
+   * do supino nao serve de palpite pro crucifixo.
+   */
+  async function trocarExercicio(de: string, para: string) {
+    const ant = await ultimaCarga(para)
+    const series = sessao!.series.map(s =>
+      s.exercicioId === de
+        ? { ...s, exercicioId: para, carga: s.feito ? s.carga : (ant?.carga ?? 0), reps: s.feito ? s.reps : (ant?.reps ?? 0) }
+        : s)
+    await salvar(renumerarSeries(series))
+    setAnteriores(a => ({ ...a, [para]: ant }))
+    recordeDe(para).then(rec => setRecordes(r => ({ ...r, [para]: rec })))
+    setTrocando(null)
+  }
+
   async function finalizar() {
     setConfirmarFim(false)
     const r = await concluirSessao(id)
@@ -280,6 +304,11 @@ export default function Sessao() {
                   </div>
                   {item?.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
                 </div>
+                <button onClick={() => setTrocando(g.exercicioId)}
+                  aria-label={`Trocar ${ex?.nome ?? 'exercicio'} por outro`}
+                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted active:bg-accent/15 active:text-accent">
+                  <Icone nome="arrastar" tamanho={16} />
+                </button>
                 <button onClick={() => setRemoverEx(g.exercicioId)}
                   aria-label={`Tirar ${ex?.nome ?? 'exercicio'} do treino`}
                   className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg text-muted active:bg-bad/15 active:text-bad">
@@ -361,6 +390,10 @@ export default function Sessao() {
           recordeDe(ex.id).then(rec => setRecordes(r => ({ ...r, [ex.id]: rec })))
           setSeletor(false)
         }} />
+
+      <Seletor aberto={!!trocando} fechar={() => setTrocando(null)}
+        jaEscolhidos={grupos.map(g => g.exercicioId).filter(x => x !== trocando)}
+        onEscolher={ex => { if (trocando) trocarExercicio(trocando, ex.id) }} />
 
       <Sheet aberto={notas} fechar={() => setNotas(false)} titulo="Anotacoes do treino">
         <Textarea rows={6} defaultValue={sessao.notas ?? ''}

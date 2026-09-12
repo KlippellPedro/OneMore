@@ -24,6 +24,7 @@ import type {
   Alimento, RegistroDieta, PlanoRefeicao, ItemRefeicao, MomentoGlicemia,
 } from '../db/types'
 import type { Substituto } from '../lib/substituicoes'
+import { LIMITE_SODIO_OMS } from '../lib/nutricao'
 import { restricoesDoPerfil, conflitos, textoConflito } from '../lib/restricoes'
 import type { Marcador } from '../db/marcadores'
 
@@ -60,6 +61,7 @@ export default function Dieta() {
   const ehHoje = data === hoje()
   const diabetes = perfil.diabetesTipo1 === true
   const evitar = restricoesDoPerfil(perfil)
+  const hipertensao = perfil.hipertensao === true
 
   const nomesRefeicao = planos.length
     ? planos.map(p => p.nome)
@@ -224,6 +226,8 @@ export default function Dieta() {
             <Macro nome="Proteina" atual={total.prot} meta={perfil.metaProt} cor="var(--color-good)" />
             <Macro nome="Gordura" atual={total.gord} meta={perfil.metaGord} cor="var(--color-warn)" />
           </button>
+
+          {hipertensao && <LinhaSodio atual={total.sodio} meta={perfil.metaSodio ?? LIMITE_SODIO_OMS} />}
           <button onClick={() => setEditarMetas(true)}
             className="w-full mt-3 pt-3 border-t border-line/50 flex items-center justify-center gap-1.5 text-[11.5px] font-semibold text-muted active:text-accent">
             <Icone nome="lapis" tamanho={13} />
@@ -584,5 +588,32 @@ function AvisoRestricao({ alimentoId, evitar }: { alimentoId: string; evitar: Ma
       <Icone nome="alerta" tamanho={10} />
       {textoConflito(bate)}
     </p>
+  )
+}
+
+/**
+ * Sodio do dia. So aparece pra quem ligou hipertensao em Perfil > Saude - pra
+ * quem nao ligou, e mais um numero competindo com os tres que importam.
+ *
+ * O texto lembra do sal da panela de proposito: os valores do catalogo sao do
+ * alimento sem sal adicionado, entao o total aqui e um piso, nao um retrato.
+ */
+function LinhaSodio({ atual, meta }: { atual: number; meta: number }) {
+  const p = meta > 0 ? atual / meta : 0
+  const passou = atual > meta
+  return (
+    <div className="mt-3 pt-3 border-t border-line/50">
+      <div className="flex items-baseline justify-between mb-1.5">
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Sodio</span>
+        <span className={`text-[12px] font-bold tabular-nums ${passou ? 'text-bad' : 'text-txt'}`}>
+          {n0(atual)}<span className="text-muted font-medium">/{n0(meta)} mg</span>
+        </span>
+      </div>
+      <Barra valor={p} cor={passou ? 'var(--color-bad)' : 'var(--color-accent-2)'} altura={6} />
+      <p className="text-[10.5px] text-muted leading-relaxed mt-1.5">
+        Conta so o sodio dos alimentos. O sal que voce poe na panela entra
+        lancando "Sal de cozinha" - uma colher de cha rasa ja passa de 1.900 mg.
+      </p>
+    </div>
   )
 }

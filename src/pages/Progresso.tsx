@@ -11,6 +11,8 @@ import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Sheet, Campo, Input, Barra, Chip, Vazio } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, n1, pl, peso, dataCurta, duracao, dataNumerica } from '../lib/format'
+import { calcularProgressao, ROTULO_TENDENCIA } from '../lib/progressao'
+import { useMapaExercicios } from '../state/hooks'
 
 type Aba = 'treino' | 'corpo' | 'conquistas'
 
@@ -23,6 +25,11 @@ export default function Progresso() {
   const [registrarPeso, setRegistrarPeso] = useState(false)
 
   const stats = useLiveQuery(() => coletarStats(perfil), [perfil.xp, perfil.conquistas.length])
+  const mapaEx = useMapaExercicios()
+  const progressao = useLiveQuery(
+    async () => calcularProgressao(await db.sessoes.where('concluida').equals(1).toArray()),
+    [], [],
+  ) ?? []
   const sessoes = useLiveQuery(async () => {
     const s = await db.sessoes.where('concluida').equals(1).toArray()
     return s.sort((a, b) => b.inicio - a.inicio)
@@ -111,6 +118,42 @@ export default function Progresso() {
               </h2>
               <Barras dados={semanas} altura={110} sufixo="kg levantados por semana" />
             </Card>
+
+            {progressao.length > 0 && (
+              <Card className="p-4 mb-3">
+                <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-1">
+                  Seus exercicios
+                </h2>
+                <p className="text-[11.5px] text-muted leading-relaxed mb-3">
+                  Compara a media das ultimas 3 sessoes com a das 3 anteriores. Media
+                  e nao ultimo peso: um dia ruim nao e estagnacao.
+                </p>
+                <div className="space-y-1">
+                  {progressao.slice(0, 8).map(p => {
+                    const t = ROTULO_TENDENCIA[p.tendencia]
+                    return (
+                      <button key={p.exercicioId} onClick={() => nav(`/exercicios/${p.exercicioId}`)}
+                        className="w-full flex items-center gap-3 py-2 text-left active:bg-surface-2 rounded-lg px-1">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-medium truncate">
+                            {mapaEx.get(p.exercicioId)?.nome ?? p.exercicioId}
+                          </p>
+                          <p className="text-[10.5px] text-muted">
+                            {pl(p.sessoes, 'sessao', 'sessoes')} - recorde {n0(p.recorde)} kg
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-[12px] font-bold tabular-nums" style={{ color: t.cor }}>
+                            {p.tendencia === 'novo' ? '-' : `${p.delta > 0 ? '+' : ''}${n1(p.delta)} kg`}
+                          </p>
+                          <p className="text-[10px] font-semibold" style={{ color: t.cor }}>{t.texto}</p>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </Card>
+            )}
 
             <Card className="p-4 mb-3">
               <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">
