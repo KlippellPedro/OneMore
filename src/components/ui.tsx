@@ -22,13 +22,23 @@ export function Card({ children, className = '', onClick, destaque }: {
   )
 }
 
-export function Secao({ titulo, acao, children }: {
+export function Secao({ titulo, acao, children, cor }: {
   titulo: string; acao?: ReactNode; children: ReactNode
+  /**
+   * Cor do marcador. O padrao e a cor da secao em que a pagina esta (ver
+   * lib/secoes.ts); passe explicito quando o bloco falar de OUTRA secao - e o
+   * caso da Home, que mostra um pedaco de cada uma.
+   */
+  cor?: string
 }) {
   return (
     <section className="mb-6">
       <div className="flex items-end justify-between mb-2.5 px-1">
-        <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted">{titulo}</h2>
+        <h2 className="text-[13px] font-semibold uppercase tracking-wider text-muted flex items-center gap-2">
+          <span className="w-1 h-3.5 rounded-full shrink-0"
+            style={{ background: cor ?? 'var(--cor-secao, var(--color-accent))' }} />
+          {titulo}
+        </h2>
         {acao}
       </div>
       {children}

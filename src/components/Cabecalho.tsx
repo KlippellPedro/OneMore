@@ -7,7 +7,8 @@ export function Cabecalho({ titulo, sub, acao, voltarPara }: {
 }) {
   const nav = useNavigate()
   return (
-    <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur-lg border-b border-line/60 safe-t">
+    <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur-lg border-b border-line/60 safe-t relative">
+      <FioDaSecao />
       <div className="flex items-center gap-2 px-3 h-14">
         <button
           onClick={() => (voltarPara ? nav(voltarPara) : nav(-1))}
@@ -29,12 +30,30 @@ export function Cabecalho({ titulo, sub, acao, voltarPara }: {
 /** Cabecalho de aba (sem voltar). */
 export function Titulo({ titulo, sub, acao }: { titulo: string; sub?: string; acao?: ReactNode }) {
   return (
-    <header className="px-4 pt-4 pb-3 flex items-end justify-between gap-3 safe-t">
-      <div className="min-w-0">
-        <h1 className="text-[26px] font-black leading-tight tracking-tight">{titulo}</h1>
-        {sub && <p className="text-[13px] text-muted mt-0.5">{sub}</p>}
+    <header className="px-4 pt-4 pb-3 safe-t">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-[26px] font-black leading-tight tracking-tight">{titulo}</h1>
+          {sub && <p className="text-[13px] text-muted mt-0.5">{sub}</p>}
+        </div>
+        {acao}
       </div>
-      {acao}
+      <div className="h-[3px] w-12 rounded-full mt-3"
+        style={{ background: 'var(--cor-secao, var(--color-accent))' }} />
     </header>
+  )
+}
+
+/**
+ * Fio fino no pe do cabecalho, na cor da secao. E o suficiente pra a pagina
+ * dizer onde voce esta antes de voce ler o titulo, sem colorir a tela toda.
+ */
+function FioDaSecao() {
+  return (
+    <div className="absolute left-0 right-0 bottom-0 h-px pointer-events-none"
+      style={{
+        background: 'linear-gradient(90deg, var(--cor-secao, var(--color-accent)), transparent 62%)',
+        opacity: 0.55,
+      }} />
   )
 }

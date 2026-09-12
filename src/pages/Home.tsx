@@ -11,6 +11,7 @@ import { iniciarSessao, addAgua, volumeSessao } from '../lib/acoes'
 import { multiplicadorStreak, streakVivo, XP } from '../lib/xp'
 import { useUI, vibrar } from '../state/ui'
 import { Card, Btn, Barra, Anel, Secao } from '../components/ui'
+import { SECOES } from '../lib/secoes'
 import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
 import { Icone } from '../components/Icone'
 import { n0, n1, pl, peso, dataCurta, duracao, clamp } from '../lib/format'
@@ -156,7 +157,7 @@ export default function Home() {
       </Card>
 
       {/* -------- treino -------- */}
-      <Secao titulo="Treino de hoje" acao={
+      <Secao titulo="Treino de hoje" cor={SECOES.treino.cor} acao={
         <Link to="/treinos" className="toque text-[12px] font-semibold text-accent">Ver todos</Link>
       }>
         {sessaoAtiva ? (
@@ -213,7 +214,7 @@ export default function Home() {
       </Secao>
 
       {/* -------- dieta -------- */}
-      <Secao titulo="Dieta de hoje" acao={
+      <Secao titulo="Dieta de hoje" cor={SECOES.dieta.cor} acao={
         <Link to="/dieta" className="toque text-[12px] font-semibold text-accent">Abrir</Link>
       }>
         <Card className="p-4" onClick={() => nav('/dieta')}>
@@ -244,7 +245,7 @@ export default function Home() {
 
       {/* -------- glicemia -------- */}
       {perfil.diabetesTipo1 === true && (
-        <Secao titulo="Glicemia de hoje" acao={<Link to="/diario" className="toque text-[12.5px] font-semibold text-accent">Ver diario</Link>}>
+        <Secao titulo="Glicemia de hoje" cor={SECOES.diario.cor} acao={<Link to="/diario" className="toque text-[12.5px] font-semibold text-accent">Ver diario</Link>}>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
@@ -271,7 +272,7 @@ export default function Home() {
       )}
 
       {/* -------- agua -------- */}
-      <Secao titulo="Agua">
+      <Secao titulo="Agua" cor="var(--color-accent-2)">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[15px] font-bold">
@@ -291,7 +292,7 @@ export default function Home() {
       </Secao>
 
       {/* -------- missoes -------- */}
-      <Secao titulo={`Missoes de hoje - ${feitas}/${missoes.length}`}>
+      <Secao titulo={`Missoes de hoje - ${feitas}/${missoes.length}`} cor={SECOES.progresso.cor}>
         {feitas === missoes.length && (
           <div className="flex items-center gap-2.5 mb-2.5 px-3.5 py-2.5 rounded-2xl bg-xp/12 border border-xp/30 anim-pop">
             <Icone nome="trofeu" tamanho={18} className="text-xp shrink-0" />
@@ -324,7 +325,7 @@ export default function Home() {
 
       {/* -------- historico -------- */}
       {recentes.length > 0 && (
-        <Secao titulo="Ultimos treinos" acao={
+        <Secao titulo="Ultimos treinos" cor={SECOES.treino.cor} acao={
           <Link to="/progresso" className="toque text-[12px] font-semibold text-accent">Historico</Link>
         }>
           <div className="space-y-2">

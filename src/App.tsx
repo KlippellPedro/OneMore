@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
 import { usuarioAtual, iniciarSyncAutomatico } from './lib/sync'
+import { secaoDe } from './lib/secoes'
 import { iniciarLembretes } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
 import { Icone } from './components/Icone'
@@ -38,6 +39,9 @@ const TABS_BASE = [
 
 const TAB_DIARIO = { to: '/diario', label: 'Diario', icone: 'sangue' }
 
+/** A aba acesa usa a cor da propria secao, nao o roxo de sempre. */
+const corDaAba = (to: string) => secaoDe(to === '/' ? '/' : to).cor
+
 function BarraSessao() {
   const sessao = useSessaoAtiva()
   const loc = useLocation()
@@ -66,8 +70,8 @@ function TabBar() {
       <div className="max-w-[560px] mx-auto flex">
         {tabs.map(t => (
           <NavLink key={t.to} to={t.to} end={t.to === '/'}
-            className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors ${isActive ? 'text-accent' : 'text-muted'}`}>
+            className="flex-1 flex flex-col items-center gap-1 py-2.5 transition-colors text-muted"
+            style={({ isActive }) => (isActive ? { color: corDaAba(t.to) } : undefined)}>
             {({ isActive }) => (
               <>
                 <Icone nome={t.icone} tamanho={22} traco={isActive ? 2.4 : 1.9} />
@@ -103,7 +107,14 @@ function SoDiabetes({ children }: { children: ReactNode }) {
 function Miolo({ children }: { children: ReactNode }) {
   const loc = useLocation()
   if (loc.pathname.includes('/imprimir')) return <>{children}</>
-  return <div className="max-w-[560px] mx-auto pb-24 min-h-full">{children}</div>
+  // --cor-secao desce pra arvore inteira: componente nenhum precisa saber em
+  // que pagina esta, so usar a variavel
+  return (
+    <div className="max-w-[560px] mx-auto pb-24 min-h-full"
+      style={{ ['--cor-secao' as string]: secaoDe(loc.pathname).cor }}>
+      {children}
+    </div>
+  )
 }
 
 /**

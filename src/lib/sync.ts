@@ -1,6 +1,7 @@
 import { db, normalizarFlags, limparLapidesVelhas } from '../db'
 import { resetarCacheSeed } from '../db/seed'
 import { reconstruirMelhores } from './acoes'
+import { regerarAgenda } from './lembretes'
 import {
   fundirTabela, fundirLapides, lapidesDe, assinatura,
   type LinhaSync, type Lapide,
@@ -85,6 +86,14 @@ export async function importar(backup: Backup): Promise<ResultadoImport> {
   // e a agenda de lembretes velha aponta pra um plano que ja era
   await limpar('lembretes')
   await reconstruirMelhores()
+  /**
+   * Reconstruir a agenda AQUI e obrigatorio, nao um detalhe. Isto roda em toda
+   * sincronizacao que traz novidade, e o rodizio so refaz a agenda a cada 15
+   * minutos - sem esta linha o aparelho ficaria ate 15 min sem lembrete nenhum
+   * depois de cada sync, e com o app fechado o service worker leria a tabela
+   * vazia e nao avisaria nada. Inclui os lembretes de glicemia.
+   */
+  await regerarAgenda().catch(() => {})
 
   return { tabelas, registros }
 }
@@ -263,6 +272,14 @@ export async function sincronizarEmSilencio(): Promise<ResultadoSync | null> {
 
   const ultima = ultimoSync()
   if (ultima && Date.now() - ultima.getTime() < INTERVALO_MIN_MS) return null
+
+  /**
+   * Treino em andamento adia a sincronizacao. Ela reescreve todas as tabelas,
+   * recalcula recordes e refaz a agenda - trabalho pesado bem na tela que a
+   * pessoa esta usando pra anotar serie, no meio do descanso. Espera terminar:
+   * o proximo gatilho (voltar pro app, ou a proxima abertura) pega.
+   */
+  if (await db.sessoes.where('concluida').equals(0).count()) return null
 
   try {
     if (!(await usuarioAtual())) return null
