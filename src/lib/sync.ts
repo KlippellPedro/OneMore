@@ -1,6 +1,10 @@
-import { db, normalizarFlags } from '../db'
+import { db, normalizarFlags, limparLapidesVelhas } from '../db'
 import { resetarCacheSeed } from '../db/seed'
 import { reconstruirMelhores } from './acoes'
+import {
+  fundirTabela, fundirLapides, lapidesDe, assinatura,
+  type LinhaSync, type Lapide,
+} from './fundir'
 
 /* ------------------------------------------------------------------ */
 /* BACKUP LOCAL (JSON)                                                 */
@@ -19,6 +23,9 @@ export interface Backup {
 const TABELAS = [
   'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos', 'dietas',
   'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
+  // as lapides viajam junto: sem elas o outro aparelho nao tem como saber que
+  // um registro foi apagado, e a fusao o traria de volta
+  'apagados',
 ] as const
 
 /**
@@ -131,15 +138,98 @@ export const entrar = (email: string, senha: string) =>
 
 export const sair = () => chamar('/sessao', { method: 'DELETE' })
 
-/** Manda o estado local inteiro pra nuvem. */
-export async function enviar(): Promise<Date> {
-  const payload = await exportar()
-  const r = await chamar<{ atualizadoEm: string }>('/dados', {
+/* ------------------------------------------------------------------ */
+/* SINCRONIZACAO POR FUSAO                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Junta o que esta aqui com o que esta na nuvem, registro a registro, e grava
+ * o resultado nos dois lados.
+ *
+ * O modelo antigo era substituicao - "enviar" jogava este aparelho por cima da
+ * nuvem e "baixar" fazia o contrario. Treinar registrando no celular e depois
+ * enviar do PC apagava o treino do celular, calado. Agora nada se perde: cada
+ * linha e decidida pelo proprio carimbo de tempo, e so some de verdade o que
+ * tem lapide (ver lib/fundir.ts).
+ */
+export function fundirBackups(local: Backup, nuvem: Backup): Backup {
+  const lapides = fundirLapides(
+    (local.dados.apagados ?? []) as Lapide[],
+    (nuvem.dados.apagados ?? []) as Lapide[],
+  )
+
+  const dados: Record<string, unknown[]> = {}
+  for (const t of TABELAS) {
+    if (t === 'apagados') continue
+    dados[t] = fundirTabela(
+      (local.dados[t] ?? []) as LinhaSync[],
+      (nuvem.dados[t] ?? []) as LinhaSync[],
+      lapidesDe(lapides, t),
+    )
+  }
+  dados.apagados = lapides
+
+  return { app: 'onemore', versao: VERSAO_BACKUP, criadoEm: new Date().toISOString(), dados }
+}
+
+export interface ResultadoSync {
+  quando: Date
+  /** true = a nuvem estava vazia, entao este aparelho so publicou o que tinha. */
+  primeiraVez: boolean
+  /** Quantos registros entraram neste aparelho vindos da nuvem. */
+  recebidos: number
+  /** true = nada mudou dos dois lados, nem precisou reenviar. */
+  semNovidade: boolean
+}
+
+/**
+ * O caminho normal de sincronizar. Baixa, funde, grava aqui e publica - tudo
+ * numa operacao so, pra nao existir mais "enviar por engano" nem "baixar por
+ * engano".
+ */
+export async function sincronizar(): Promise<ResultadoSync> {
+  const nuvem = await espiar()
+  const local = await exportar()
+
+  if (!nuvem) {
+    await publicar(local)
+    return { quando: marcarSync(), primeiraVez: true, recebidos: 0, semNovidade: false }
+  }
+
+  const fundido = fundirBackups(local, nuvem.backup)
+  const antesLocal = assinatura(local.dados)
+  const antesNuvem = assinatura(nuvem.backup.dados)
+  const depois = assinatura(fundido.dados)
+
+  const mudouAqui = depois !== antesLocal
+  if (mudouAqui) await importar(fundido)
+
+  if (depois !== antesNuvem) await publicar(fundido)
+
+  const recebidos = mudouAqui ? contar(fundido.dados) - contar(local.dados) : 0
+  return {
+    quando: marcarSync(),
+    primeiraVez: false,
+    recebidos: Math.max(0, recebidos),
+    semNovidade: !mudouAqui && depois === antesNuvem,
+  }
+}
+
+const contar = (d: Record<string, unknown[]>) =>
+  Object.values(d).reduce((t, linhas) => t + (linhas?.length ?? 0), 0)
+
+async function publicar(backup: Backup) {
+  await chamar<{ atualizadoEm: string }>('/dados', {
     method: 'PUT',
-    body: JSON.stringify({ payload }),
+    body: JSON.stringify({ payload: backup }),
   })
-  const agora = new Date(r!.atualizadoEm)
+}
+
+function marcarSync(): Date {
+  const agora = new Date()
   localStorage.setItem('onemore:sync', agora.toISOString())
+  // aproveita a visita pra jogar fora lapide antiga demais pra importar
+  limparLapidesVelhas().catch(() => {})
   return agora
 }
 
@@ -151,16 +241,59 @@ export async function espiar(): Promise<DadosNuvem | null> {
   return { atualizadoEm: new Date(r.atualizadoEm), backup: r.payload }
 }
 
-/** Puxa da nuvem e SUBSTITUI o que esta no aparelho. */
-export async function baixar(): Promise<ResultadoImport> {
-  const nuvem = await espiar()
-  if (!nuvem) throw new Error('Nao ha nada salvo na nuvem ainda.')
-  const r = await importar(nuvem.backup)
-  localStorage.setItem('onemore:sync', new Date().toISOString())
-  return r
-}
-
 export function ultimoSync(): Date | null {
   const s = localStorage.getItem('onemore:sync')
   return s ? new Date(s) : null
+}
+
+/* ------------------------------------------------------------------ */
+/* SINCRONIZACAO AUTOMATICA                                            */
+/* ------------------------------------------------------------------ */
+
+const INTERVALO_MIN_MS = 2 * 60 * 1000
+
+/**
+ * Sincroniza sem incomodar: so se houver conta, so se houver internet, e no
+ * maximo uma vez a cada dois minutos. Engole erro de proposito - se a rede
+ * caiu, isso e problema de agora e nao motivo pra jogar um alerta na cara de
+ * quem esta no meio de uma serie.
+ */
+export async function sincronizarEmSilencio(): Promise<ResultadoSync | null> {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return null
+
+  const ultima = ultimoSync()
+  if (ultima && Date.now() - ultima.getTime() < INTERVALO_MIN_MS) return null
+
+  try {
+    if (!(await usuarioAtual())) return null
+    return await sincronizar()
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Liga os gatilhos automaticos: ao abrir o app, ao voltar pra ele (trocar de
+ * aba, destravar o celular) e quando a internet volta. Devolve a funcao que
+ * desliga tudo.
+ */
+export function iniciarSyncAutomatico(aoSincronizar?: (r: ResultadoSync) => void) {
+  let vivo = true
+
+  const rodar = () => {
+    if (!vivo) return
+    sincronizarEmSilencio().then(r => { if (r && vivo && aoSincronizar) aoSincronizar(r) })
+  }
+
+  const aoVoltar = () => { if (document.visibilityState === 'visible') rodar() }
+
+  rodar()
+  document.addEventListener('visibilitychange', aoVoltar)
+  window.addEventListener('online', rodar)
+
+  return () => {
+    vivo = false
+    document.removeEventListener('visibilitychange', aoVoltar)
+    window.removeEventListener('online', rodar)
+  }
 }

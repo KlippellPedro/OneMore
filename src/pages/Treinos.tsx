@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { db, uid } from '../db'
+import { db, uid, apagarLinha } from '../db'
 import { useRotinas, useMapaExercicios, useSessaoAtiva } from '../state/hooks'
 import { iniciarSessao, atribuirDia } from '../lib/acoes'
 import { corGrupo, nomeGrupo } from '../db/seedExercicios'
@@ -269,7 +269,7 @@ export default function Treinos() {
       <Confirmar aberto={!!apagar} perigo titulo="Apagar treino?"
         texto="A rotina sai da lista. Os treinos ja registrados no historico continuam la."
         onSim={async () => {
-          if (apagar) await db.rotinas.delete(apagar)
+          if (apagar) await apagarLinha('rotinas', apagar)
           setApagar(null); toast('Treino removido', 'ok')
         }}
         onNao={() => setApagar(null)} />

@@ -238,6 +238,18 @@ export interface Perfil {
   atualizadoEm: number
 }
 
+/**
+ * Lapide de um registro apagado. Sem isso a sincronizacao por fusao traria de
+ * volta tudo que voce apagou: o outro aparelho ainda tem a linha, e "existe de
+ * um lado, nao existe do outro" e indistinguivel de "foi criado agora".
+ */
+export interface Apagado {
+  id: string              // "tabela:chave", pra ser unico no banco todo
+  tabela: string
+  chave: string
+  ts: number
+}
+
 export interface Agua {
   id: string              // data
   data: string

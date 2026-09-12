@@ -6,7 +6,7 @@ import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo,
   entrar, criarConta, sair, usuarioAtual,
-  enviar, baixar, espiar, ultimoSync, type Backup, type DadosNuvem,
+  sincronizar, ultimoSync, type Backup,
 } from '../lib/sync'
 import { rodarSeed } from '../db/seed'
 import { Titulo } from '../components/Cabecalho'
@@ -271,12 +271,11 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   const [criando, setCriando] = useState(false)
   const [usuario, setUsuario] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
-  const [nuvem, setNuvem] = useState<DadosNuvem | null>(null)
-  const [confirmarBaixar, setConfirmarBaixar] = useState(false)
-  const [confirmarEnviar, setConfirmarEnviar] = useState(false)
+  const [ultima, setUltima] = useState<Date | null>(ultimoSync())
 
   useEffect(() => {
     if (!aberto) return
+    setUltima(ultimoSync())
     usuarioAtual().then(u => setUsuario(u?.email ?? null)).catch(() => setUsuario(null))
   }, [aberto])
 
@@ -286,35 +285,23 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
     finally { setOcupado(null) }
   }
 
-  async function enviarAgora() {
-    setConfirmarEnviar(false)
-    const q = await enviar()
-    toast('Enviado pra nuvem', 'ok', q.toLocaleString('pt-BR'))
-  }
-
-  /**
-   * A sincronizacao troca o estado INTEIRO, entao enviar por cima de uma nuvem
-   * que outro aparelho atualizou apaga o que ele mandou - sem aviso nenhum.
-   * Se a nuvem mexeu depois da ultima sincronizacao daqui, pergunta antes.
-   */
-  async function enviarComChecagem() {
-    const n = await espiar()
-    const ultima = ultimoSync()
-    const maisNova = n && (!ultima || n.atualizadoEm.getTime() > ultima.getTime() + 10_000)
-    if (maisNova) {
-      setNuvem(n)
-      setConfirmarEnviar(true)
-      return
-    }
-    await enviarAgora()
-  }
-
   async function autenticar() {
-    const fn = criando ? criarConta : entrar
-    const u = await fn(email.trim(), senha)
+    const u = await (criando ? criarConta : entrar)(email.trim(), senha)
     setUsuario(u?.email ?? null)
     setSenha('')
     toast(criando ? 'Conta criada' : 'Conectado', 'ok')
+    // primeira sincronizacao logo apos entrar: e o que a pessoa quer de fato
+    await sincronizarAgora(true)
+  }
+
+  async function sincronizarAgora(silencioso = false) {
+    const r = await sincronizar()
+    setUltima(r.quando)
+    if (silencioso && r.semNovidade) return
+    if (r.primeiraVez) return toast('Tudo salvo na nuvem', 'ok', 'Era a primeira vez deste perfil')
+    if (r.semNovidade) return toast('Ja estava em dia', 'info')
+    toast('Sincronizado', 'ok',
+      r.recebidos ? `${r.recebidos} ${r.recebidos === 1 ? 'registro veio' : 'registros vieram'} de outro aparelho` : undefined)
   }
 
   return (
@@ -365,62 +352,26 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
       {/* passo 2 */}
       <Passo n={2} titulo="Sincronizar" desabilitado={!usuario}>
         <p className="text-[12px] text-muted leading-relaxed mb-3">
-          A sincronizacao troca o estado inteiro: enviar sobrescreve a nuvem,
-          baixar sobrescreve este aparelho. Sempre use o mais recente.
+          Junta o que esta aqui com o que esta na nuvem, registro a registro -
+          nada e sobrescrito. Acontece sozinho ao abrir o app; o botao e so pra
+          quando voce quiser na hora.
         </p>
-        <div className="flex gap-2">
-          <Btn variant="primary" className="flex-1" disabled={ocupado === 'enviar'}
-            onClick={() => tentar('enviar', enviarComChecagem)}>
-            {ocupado === 'enviar' ? 'Enviando...' : 'Enviar deste aparelho'}
-          </Btn>
-          <Btn className="flex-1" disabled={ocupado === 'espiar'}
-            onClick={() => tentar('espiar', async () => {
-              const n = await espiar()
-              if (!n) return toast('Nada salvo na nuvem ainda', 'info')
-              setNuvem(n)
-              setConfirmarBaixar(true)
-            })}>Baixar</Btn>
-        </div>
-        {ultimoSync() && (
-          <p className="text-[11px] text-muted mt-2.5">
-            Ultima sincronizacao: {ultimoSync()!.toLocaleString('pt-BR')}
-          </p>
-        )}
+        <Btn variant="primary" size="lg" className="w-full" disabled={ocupado === 'sync'}
+          onClick={() => tentar('sync', () => sincronizarAgora())}>
+          {ocupado === 'sync' ? 'Sincronizando...' : 'Sincronizar agora'}
+        </Btn>
+        <p className="text-[11px] text-muted mt-2.5 text-center">
+          {ultima
+            ? `Ultima vez: ${ultima.toLocaleString('pt-BR')}`
+            : 'Ainda nao sincronizou neste aparelho'}
+        </p>
       </Passo>
-
-      <Confirmar aberto={confirmarBaixar} perigo titulo="Substituir os dados deste aparelho?"
-        texto={nuvem
-          ? `A nuvem foi salva em ${quando(nuvem.atualizadoEm)}${
-              maisVelhaQueDaqui(nuvem) ? ' - e MAIS ANTIGA que a ultima sincronizacao deste aparelho' : ''
-            }. Tudo que esta aqui sera trocado por ela.`
-          : 'Tudo que esta aqui sera trocado pelo que esta na nuvem.'}
-        onNao={() => setConfirmarBaixar(false)}
-        onSim={() => tentar('baixar', async () => {
-          setConfirmarBaixar(false)
-          const r = await baixar()
-          toast(`${r.registros} registros baixados`, 'ok')
-          setTimeout(() => location.reload(), 900)
-        })} />
-
-      <Confirmar aberto={confirmarEnviar} perigo titulo="Sobrescrever a nuvem?"
-        texto={nuvem
-          ? `A nuvem foi atualizada em ${quando(nuvem.atualizadoEm)}, depois da ultima `
-            + 'sincronizacao deste aparelho - provavelmente por outro celular ou PC. '
-            + 'Enviar agora apaga o que veio de la. Se tiver duvida, baixe primeiro.'
-          : ''}
-        onNao={() => setConfirmarEnviar(false)}
-        onSim={() => tentar('enviar', enviarAgora)} />
     </Sheet>
   )
 }
 
-const quando = (d: Date) => d.toLocaleString('pt-BR')
-
-/** Baixar uma nuvem mais velha que a ultima sincronizacao daqui e voltar no tempo. */
-function maisVelhaQueDaqui(n: DadosNuvem) {
-  const ultima = ultimoSync()
-  return !!ultima && n.atualizadoEm.getTime() < ultima.getTime() - 10_000
-}
+// `quando` e `maisVelhaQueDaqui` sairam junto com os avisos de sobrescrita:
+// a fusao nao sobrescreve nada, entao nao ha mais o que confirmar.
 
 function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () => void; perfil: TPerfil }) {
   const { toast } = useUI()

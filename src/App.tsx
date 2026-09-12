@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
-import { usuarioAtual } from './lib/sync'
+import { usuarioAtual, iniciarSyncAutomatico } from './lib/sync'
 import { iniciarLembretes } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
 import { Icone } from './components/Icone'
@@ -145,6 +145,13 @@ export default function App() {
     if (!pronto) return
     return iniciarLembretes()
   }, [pronto])
+
+  // sincroniza sozinho ao abrir, ao voltar pro app e quando a internet volta.
+  // So roda depois da porta de entrada: antes disso nao ha sessao pra usar.
+  useEffect(() => {
+    if (!pronto || entrada !== 'ok') return
+    return iniciarSyncAutomatico()
+  }, [pronto, entrada])
 
   if (erro) {
     return (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { db, uid, salvarPerfil } from '../db'
+import { db, uid, salvarPerfil, apagarLinha } from '../db'
 import { usePerfil, useMapaAlimentos, usePlanos, useDietasSalvas } from '../state/hooks'
 import { macrosDe, somaMacros, paraGramas, ZERO } from '../lib/nutricao'
 import { gerarPlano, paraPlanoRefeicao } from '../lib/gerarPlano'
@@ -534,7 +534,7 @@ export default function PlanoAlimentar() {
         texto="So a dieta salva se perde. O plano que esta em uso continua."
         onNao={() => setApagarDieta(null)}
         onSim={async () => {
-          if (apagarDieta) await db.dietas.delete(apagarDieta.id)
+          if (apagarDieta) await apagarLinha('dietas', apagarDieta.id)
           setApagarDieta(null)
           toast('Dieta apagada', 'ok')
         }} />
@@ -542,7 +542,7 @@ export default function PlanoAlimentar() {
       <Confirmar aberto={!!apagarRef} perigo titulo="Apagar refeicao?"
         texto="O cardapio dela se perde. O diario ja registrado continua."
         onNao={() => setApagarRef(null)}
-        onSim={async () => { await db.planos.delete(apagarRef!); setApagarRef(null) }} />
+        onSim={async () => { await apagarLinha('planos', apagarRef!); setApagarRef(null) }} />
     </div>
   )
 }

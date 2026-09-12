@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type {
   Exercicio, Rotina, Sessao, Alimento, PlanoRefeicao, DietaSalva,
   RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
-  Lembrete,
+  Lembrete, Apagado,
 } from './types'
 import { calcularMelhores, type MelhorExercicio } from './melhores'
 
@@ -21,6 +21,7 @@ export class OneMoreDB extends Dexie {
   dietas!: Table<DietaSalva, string>
   lembretes!: Table<Lembrete, string>
   melhores!: Table<MelhorExercicio, string>
+  apagados!: Table<Apagado, string>
 
   constructor() {
     super('onemore')
@@ -80,6 +81,15 @@ export class OneMoreDB extends Dexie {
       await tx.table('sessoes').toCollection().modify(s => { s.concluida = s.concluida ? 1 : 0 })
       await tx.table('rotinas').toCollection().modify(r => { r.arquivada = r.arquivada ? 1 : 0 })
     })
+
+    /**
+     * v7: lapides. A sincronizacao passou a fundir os dois lados em vez de um
+     * sobrescrever o outro, e fusao sem lapide nunca apaga nada - o registro
+     * que voce removeu aqui volta do outro aparelho na proxima sincronizacao.
+     */
+    this.version(7).stores({
+      apagados: 'id, ts, tabela',
+    })
   }
 }
 
@@ -97,6 +107,40 @@ export const flag = (v: unknown): 0 | 1 => (v ? 1 : 0)
 export async function normalizarFlags() {
   await db.sessoes.toCollection().modify(s => { s.concluida = flag(s.concluida) })
   await db.rotinas.toCollection().modify(r => { r.arquivada = flag(r.arquivada) })
+}
+
+/** Tabelas que entram na sincronizacao e podem receber lapide. */
+export type TabelaSync =
+  | 'exercicios' | 'rotinas' | 'sessoes' | 'alimentos' | 'planos' | 'dietas'
+  | 'dieta' | 'corpo' | 'xp' | 'agua' | 'glicemia'
+
+/**
+ * Apaga uma linha E registra a lapide, na mesma operacao. Use SEMPRE isto em
+ * vez de db.<tabela>.delete() no que for sincronizado: um delete solto some
+ * daqui e volta do outro aparelho na proxima fusao.
+ */
+export async function apagarLinha(tabela: TabelaSync, chave: string) {
+  await (db[tabela] as Table<{ id: string }, string>).delete(chave)
+  await db.apagados.put({ id: `${tabela}:${chave}`, tabela, chave, ts: Date.now() })
+}
+
+/** Igual a apagarLinha, pra varias chaves da mesma tabela. */
+export async function apagarLinhas(tabela: TabelaSync, chaves: string[]) {
+  if (!chaves.length) return
+  await (db[tabela] as Table<{ id: string }, string>).bulkDelete(chaves)
+  const ts = Date.now()
+  await db.apagados.bulkPut(chaves.map(chave => ({ id: `${tabela}:${chave}`, tabela, chave, ts })))
+}
+
+/**
+ * Lapide velha nao serve pra nada: se o outro aparelho passou meses sem
+ * sincronizar, o registro dele ja e historia antiga de qualquer jeito.
+ */
+const DIAS_LAPIDE = 180
+
+export async function limparLapidesVelhas() {
+  const corte = Date.now() - DIAS_LAPIDE * 24 * 60 * 60 * 1000
+  await db.apagados.where('ts').below(corte).delete()
 }
 
 export const uid = () =>

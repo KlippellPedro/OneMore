@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { db, uid } from '../db'
+import { db, uid, apagarLinha } from '../db'
 import { useAlimentos } from '../state/hooks'
 import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
 import { normalizar } from '../components/SeletorExercicio'
@@ -83,7 +83,7 @@ export default function Alimentos() {
       <Confirmar aberto={!!apagar} perigo titulo="Apagar alimento?"
         texto="Registros ja feitos no diario ficam sem nome."
         onNao={() => setApagar(null)}
-        onSim={async () => { await db.alimentos.delete(apagar!); setApagar(null) }} />
+        onSim={async () => { await apagarLinha('alimentos', apagar!); setApagar(null) }} />
     </div>
   )
 }

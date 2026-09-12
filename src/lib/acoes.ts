@@ -1,4 +1,4 @@
-import { db, uid, hoje, getPerfil } from '../db'
+import { db, uid, hoje, getPerfil, apagarLinha, apagarLinhas } from '../db'
 import { calcularMelhores, dobrarSessao, porExercicio } from '../db/melhores'
 import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia } from '../db/types'
 import type { Programa } from '../db/programas'
@@ -14,7 +14,7 @@ export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promis
   // so pode existir uma sessao aberta; a anterior vira lixo se estiver vazia
   const abertas = await db.sessoes.where('concluida').equals(0).toArray()
   for (const a of abertas) {
-    if (a.series.every(s => !s.feito)) await db.sessoes.delete(a.id)
+    if (a.series.every(s => !s.feito)) await apagarLinha('sessoes', a.id)
   }
 
   const series: SerieLog[] = []
@@ -174,7 +174,7 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
 }
 
 export async function descartarSessao(id: string) {
-  await db.sessoes.delete(id)
+  await apagarLinha('sessoes', id)
 }
 
 export interface RefsExercicio { rotinas: number; sessoesAbertas: number }
@@ -216,7 +216,8 @@ export async function apagarExercicio(exercicioId: string) {
     })
   }
 
-  await db.exercicios.delete(exercicioId)
+  await apagarLinha('exercicios', exercicioId)
+  // melhores e derivado: nao sincroniza, nao leva lapide
   await db.melhores.delete(exercicioId)
   return { rotinas: rotinas.length, sessoesAbertas: abertas.length }
 }
@@ -255,13 +256,13 @@ export async function registrarAlimento(
 }
 
 export async function removerRegistro(id: string) {
-  await db.dieta.delete(id)
+  await apagarLinha('dieta', id)
 }
 
 /** Desfaz uma refeicao inteira - tira do diario tudo que foi lancado nela naquele dia. */
 export async function removerRefeicaoDoDia(data: string, refeicao: string) {
   const ids = await db.dieta.where('[data+refeicao]').equals([data, refeicao]).primaryKeys()
-  await db.dieta.bulkDelete(ids)
+  await apagarLinhas('dieta', ids)
 }
 
 /**
@@ -431,7 +432,7 @@ export async function registrarGlicemia(dados: {
 }
 
 export async function removerGlicemia(id: string) {
-  await db.glicemia.delete(id)
+  await apagarLinha('glicemia', id)
 }
 
 /** Faixa de referencia mais usada pra tempo no alvo. Confirmar com o medico. */
