@@ -91,7 +91,7 @@ async function tirarCoresNeon() {
   const rotinas = await db.rotinas.toArray()
   for (const r of rotinas) {
     const nova = CORES_ANTIGAS[r.cor?.toLowerCase()]
-    if (nova) await db.rotinas.update(r.id, { cor: nova })
+    if (nova) await db.rotinas.update(r.id, { cor: nova, atualizadoEm: Date.now() })
   }
   localStorage.setItem('onemore:cores-solidas', '1')
 }

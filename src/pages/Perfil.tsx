@@ -6,7 +6,7 @@ import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo,
   entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao,
-  sincronizar, ultimoSync, type Backup,
+  sincronizar, ultimoSync, ultimaFalhaSync, type Backup,
 } from '../lib/sync'
 import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
 import { rodarSeed } from '../db/seed'
@@ -275,12 +275,14 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   const [usuario, setUsuario] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
   const [ultima, setUltima] = useState<Date | null>(ultimoSync())
+  const [falha, setFalha] = useState(ultimaFalhaSync())
   /** Codigo recem-gerado, esperando a pessoa confirmar que anotou. */
   const [codigo, setCodigo] = useState<string | null>(null)
 
   useEffect(() => {
     if (!aberto) return
     setUltima(ultimoSync())
+    setFalha(ultimaFalhaSync())
     usuarioAtual().then(u => setUsuario(u?.email ?? null)).catch(() => setUsuario(null))
   }, [aberto])
 
@@ -312,6 +314,7 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   async function sincronizarAgora(silencioso = false) {
     const r = await sincronizar()
     setUltima(r.quando)
+    setFalha(null)
     if (silencioso && r.semNovidade) return
     if (r.primeiraVez) return toast('Tudo salvo na nuvem', 'ok', 'Era a primeira vez deste perfil')
     if (r.semNovidade) return toast('Já estava em dia', 'info')
@@ -402,6 +405,12 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
             ? `Última vez: ${ultima.toLocaleString('pt-BR')}`
             : 'Ainda não sincronizou neste aparelho'}
         </p>
+        {falha && (
+          <p className="text-[11px] text-bad mt-1.5 text-center leading-relaxed">
+            A última tentativa automática falhou em{' '}
+            {falha.quando.toLocaleString('pt-BR')}: {falha.mensagem}
+          </p>
+        )}
       </Passo>
     </Sheet>
   )

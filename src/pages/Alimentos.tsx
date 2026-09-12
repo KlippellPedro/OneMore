@@ -81,7 +81,7 @@ export default function Alimentos() {
                 </div>
               </button>
               <BotaoFavorito ativo={a.favorito} className="toque w-10 h-10 rounded-xl"
-                onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })} />
+                onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito, atualizadoEm: Date.now() })} />
             </div>
           ))}
           {lista.length === 0 && (

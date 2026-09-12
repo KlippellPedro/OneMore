@@ -85,7 +85,7 @@ export default function Exercicios() {
                     </div>
                   </Link>
                   <BotaoFavorito ativo={e.favorito} className="toque w-10 h-10 rounded-xl"
-                    onClick={() => db.exercicios.update(e.id, { favorito: !e.favorito })} />
+                    onClick={() => db.exercicios.update(e.id, { favorito: !e.favorito, atualizadoEm: Date.now() })} />
                 </div>
               ))}
             </div>

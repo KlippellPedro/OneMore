@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { db, uid, salvarPerfil, apagarLinha } from '../db'
+import { db, uid, salvarPerfil, apagarLinha, apagarLinhas } from '../db'
 import { restricoesDoPerfil, temConflito, conflitos, textoConflito } from '../lib/restricoes'
 import type { Marcador } from '../db/marcadores'
 import { usePerfil, useMapaAlimentos, usePlanos, useDietasSalvas } from '../state/hooks'
@@ -15,6 +15,16 @@ import { useUI } from '../state/ui'
 import { n0, nq, clamp } from '../lib/format'
 import { Icone } from '../components/Icone'
 import type { Alimento, ItemRefeicao, PlanoRefeicao, DietaSalva } from '../db/types'
+
+/**
+ * Esvazia o plano em uso ANTES de gravar o novo. Nao pode ser
+ * `db.planos.clear()`: `planos` e tabela sincronizada, e apagar sem lapide nao
+ * se propaga - as refeicoes antigas voltam do outro aparelho na proxima fusao
+ * e o plano aparece duplicado, com o cardapio velho e o novo lado a lado.
+ */
+async function esvaziarPlano() {
+  await apagarLinhas('planos', (await db.planos.toArray()).map(p => p.id))
+}
 
 export default function PlanoAlimentar() {
   const { toast } = useUI()
@@ -78,7 +88,7 @@ export default function PlanoAlimentar() {
       ? new Map([...mapa].filter(([id]) => !temConflito(id, evitar)))
       : mapa
     const plano = gerarPlano(perfil, disponivel)
-    await db.planos.clear()
+    await esvaziarPlano()
     await db.planos.bulkPut(paraPlanoRefeicao(plano))
     setGerar(false)
     toast('Plano gerado', 'ok', `${n0(plano.total.kcal)} kcal - ${n0(plano.total.carb)} g de carbo`)
@@ -144,7 +154,7 @@ export default function PlanoAlimentar() {
   }
 
   async function carregarDieta(d: DietaSalva) {
-    await db.planos.clear()
+    await esvaziarPlano()
     await db.planos.bulkPut(d.refeicoes.map((r, i) => ({
       id: uid(), nome: r.nome, horario: r.horario,
       itens: r.itens.map(it => ({ ...it })),
@@ -156,7 +166,7 @@ export default function PlanoAlimentar() {
 
   /** Traz uma dieta pronta do catalogo do app pro plano em uso. */
   async function aplicarDietaPronta(d: DietaPronta) {
-    await db.planos.clear()
+    await esvaziarPlano()
     await db.planos.bulkPut(d.refeicoes.map((r, idx) => ({
       id: uid(), nome: r.nome, horario: r.horario,
       itens: r.itens.map(it => ({ ...it })), ordem: idx, atualizadoEm: Date.now(),
@@ -508,11 +518,12 @@ export default function PlanoAlimentar() {
           <>
             <Campo label="Nome">
               <Input defaultValue={config.nome}
-                onBlur={e => db.planos.update(config.id, { nome: e.target.value.trim() || config.nome })} />
+                onBlur={e => db.planos.update(config.id,
+                  { nome: e.target.value.trim() || config.nome, atualizadoEm: Date.now() })} />
             </Campo>
             <Campo label="Horário">
               <Input type="time" defaultValue={config.horario}
-                onBlur={e => db.planos.update(config.id, { horario: e.target.value })} />
+                onBlur={e => db.planos.update(config.id, { horario: e.target.value, atualizadoEm: Date.now() })} />
             </Campo>
             <p className="text-[11.5px] text-muted mb-4 leading-relaxed">
               Renomear a refeição não muda o que já foi registrado no diário com o nome antigo.

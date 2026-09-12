@@ -64,7 +64,7 @@ export function SeletorAlimento({ aberto, fechar, onEscolher, titulo = 'Adiciona
                 </div>
               </button>
               <BotaoFavorito ativo={a.favorito} className="toque w-9 h-9 rounded-xl"
-                onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito })} />
+                onClick={() => db.alimentos.update(a.id, { favorito: !a.favorito, atualizadoEm: Date.now() })} />
             </div>
           ))}
         </div>

@@ -64,7 +64,7 @@ export default function DetalheExercicio() {
       <Cabecalho titulo={ex.nome} sub={`${nomeGrupo(ex.grupo)} - ${nomeEquip(ex.equipamento)}`}
         acao={
           <BotaoFavorito ativo={ex.favorito} className="toque w-9 h-9 rounded-xl"
-            onClick={() => db.exercicios.update(id, { favorito: !ex.favorito })} />
+            onClick={() => db.exercicios.update(id, { favorito: !ex.favorito, atualizadoEm: Date.now() })} />
         } />
 
       <div className="px-4 pt-4">
@@ -200,12 +200,12 @@ export default function DetalheExercicio() {
         <div className="flex gap-2">
           {ex.videoUrl && (
             <Btn variant="ghost" className="flex-1" onClick={async () => {
-              await db.exercicios.update(id, { videoUrl: undefined })
+              await db.exercicios.update(id, { videoUrl: undefined, atualizadoEm: Date.now() })
               setEditVideo(false); toast('Vídeo removido', 'ok')
             }}>Remover</Btn>
           )}
           <Btn variant="primary" className="flex-1" onClick={async () => {
-            await db.exercicios.update(id, { videoUrl: url.trim() || undefined })
+            await db.exercicios.update(id, { videoUrl: url.trim() || undefined, atualizadoEm: Date.now() })
             setEditVideo(false); toast('Vídeo salvo', 'ok')
           }}>Salvar</Btn>
         </div>

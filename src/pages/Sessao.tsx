@@ -398,7 +398,7 @@ export default function Sessao() {
       <Sheet aberto={notas} fechar={() => setNotas(false)} titulo="Anotações do treino">
         <Textarea rows={6} defaultValue={sessao.notas ?? ''}
           placeholder="Como foi? Dor, energia, o que mudar na próxima..."
-          onBlur={e => db.sessoes.update(id, { notas: e.target.value })} />
+          onBlur={e => db.sessoes.update(id, { notas: e.target.value, atualizadoEm: Date.now() })} />
         <Btn variant="primary" className="w-full mt-3" onClick={() => setNotas(false)}>Pronto</Btn>
       </Sheet>
 

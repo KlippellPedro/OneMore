@@ -168,7 +168,7 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
     ? `${feitas.length} séries - ${prs.length} recorde${prs.length > 1 ? 's' : ''}!`
     : `${feitas.length} séries concluidas`
   const ganho = await darXP('treino', motivo, baseXP)
-  await db.sessoes.update(id, { xpGanho: ganho.xp })
+  await db.sessoes.update(id, { xpGanho: ganho.xp, atualizadoEm: Date.now() })
 
   return { series: feitas.length, volume, duracaoMs: fim - s.inicio, prs, ganho }
 }
@@ -335,7 +335,7 @@ export async function registrarCorpo(
     const ultimos = await db.corpo.orderBy('data').toArray()
     const maisRecente = ultimos.filter(r => r.peso).pop()
     if (maisRecente?.data === data && perfil.pesoKg !== dados.peso) {
-      await db.perfil.update('me', { pesoKg: dados.peso })
+      await db.perfil.update('me', { pesoKg: dados.peso, atualizadoEm: Date.now() })
     }
   }
 

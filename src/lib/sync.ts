@@ -254,6 +254,8 @@ async function publicar(backup: Backup) {
 function marcarSync(): Date {
   const agora = new Date()
   localStorage.setItem('onemore:sync', agora.toISOString())
+  // deu certo: o que falhou antes virou historia
+  localStorage.removeItem(CHAVE_FALHA)
   // aproveita a visita pra jogar fora lapide antiga demais pra importar
   limparLapidesVelhas().catch(() => {})
   return agora
@@ -270,6 +272,39 @@ export async function espiar(): Promise<DadosNuvem | null> {
 export function ultimoSync(): Date | null {
   const s = localStorage.getItem('onemore:sync')
   return s ? new Date(s) : null
+}
+
+/* ------------------------------------------------------------------ */
+/* ULTIMA FALHA DO SYNC AUTOMATICO                                     */
+/* ------------------------------------------------------------------ */
+
+const CHAVE_FALHA = 'onemore:sync-falha'
+
+export interface FalhaSync { mensagem: string; quando: Date }
+
+/**
+ * O sync automatico engole erro de proposito - quem esta no meio de uma serie
+ * nao merece um alerta na cara. Mas engolir sem deixar rastro foi o que fez um
+ * bug de sincronizacao passar despercebido: o app tentava, falhava e nao
+ * sobrava nada em lugar nenhum. Agora a ultima falha fica guardada e aparece em
+ * Perfil > Sua conta, sem interromper ninguem.
+ */
+function registrarFalha(e: unknown) {
+  try {
+    localStorage.setItem(CHAVE_FALHA, JSON.stringify({
+      mensagem: (e as Error)?.message || String(e),
+      quando: new Date().toISOString(),
+    }))
+  } catch { /* storage cheio ou bloqueado nao e motivo pra derrubar o sync */ }
+}
+
+export function ultimaFalhaSync(): FalhaSync | null {
+  const bruto = localStorage.getItem(CHAVE_FALHA)
+  if (!bruto) return null
+  try {
+    const { mensagem, quando } = JSON.parse(bruto)
+    return { mensagem, quando: new Date(quando) }
+  } catch { return null }
 }
 
 /* ------------------------------------------------------------------ */
@@ -301,7 +336,8 @@ export async function sincronizarEmSilencio(): Promise<ResultadoSync | null> {
   try {
     if (!(await usuarioAtual())) return null
     return await sincronizar()
-  } catch {
+  } catch (e) {
+    registrarFalha(e)
     return null
   }
 }
