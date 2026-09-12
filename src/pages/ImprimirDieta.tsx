@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { usePerfil, useMapaAlimentos, usePlanos } from '../state/hooks'
-import { totalDoPlano, macrosDe } from '../lib/nutricao'
+import { totalDoPlano, macrosDe, nomeMedida } from '../lib/nutricao'
 import { n0, nq } from '../lib/format'
 
 export default function ImprimirDieta() {
@@ -30,7 +30,7 @@ export default function ImprimirDieta() {
         <section className="grid grid-cols-4 gap-3 mb-8">
           <MetaBox rotulo="Calorias" valor={`${n0(perfil.metaKcal)} kcal`} />
           <MetaBox rotulo="Carboidrato" valor={`${n0(perfil.metaCarb)} g`} />
-          <MetaBox rotulo="Proteina" valor={`${n0(perfil.metaProt)} g`} />
+          <MetaBox rotulo="Proteína" valor={`${n0(perfil.metaProt)} g`} />
           <MetaBox rotulo="Gordura" valor={`${n0(perfil.metaGord)} g`} />
         </section>
 
@@ -67,7 +67,7 @@ export default function ImprimirDieta() {
                           return (
                             <tr key={i} className="border-t border-gray-100">
                               <td className="py-1.5 pr-2">{a?.nome ?? 'Alimento removido'}</td>
-                              <td className="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap">{nq(it.qtd)} {it.medida}</td>
+                              <td className="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap">{nq(it.qtd)} {nomeMedida(mapa.get(it.alimentoId), it.medida)}</td>
                               <td className="py-1.5 pl-2 text-right tabular-nums">{mm ? `${n0(mm.carb)}g` : '-'}</td>
                               <td className="py-1.5 pl-2 text-right tabular-nums">{mm ? `${n0(mm.prot)}g` : '-'}</td>
                               <td className="py-1.5 pl-2 text-right tabular-nums">{mm ? `${n0(mm.gord)}g` : '-'}</td>
@@ -78,7 +78,7 @@ export default function ImprimirDieta() {
                       </tbody>
                       <tfoot>
                         <tr className="border-t-2 border-gray-800 font-bold">
-                          <td className="py-1.5 pr-2" colSpan={2}>Total da refeicao</td>
+                          <td className="py-1.5 pr-2" colSpan={2}>Total da refeição</td>
                           <td className="py-1.5 pl-2 text-right tabular-nums">{n0(m.carb)}g</td>
                           <td className="py-1.5 pl-2 text-right tabular-nums">{n0(m.prot)}g</td>
                           <td className="py-1.5 pl-2 text-right tabular-nums">{n0(m.gord)}g</td>
@@ -98,7 +98,7 @@ export default function ImprimirDieta() {
               </div>
               <div className="flex justify-between text-[12.5px] text-gray-600 mt-1.5">
                 <span>Carboidrato {n0(totalDia.carb)} g</span>
-                <span>Proteina {n0(totalDia.prot)} g</span>
+                <span>Proteína {n0(totalDia.prot)} g</span>
                 <span>Gordura {n0(totalDia.gord)} g</span>
               </div>
             </section>

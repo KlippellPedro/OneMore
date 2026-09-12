@@ -1,8 +1,9 @@
 import type { Alimento } from '../db/types'
 import { macrosDe, type Macros } from './nutricao'
+import { mesmoTexto } from './format'
 
 /**
- * "Nao tenho esse alimento agora - o que como no lugar?"
+ * "Não tenho esse alimento agora - o que como no lugar?"
  *
  * A conta e a mesma que nutricionista faz na mao: escolhe o macro que manda no
  * alimento (pra quem tem diabetes, o carboidrato sempre) e ajusta a porcao do
@@ -30,20 +31,24 @@ export const UNIDADE_CHAVE: Record<Chave, string> = {
  */
 const PARENTES: Record<string, string[]> = {
   'Carboidratos': ['Leguminosas'],
-  'Leguminosas': ['Carboidratos', 'Proteinas'],
-  'Proteinas': ['Laticinios', 'Leguminosas'],
-  'Laticinios': ['Proteinas', 'Bebidas'],
+  'Leguminosas': ['Carboidratos', 'Proteínas'],
+  'Proteínas': ['Laticínios', 'Leguminosas'],
+  'Laticínios': ['Proteínas', 'Bebidas'],
   'Frutas': [],
   'Verduras e legumes': [],
-  'Gorduras': ['Laticinios'],
-  'Suplementos': ['Proteinas', 'Laticinios'],
-  'Bebidas': ['Laticinios'],
+  'Gorduras': ['Laticínios'],
+  'Suplementos': ['Proteínas', 'Laticínios'],
+  'Bebidas': ['Laticínios'],
   'Doces e lanches': ['Carboidratos'],
   'Molhos': [],
 }
 
 function daFamilia(a: string, b: string) {
-  return a === b || (PARENTES[a] ?? []).includes(b)
+  // comparacao sem acento: alimento criado pelo usuario antes do catalogo
+  // ganhar acento guarda "Laticinios", e a familia precisa casar mesmo assim
+  if (mesmoTexto(a, b)) return true
+  const chave = Object.keys(PARENTES).find(k => mesmoTexto(k, a))
+  return (chave ? PARENTES[chave] : []).some(p => mesmoTexto(p, b))
 }
 
 /** Quanto do macro-chave tem em 100 g. 'peso' e a propria grama: 100 em 100. */

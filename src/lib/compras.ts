@@ -5,12 +5,12 @@ import { n0, n1 } from './format'
 /**
  * Transforma o cardapio do plano numa lista de mercado: junta o mesmo alimento
  * de todas as refeicoes, multiplica pelos dias e traz as trocas de cada item -
- * o que interessa no corredor do mercado e "se nao tiver, levo o que?".
+ * o que interessa no corredor do mercado e "se não tiver, levo o que?".
  */
 
 /** Ordem de corredor, nao ordem de macro: hortifruti, acougue, mercearia. */
 const ORDEM_CATEGORIAS = [
-  'Frutas', 'Verduras e legumes', 'Proteinas', 'Laticinios', 'Carboidratos',
+  'Frutas', 'Verduras e legumes', 'Proteínas', 'Laticínios', 'Carboidratos',
   'Leguminosas', 'Gorduras', 'Molhos', 'Bebidas', 'Doces e lanches', 'Suplementos',
 ]
 
@@ -41,7 +41,7 @@ export function pesoCompra(gramas: number, unidade: 'g' | 'ml') {
   return `${n0(gramas)} ${unidade}`
 }
 
-/** Medida do tipo "unidade", "unidade media"... - so essas dao pra contar no carrinho. */
+/** Medida do tipo "unidade", "unidade média"... - so essas dao pra contar no carrinho. */
 function medidaUnidade(a: Alimento) {
   return a.medidas.find(m => m.nome.toLowerCase().startsWith('unidade')) ?? null
 }

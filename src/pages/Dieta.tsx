@@ -6,8 +6,7 @@ import {
   usePerfil, useMapaAlimentos, usePlanos, useAguaDoDia, useGlicemiaDoDia,
 } from '../state/hooks'
 import {
-  totalDoDia, macrosDe, somaMacros, pendentesDoPlano, ZERO, type Macros,
-} from '../lib/nutricao'
+  totalDoDia, macrosDe, somaMacros, pendentesDoPlano, ZERO, type Macros, nomeMedida } from '../lib/nutricao'
 import {
   registrarAlimento, removerRegistro, removerRefeicaoDoDia, checarMetasDoDia, addAgua, removerGlicemia,
 } from '../lib/acoes'
@@ -19,7 +18,7 @@ import { Icone } from '../components/Icone'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Anel, Barra, Sheet, Confirmar } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
-import { n0, n1, nq, dataCurta, clamp } from '../lib/format'
+import { n0, n1, nq, dataCurta, clamp, mesmoTexto } from '../lib/format'
 import type {
   Alimento, RegistroDieta, PlanoRefeicao, ItemRefeicao, MomentoGlicemia,
 } from '../db/types'
@@ -65,13 +64,13 @@ export default function Dieta() {
 
   const nomesRefeicao = planos.length
     ? planos.map(p => p.nome)
-    : ['Cafe da manha', 'Almoco', 'Jantar', 'Lanches']
+    : ['Café da manhã', 'Almoço', 'Jantar', 'Lanches']
 
   /** Refeicao do plano ainda pendente mais proxima do horario atual - só pra destacar na lista. */
   const proximaNome = (() => {
     if (!ehHoje || !planos.length) return null
     const pendentes = planos.filter(p => p.itens.length > 0
-      && pendentesDoPlano(p.itens, registros.filter(r => r.refeicao === p.nome)).length > 0)
+      && pendentesDoPlano(p.itens, registros.filter(r => mesmoTexto(r.refeicao, p.nome))).length > 0)
     if (!pendentes.length) return null
     const agora = new Date()
     const minAgora = agora.getHours() * 60 + agora.getMinutes()
@@ -97,7 +96,7 @@ export default function Dieta() {
 
   async function comer(plano: PlanoRefeicao) {
     // o que ja foi lancado (a troca de um item, por exemplo) nao entra de novo
-    const faltam = pendentesDoPlano(plano.itens, registros.filter(r => r.refeicao === plano.nome))
+    const faltam = pendentesDoPlano(plano.itens, registros.filter(r => mesmoTexto(r.refeicao, plano.nome)))
     if (!faltam.length) return
     vibrar([20, 40, 20])
     for (const item of faltam) {
@@ -153,7 +152,7 @@ export default function Dieta() {
   async function copiarOntem() {
     const ontem = diaMais(data, -1)
     const doDia = await db.dieta.where('data').equals(ontem).toArray()
-    if (!doDia.length) return toast('Nao ha nada registrado ontem', 'erro')
+    if (!doDia.length) return toast('Não ha nada registrado ontem', 'erro')
     for (const r of doDia) {
       const a = mapa.get(r.alimentoId)
       if (a) await registrarAlimento(data, r.refeicao, a, r.qtd, r.medida)
@@ -168,7 +167,7 @@ export default function Dieta() {
       <Titulo titulo="Dieta" sub={dataCurta(data)}
         acao={
           <div className="flex items-center gap-2">
-            <Link to="/dieta/imprimir" aria-label="Abrir versao pra imprimir"
+            <Link to="/dieta/imprimir" aria-label="Abrir versão pra imprimir"
               className="h-11 px-2 flex items-center text-[12px] font-semibold text-muted">PDF</Link>
             <Link to="/dieta/plano"><Btn size="sm">Plano</Btn></Link>
           </div>
@@ -187,7 +186,7 @@ export default function Dieta() {
             }`}>
             {ehHoje ? 'Hoje' : 'Voltar para hoje'}
           </button>
-          <button onClick={() => setData(d => diaMais(d, 1))} disabled={data >= hoje()} aria-label="Proximo dia"
+          <button onClick={() => setData(d => diaMais(d, 1))} disabled={data >= hoje()} aria-label="Próximo dia"
             className="w-11 h-11 shrink-0 rounded-xl bg-surface-2 border border-line text-txt text-lg leading-none active:bg-line disabled:opacity-40">
             ›
           </button>
@@ -223,7 +222,7 @@ export default function Dieta() {
           {/* carboidrato primeiro: e o numero que voce usa pra dosar */}
           <button onClick={() => setEditarMetas(true)} className="w-full grid grid-cols-3 gap-3 text-left">
             <Macro nome="Carboidrato" atual={total.carb} meta={perfil.metaCarb} cor="var(--color-accent)" />
-            <Macro nome="Proteina" atual={total.prot} meta={perfil.metaProt} cor="var(--color-good)" />
+            <Macro nome="Proteína" atual={total.prot} meta={perfil.metaProt} cor="var(--color-good)" />
             <Macro nome="Gordura" atual={total.gord} meta={perfil.metaGord} cor="var(--color-warn)" />
           </button>
 
@@ -243,9 +242,9 @@ export default function Dieta() {
                 <p className="text-[13px] font-bold">Glicemia</p>
                 <p className="text-[11px] text-muted">
                   {glicemias.length
-                    ? `${glicemias.length} medic${glicemias.length === 1 ? 'ao' : 'oes'} - media ${
+                    ? `${glicemias.length} medic${glicemias.length === 1 ? 'ao' : 'oes'} - média ${
                         n0(glicemias.reduce((t, g) => t + g.valor, 0) / glicemias.length)} mg/dL`
-                    : 'Nenhuma medicao nesse dia'}
+                    : 'Nenhuma medição nesse dia'}
                 </p>
               </div>
               {ehHoje && (
@@ -284,11 +283,11 @@ export default function Dieta() {
 
         {/* -------- refeicoes -------- */}
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 px-1">
-          Refeicoes do dia
+          Refeições do dia
         </h2>
         {nomesRefeicao.map(nome => {
-          const itens = registros.filter(r => r.refeicao === nome)
-          const plano = planos.find(p => p.nome === nome)
+          const itens = registros.filter(r => mesmoTexto(r.refeicao, nome))
+          const plano = planos.find(p => mesmoTexto(p.nome, nome))
           return (
             <RefeicaoCard key={nome}
               nome={nome} plano={plano} itens={itens} mapa={mapa}
@@ -316,8 +315,8 @@ export default function Dieta() {
             <div className="flex-1 min-w-0">
               <p className="text-[14px] font-bold">Lista de compras</p>
               <p className="text-[11.5px] text-muted mt-0.5 leading-relaxed">
-                O que comprar pro seu cardapio, agrupado por corredor do mercado e ja com
-                a troca de cada item pro caso de nao ter. Da pra escolher pra quantos dias
+                O que comprar pro seu cardápio, agrupado por corredor do mercado e já com
+                a troca de cada item pro caso de não ter. Da pra escolher pra quantos dias
                 e baixar em PDF.
               </p>
               <Link to="/dieta/compras/imprimir" className="inline-block mt-3">
@@ -348,7 +347,7 @@ export default function Dieta() {
         fechar={() => setTroca(null)} priorizarCarbo={diabetes}
         acaoTexto={troca?.ctx.tipo === 'plano'
           ? 'Toque num equivalente pra lancar no lugar'
-          : 'Toque num equivalente pra trocar no diario'}
+          : 'Toque num equivalente pra trocar no diário'}
         manterTexto="Comi esse mesmo"
         onManter={troca?.ctx.tipo === 'plano'
           ? () => {
@@ -390,17 +389,17 @@ export default function Dieta() {
               await removerRegistro(detalhe.id)
               setDetalhe(null)
               toast('Removido', 'ok')
-            }}>Remover do diario</Btn>
+            }}>Remover do diário</Btn>
           </>
         )}
       </Sheet>
 
-      <Confirmar aberto={!!desfazerAlvo} perigo titulo="Desfazer essa refeicao?"
-        texto="Tudo que foi lancado nela hoje sai do diario."
+      <Confirmar aberto={!!desfazerAlvo} perigo titulo="Desfazer essa refeição?"
+        texto="Tudo que foi lancado nela hoje sai do diário."
         onNao={() => setDesfazerAlvo(null)}
         onSim={() => desfazerAlvo && desfazer(desfazerAlvo)} />
 
-      <Confirmar aberto={!!apagarGli} perigo titulo="Apagar essa medicao?"
+      <Confirmar aberto={!!apagarGli} perigo titulo="Apagar essa medição?"
         onNao={() => setApagarGli(null)}
         onSim={async () => {
           if (apagarGli) await removerGlicemia(apagarGli)
@@ -496,7 +495,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
         </div>
 
         {diabetes && ehHoje && comido && (
-          <button onClick={() => onGlicemia(macros.carb)} aria-label="Registrar glicemia dessa refeicao"
+          <button onClick={() => onGlicemia(macros.carb)} aria-label="Registrar glicemia dessa refeição"
             className="toque shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-muted active:text-accent active:bg-surface-2">
             <Icone nome="sangue" tamanho={17} />
           </button>
@@ -505,7 +504,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
 
       {linhas.length === 0 ? (
         <p className="px-3.5 py-4 text-[12.5px] text-muted text-center">
-          Nada planejado pra essa refeicao ainda.
+          Nada planejado pra essa refeição ainda.
         </p>
       ) : (
         linhas.map(l => {
@@ -521,7 +520,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium truncate">{a?.nome ?? 'Alimento removido'}</p>
                 <p className="text-[10.5px] text-muted">
-                  {nq(l.qtd)} {l.medida}
+                  {nq(l.qtd)} {nomeMedida(a, l.medida)}
                   {l.medida !== 'g' && l.medida !== 'ml' ? ` (${n0(l.gramas)} g)` : ''}
                 </p>
                 <AvisoRestricao alimentoId={l.alimentoId} evitar={evitar} />
@@ -538,7 +537,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
       {faltaComer && (
         <button onClick={onComer}
           className="w-full h-11 text-[13.5px] font-bold text-good active:bg-good/10 border-t border-line/40">
-          {comido ? 'Comi o resto da refeicao' : 'Comi essa refeicao'}
+          {comido ? 'Comi o resto da refeição' : 'Comi essa refeição'}
         </button>
       )}
 
@@ -604,15 +603,15 @@ function LinhaSodio({ atual, meta }: { atual: number; meta: number }) {
   return (
     <div className="mt-3 pt-3 border-t border-line/50">
       <div className="flex items-baseline justify-between mb-1.5">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Sodio</span>
+        <span className="text-[11px] font-bold uppercase tracking-wider text-muted">Sódio</span>
         <span className={`text-[12px] font-bold tabular-nums ${passou ? 'text-bad' : 'text-txt'}`}>
           {n0(atual)}<span className="text-muted font-medium">/{n0(meta)} mg</span>
         </span>
       </div>
       <Barra valor={p} cor={passou ? 'var(--color-bad)' : 'var(--color-accent-2)'} altura={6} />
       <p className="text-[10.5px] text-muted leading-relaxed mt-1.5">
-        Conta so o sodio dos alimentos. O sal que voce poe na panela entra
-        lancando "Sal de cozinha" - uma colher de cha rasa ja passa de 1.900 mg.
+        Conta só o sódio dos alimentos. O sal que você poe na panela entra
+        lancando "Sal de cozinha" - uma colher de cha rasa já passa de 1.900 mg.
       </p>
     </div>
   )

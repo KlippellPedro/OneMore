@@ -1,5 +1,5 @@
 import { db, hoje, isoDia, getPerfil } from '../db'
-import { n0, n1 } from './format'
+import { n0, n1, mesmoTexto } from './format'
 import type { ConfigLembretes, Lembrete, Perfil, PlanoRefeicao } from '../db/types'
 
 /**
@@ -135,11 +135,11 @@ export function lembretesDoDia(
     for (let m = ini + passo; m <= fim; m += passo) {
       const h = `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
       lista.push({
-        id: `agua-${data}-${h}`,
+        id: `água-${data}-${h}`,
         tipo: 'agua',
         ts: quando(data, h),
         data,
-        titulo: 'Hora de beber agua',
+        titulo: 'Hora de beber água',
         corpo: `Meta do dia: ${n1(perfil.metaAgua / 1000)} L`,
         rota: '#/dieta',
         metaMl: perfil.metaAgua,
@@ -152,7 +152,7 @@ export function lembretesDoDia(
       if (!p.itens.length) continue
       const ts = quando(data, p.horario) - c.refeicoes.antecedenciaMin * MIN
       lista.push({
-        id: `refeicao-${data}-${p.id}`,
+        id: `refeição-${data}-${p.id}`,
         tipo: 'refeicao',
         ts,
         data,
@@ -176,7 +176,7 @@ export function lembretesDoDia(
       titulo: c.treino.antecedenciaMin > 0
         ? `Treino em ${c.treino.antecedenciaMin} min`
         : 'Hora do treino',
-      corpo: `Comeca ${c.treino.horario}. Bora manter o streak.`,
+      corpo: `Começa ${c.treino.horario}. Bora manter o streak.`,
       rota: '#/treinos',
     })
   }
@@ -189,7 +189,7 @@ export function lembretesDoDia(
         ts: quando(data, h),
         data,
         titulo: 'Medir a glicemia',
-        corpo: `Anota o valor das ${h} no diario`,
+        corpo: `Anota o valor das ${h} no diário`,
         rota: '#/diario',
       })
     }
@@ -263,18 +263,18 @@ export async function aindaVale(l: Lembrete): Promise<{ vale: boolean; corpo: st
     return {
       vale: true,
       corpo: ml > 0
-        ? `Voce bebeu ${n1(ml / 1000)} L - faltam ${falta >= 1000 ? `${n1(falta / 1000)} L` : `${n0(falta)} ml`}`
+        ? `Você bebeu ${n1(ml / 1000)} L - faltam ${falta >= 1000 ? `${n1(falta / 1000)} L` : `${n0(falta)} ml`}`
         : l.corpo,
     }
   }
 
   if (l.tipo === 'refeicao') {
     const doDia = await db.dieta.where('data').equals(l.data).toArray()
-    return { vale: !doDia.some(r => r.refeicao === l.ref), corpo: l.corpo }
+    return { vale: !doDia.some(r => mesmoTexto(r.refeicao, l.ref ?? '')), corpo: l.corpo }
   }
 
   if (l.tipo === 'treino') {
-    // pelo indice de `inicio`, limitado ao dia - varrer todas as sessoes so pra
+    // pelo indice de `início`, limitado ao dia - varrer todas as sessoes so pra
     // saber se treinou hoje custa o historico inteiro a cada checagem
     const ini = quando(l.data, '00:00')
     const treinou = await db.sessoes.where('inicio')

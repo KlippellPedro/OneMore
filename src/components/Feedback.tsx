@@ -88,11 +88,11 @@ export function Feedback() {
             </p>
 
             <p className="text-[13px] uppercase tracking-widest mb-1" style={{ color: 'var(--color-accent-2)' }}>
-              {levelUp.subiuRank ? '>> novo rank desbloqueado' : '>> voce subiu de nivel'}
+              {levelUp.subiuRank ? '>> novo rank desbloqueado' : '>> você subiu de nível'}
             </p>
 
             <div className="my-5 py-4 border-y" style={{ borderColor: 'color-mix(in srgb, var(--color-accent-2) 35%, transparent)' }}>
-              <p className="text-[11px] text-muted uppercase tracking-widest mb-1">Nivel</p>
+              <p className="text-[11px] text-muted uppercase tracking-widest mb-1">Nível</p>
               <p className="text-6xl font-black leading-none" style={{ color: rank.cor }}>{levelUp.nivel}</p>
             </div>
 

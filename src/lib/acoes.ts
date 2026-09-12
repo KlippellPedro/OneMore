@@ -91,7 +91,7 @@ export async function reconstruirMelhores(): Promise<number> {
 }
 
 /**
- * `carga` = subiu o peso. `serie` = mesma carga (ou menos) mas a melhor serie
+ * `carga` = subiu o peso. `série` = mesma carga (ou menos) mas a melhor serie
  * rendeu mais trabalho que qualquer outra - na pratica, mais repeticoes no
  * mesmo peso. Sem esse segundo tipo, sair de 100x5 pra 100x12 nao era recorde
  * nenhum pro app.
@@ -160,13 +160,13 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
       id: uid(), ts: fim, tipo: 'pr', xp: 0, data: hoje(),
       motivo: pr.tipo === 'carga'
         ? `Recorde: ${pr.valor} kg`
-        : `Melhor serie: ${pr.carga} kg x ${pr.reps}`,
+        : `Melhor série: ${pr.carga} kg x ${pr.reps}`,
     })
   }
 
   const motivo = prs.length
-    ? `${feitas.length} series - ${prs.length} recorde${prs.length > 1 ? 's' : ''}!`
-    : `${feitas.length} series concluidas`
+    ? `${feitas.length} séries - ${prs.length} recorde${prs.length > 1 ? 's' : ''}!`
+    : `${feitas.length} séries concluidas`
   const ganho = await darXP('treino', motivo, baseXP)
   await db.sessoes.update(id, { xpGanho: ganho.xp })
 
@@ -297,7 +297,7 @@ export async function checarMetasDoDia(data: string): Promise<GanhoXP[]> {
   }
 
   if (protOk && !tem('proteina')) {
-    ganhos.push(await darXP('proteina', 'Meta de proteina batida', XP.PROTEINA_OK))
+    ganhos.push(await darXP('proteina', 'Meta de proteína batida', XP.PROTEINA_OK))
   }
   if (kcalOk && protOk && !tem('dieta')) {
     ganhos.push(await darXP('dieta', 'Dia de dieta na regua', XP.DIETA_OK))
@@ -318,7 +318,7 @@ export async function addAgua(ml: number, data = hoje()): Promise<GanhoXP | null
   const perfil = await getPerfil()
   const jaDados = await db.xp.where('data').equals(data).toArray()
   if (novo >= perfil.metaAgua && !jaDados.some(e => e.tipo === 'agua')) {
-    return darXP('agua', 'Meta de agua batida', XP.AGUA_OK)
+    return darXP('agua', 'Meta de água batida', XP.AGUA_OK)
   }
   return null
 }
@@ -449,7 +449,7 @@ export function classificarGlicemia(v: number) {
 /**
  * Faixas no padrao internacional de "tempo no alvo" (consenso AGP/ATTD para
  * diabetes tipo 1: <54 muito baixa, 54-69 baixa, 70-180 alvo, 181-250 alta,
- * >250 muito alta). Aqui e "% das medicoes" - o app nao tem sensor continuo,
+ * >250 muito alta). Aqui e "% das medições" - o app nao tem sensor continuo,
  * entao nao da pra falar em "% do tempo" de verdade, so por leitura.
  */
 export const BANDAS_GLICEMIA = [

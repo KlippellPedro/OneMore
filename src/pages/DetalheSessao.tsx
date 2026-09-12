@@ -19,7 +19,7 @@ import { dataCurta, duracao, horaDe, peso, n0, pl } from '../lib/format'
  */
 export default function DetalheSessao() {
   const { id = '' } = useParams()
-  // o `?? null` separa "ainda carregando" de "nao existe": o get() do Dexie
+  // o `?? null` separa "ainda carregando" de "não existe": o get() do Dexie
   // devolve undefined nos dois casos, e sem isso um treino apagado ficava
   // preso em "Carregando..." pra sempre
   const sessao = useLiveQuery(() => db.sessoes.get(id).then(s => s ?? null), [id])
@@ -32,7 +32,7 @@ export default function DetalheSessao() {
     return (
       <div>
         <Cabecalho titulo="Treino" voltarPara="/progresso" />
-        <Vazio icone="prancheta" titulo="Treino nao encontrado"
+        <Vazio icone="prancheta" titulo="Treino não encontrado"
           texto="Ele pode ter sido apagado."
           acao={<Btn variant="primary" onClick={() => history.back()}>Voltar</Btn>} />
       </div>
@@ -52,21 +52,21 @@ export default function DetalheSessao() {
       <div className="px-4 pt-4 pb-6">
         {/* 2 colunas: em 4, "1h 00min" nao cabe num celular de 375px */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <Numero rotulo="Duracao" valor={sessao.fim ? duracao(sessao.fim - sessao.inicio) : '-'} />
-          <Numero rotulo="Series" valor={String(validas.length)} />
+          <Numero rotulo="Duração" valor={sessao.fim ? duracao(sessao.fim - sessao.inicio) : '-'} />
+          <Numero rotulo="Séries" valor={String(validas.length)} />
           <Numero rotulo="Volume" valor={peso(volumeSessao(sessao))} />
           <Numero rotulo="XP" valor={`+${n0(sessao.xpGanho ?? 0)}`} destaque />
         </div>
 
         {sessao.notas && (
           <Card className="p-4 mb-4">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Anotacoes</h2>
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Anotações</h2>
             <p className="text-[13px] leading-relaxed text-txt/85 whitespace-pre-wrap">{sessao.notas}</p>
           </Card>
         )}
 
         {grupos.length === 0 ? (
-          <Vazio icone="halter" titulo="Nenhuma serie registrada" />
+          <Vazio icone="halter" titulo="Nenhuma série registrada" />
         ) : (
           <div className="space-y-2.5">
             {grupos.map(([exId, series]) => {
@@ -79,16 +79,16 @@ export default function DetalheSessao() {
                   <div className="flex items-start gap-3 mb-2.5">
                     <span className="w-1 self-stretch rounded-full shrink-0 min-h-[40px]"
                       style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
-                    <Link to={`/exercicios/${exId}`} className="shrink-0">
+                    <Link to={`/exercícios/${exId}`} className="shrink-0">
                       <ImagemExercicio exercicioId={exId} tamanho="mini" animar={false} />
                     </Link>
                     <div className="flex-1 min-w-0">
-                      <Link to={`/exercicios/${exId}`} className="text-[14px] font-bold leading-tight block truncate">
-                        {ex?.nome ?? 'Exercicio removido'}
+                      <Link to={`/exercícios/${exId}`} className="text-[14px] font-bold leading-tight block truncate">
+                        {ex?.nome ?? 'Exercício removido'}
                       </Link>
                       <p className="text-[11.5px] text-muted mt-0.5">
-                        {pl(doEx.length, 'serie')}
-                        {topo > 0 ? ` - ate ${topo} kg` : ''}
+                        {pl(doEx.length, 'série')}
+                        {topo > 0 ? ` - até ${topo} kg` : ''}
                         {volume > 0 ? ` - ${peso(volume)}` : ''}
                       </p>
                     </div>
@@ -107,7 +107,7 @@ export default function DetalheSessao() {
                         <span className="flex-1 tabular-nums">
                           {g.carga > 0 ? `${g.carga} kg` : 'sem carga'} <span className="text-muted">x</span> {g.reps}
                         </span>
-                        {!g.feito && <span className="text-[10.5px] text-muted shrink-0">nao feita</span>}
+                        {!g.feito && <span className="text-[10.5px] text-muted shrink-0">não feita</span>}
                         {g.feito && g.ts && (
                           <span className="text-[10.5px] text-muted shrink-0 tabular-nums">{horaDe(g.ts)}</span>
                         )}

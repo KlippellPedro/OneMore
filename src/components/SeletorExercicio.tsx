@@ -9,7 +9,7 @@ export function normalizar(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
 }
 
-export function Seletor({ aberto, fechar, onEscolher, titulo = 'Escolher exercicio', jaEscolhidos = [] }: {
+export function Seletor({ aberto, fechar, onEscolher, titulo = 'Escolher exercício', jaEscolhidos = [] }: {
   aberto: boolean
   fechar: () => void
   onEscolher: (ex: Exercicio) => void
@@ -40,7 +40,7 @@ export function Seletor({ aberto, fechar, onEscolher, titulo = 'Escolher exercic
     <Sheet aberto={aberto} fechar={fechar} titulo={titulo} alto>
       <div className="sticky -top-4 -mx-5 px-5 pt-1 pb-3 bg-bg-soft z-10">
         <Input ref={ref} value={busca} onChange={e => setBusca(e.target.value)}
-          placeholder="Buscar exercicio..." className="mb-3" />
+          placeholder="Buscar exercício..." className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5 pb-1">
           <Chip ativo={grupo === 'todos'} onClick={() => setGrupo('todos')}>Todos</Chip>
           <Chip ativo={grupo === 'favoritos'} onClick={() => setGrupo('favoritos')}>Favoritos</Chip>
@@ -53,7 +53,7 @@ export function Seletor({ aberto, fechar, onEscolher, titulo = 'Escolher exercic
       </div>
 
       {lista.length === 0 ? (
-        <p className="text-center text-[13px] text-muted py-10">Nenhum exercicio encontrado.</p>
+        <p className="text-center text-[13px] text-muted py-10">Nenhum exercício encontrado.</p>
       ) : (
         <div className="space-y-1.5">
           {lista.map(e => (

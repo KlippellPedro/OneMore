@@ -37,6 +37,7 @@ export function resetarCacheSeed() {
 async function executarSeed() {
   await migrarDeForja()
   await tirarCoresNeon()
+  await acentuarNomesSalvos()
 
   const marca = localStorage.getItem('onemore:seed')
   const jaRodou = marca === String(VERSAO_SEED)
@@ -140,4 +141,42 @@ async function montarSetupInicial() {
     alimentos,
   )
   await db.planos.bulkPut(paraPlanoRefeicao(plano))
+}
+
+/**
+ * O catalogo passou a ter acento, mas o plano alimentar e o diario de quem ja
+ * usava o app guardam o texto antigo ("Cafe da manha", "Almoco"). O app nao
+ * quebra por causa disso - a comparacao e feita por `mesmoTexto`, sem acento -
+ * mas a tela ficaria metade acentuada e metade nao.
+ *
+ * Isto renomeia uma vez so, e so o que bate exatamente com a forma antiga.
+ * Nome que a pessoa escreveu ("Lanche da tarde do trabalho") nao e tocado.
+ */
+const NOMES_ANTIGOS: Record<string, string> = {
+  'Cafe da manha': 'Café da manhã',
+  'Lanche da manha': 'Lanche da manhã',
+  'Almoco': 'Almoço',
+  'Pre-treino': 'Pré-treino',
+  'Pos-treino': 'Pós-treino',
+  'Ceia': 'Ceia',
+}
+
+async function acentuarNomesSalvos() {
+  if (localStorage.getItem('onemore:acentos') === '1') return
+
+  for (const [antigo, novo] of Object.entries(NOMES_ANTIGOS)) {
+    if (antigo === novo) continue
+    await db.planos.toCollection().modify(p => {
+      if (p.nome === antigo) p.nome = novo
+    })
+    // o diario referencia a refeicao pelo nome: precisa acompanhar
+    await db.dieta.toCollection().modify(r => {
+      if (r.refeicao === antigo) r.refeicao = novo
+    })
+    await db.dietas.toCollection().modify(d => {
+      for (const r of d.refeicoes) if (r.nome === antigo) r.nome = novo
+    })
+  }
+
+  localStorage.setItem('onemore:acentos', '1')
 }

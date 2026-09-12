@@ -44,7 +44,7 @@ export default function Exercicios() {
 
   return (
     <div>
-      <Cabecalho titulo="Exercicios" sub={`${todos.length} no catalogo`}
+      <Cabecalho titulo="Exercícios" sub={`${todos.length} no catalogo`}
         acao={<Btn size="sm" variant="primary" onClick={() => setNovo(true)}>+ Criar</Btn>} />
 
       <div className="px-4 pt-3">
@@ -70,7 +70,7 @@ export default function Exercicios() {
             <div className="space-y-1.5">
               {itens.map(e => (
                 <div key={e.id} className="flex items-center gap-2">
-                  <Link to={`/exercicios/${e.id}`}
+                  <Link to={`/exercícios/${e.id}`}
                     className="flex-1 min-w-0 flex items-center gap-3 p-3 rounded-xl bg-surface border border-line/60 active:bg-surface-2">
                     <span className="w-1 h-9 rounded-full shrink-0" style={{ background: corGrupo(e.grupo) }} />
                     {/* sem animar: sao 126 na lista, animando todas trava a rolagem */}
@@ -79,7 +79,7 @@ export default function Exercicios() {
                       <p className="text-[14px] font-semibold truncate">{e.nome}</p>
                       <p className="text-[11.5px] text-muted truncate">
                         {nomeEquip(e.equipamento)}
-                        {e.videoUrl ? ' - com video' : ''}
+                        {e.videoUrl ? ' - com vídeo' : ''}
                         {e.custom ? ' - meu' : ''}
                       </p>
                     </div>
@@ -93,7 +93,7 @@ export default function Exercicios() {
         ))}
 
         <p className="text-[10.5px] text-muted/70 leading-relaxed text-center px-2 pb-4 pt-2">
-          Ilustracoes de execucao por{' '}
+          Ilustracoes de execução por{' '}
           <a href={CREDITO_IMAGENS.autorUrl} target="_blank" rel="noreferrer" className="underline inline-block py-1.5">
             {CREDITO_IMAGENS.autor}
           </a>{' '}
@@ -126,7 +126,7 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
   const [video, setVideo] = useState('')
 
   async function criar() {
-    if (!nome.trim()) return toast('Da um nome pro exercicio', 'erro')
+    if (!nome.trim()) return toast('Da um nome pro exercício', 'erro')
     await db.exercicios.put({
       id: 'usr_' + uid(),
       nome: nome.trim(), grupo, equipamento: equip,
@@ -142,9 +142,9 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
   }
 
   return (
-    <Sheet aberto={aberto} fechar={fechar} titulo="Novo exercicio">
+    <Sheet aberto={aberto} fechar={fechar} titulo="Novo exercício">
       <Campo label="Nome"><Input value={nome} onChange={e => setNome(e.target.value)} autoFocus /></Campo>
-      <Campo label="Musculo principal">
+      <Campo label="Músculo principal">
         <Select value={grupo} onChange={e => setGrupo(e.target.value as GrupoMuscular)}>
           {GRUPOS.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </Select>
@@ -154,14 +154,14 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
           {EQUIPAMENTOS.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </Select>
       </Campo>
-      <Campo label="Execucao" hint="Uma etapa por linha.">
+      <Campo label="Execução" hint="Uma etapa por linha.">
         <Textarea rows={4} value={exec} onChange={e => setExec(e.target.value)}
           placeholder={'Ajuste o banco\nDesca controlado\nEmpurre sem travar o cotovelo'} />
       </Campo>
-      <Campo label="Link do video" hint="Cole um link do YouTube e ele toca dentro do app.">
+      <Campo label="Link do vídeo" hint="Cole um link do YouTube e ele toca dentro do app.">
         <Input value={video} onChange={e => setVideo(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
       </Campo>
-      <Btn variant="primary" size="lg" className="w-full mt-2" onClick={criar}>Criar exercicio</Btn>
+      <Btn variant="primary" size="lg" className="w-full mt-2" onClick={criar}>Criar exercício</Btn>
     </Sheet>
   )
 }

@@ -51,10 +51,10 @@ export default function Diario() {
   if (!todos.length) {
     return (
       <div>
-        <Titulo titulo="Diario de glicemia" sub="Registro e historico" />
+        <Titulo titulo="Diário de glicemia" sub="Registro e histórico" />
         <div className="px-4">
-          <Vazio icone="sangue" titulo="Nenhuma medicao ainda"
-            texto="Registre a glicemia e o diario monta sozinho: grafico, tempo no alvo e a tabela pra levar no medico."
+          <Vazio icone="sangue" titulo="Nenhuma medição ainda"
+            texto="Registre a glicemia e o diário monta sozinho: gráfico, tempo no alvo e a tabela pra levar no medico."
             acao={<Btn variant="primary" onClick={() => setNovaGlicemia(true)}>Registrar glicemia</Btn>} />
         </div>
         <SheetGlicemia aberto={novaGlicemia} fechar={() => setNovaGlicemia(false)} />
@@ -64,7 +64,7 @@ export default function Diario() {
 
   return (
     <div>
-      <Titulo titulo="Diario de glicemia" sub={pl(stats.total, 'medicao', 'medicoes')}
+      <Titulo titulo="Diário de glicemia" sub={pl(stats.total, 'medição', 'medições')}
         acao={<Btn size="sm" variant="primary" onClick={() => setNovaGlicemia(true)}>+ Medir</Btn>} />
 
       <div className="px-4">
@@ -82,7 +82,7 @@ export default function Diario() {
             {n0(stats.pctAlvo * 100)}%
           </p>
           <p className="text-[11px] text-muted mb-3">
-            das medicoes entre {FAIXA_ALVO.min}-{FAIXA_ALVO.max} mg/dL
+            das medições entre {FAIXA_ALVO.min}-{FAIXA_ALVO.max} mg/dL
           </p>
 
           <div className="h-3.5 w-full rounded-full overflow-hidden flex bg-surface-2">
@@ -109,7 +109,7 @@ export default function Diario() {
 
         {/* -------- stats rapidos -------- */}
         <div className="grid grid-cols-3 gap-2.5 mb-3">
-          <Mini rotulo="Media" valor={n0(stats.media)} sufixo="mg/dL" />
+          <Mini rotulo="Média" valor={n0(stats.media)} sufixo="mg/dL" />
           <Mini rotulo="Variabilidade" valor={`${n0(stats.cv)}%`} sufixo={stats.cv > 36 ? 'alta' : 'estavel'}
             destaque={stats.cv > 36} />
           <Mini rotulo="Faixa" valor={`${n0(stats.minimo)}-${n0(stats.maximo)}`} sufixo="mg/dL" />
@@ -126,12 +126,12 @@ export default function Diario() {
         {/* -------- media por momento -------- */}
         {stats.porMomento.length > 1 && (
           <Card className="p-4 mb-3">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Media por momento</h2>
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Média por momento</h2>
             <div className="space-y-2.5">
               {stats.porMomento.map(m => (
                 <div key={m.momento} className="flex items-center gap-3">
                   <span className="text-[12.5px] flex-1 min-w-0 truncate">{nomeMomento(m.momento)}</span>
-                  <span className="text-[11px] text-muted shrink-0">{pl(m.count, 'medicao', 'medicoes')}</span>
+                  <span className="text-[11px] text-muted shrink-0">{pl(m.count, 'medição', 'medições')}</span>
                   <span className="text-[13px] font-bold tabular-nums w-11 text-right shrink-0"
                     style={{ color: classificarGlicemia(m.media).cor }}>
                     {n0(m.media)}
@@ -144,8 +144,8 @@ export default function Diario() {
 
         {/* -------- historico por dia -------- */}
         <div className="flex items-center justify-between mb-2 px-1 mt-5">
-          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">Historico por dia</h2>
-          <Link to={`/diario/imprimir?dias=${periodo || 90}`} className="toque text-[12px] font-semibold text-accent">
+          <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">Histórico por dia</h2>
+          <Link to={`/diário/imprimir?dias=${periodo || 90}`} className="toque text-[12px] font-semibold text-accent">
             Exportar PDF ›
           </Link>
         </div>
@@ -157,7 +157,7 @@ export default function Diario() {
               <Card key={data} className="overflow-hidden">
                 <div className="flex items-center gap-3 px-3.5 py-2.5 border-b border-line/40 bg-surface-2/40">
                   <span className="text-[12.5px] font-bold flex-1">{dataCurta(data)}</span>
-                  <span className="text-[11px] text-muted">media</span>
+                  <span className="text-[11px] text-muted">média</span>
                   <span className="text-[13px] font-black tabular-nums" style={{ color: classificarGlicemia(mediaDia).cor }}>
                     {n0(mediaDia)}
                   </span>
@@ -171,7 +171,7 @@ export default function Diario() {
 
       <SheetGlicemia aberto={novaGlicemia} fechar={() => setNovaGlicemia(false)} />
 
-      <Confirmar aberto={!!apagar} perigo titulo="Apagar essa medicao?"
+      <Confirmar aberto={!!apagar} perigo titulo="Apagar essa medição?"
         onNao={() => setApagar(null)}
         onSim={async () => {
           if (apagar) await removerGlicemia(apagar)

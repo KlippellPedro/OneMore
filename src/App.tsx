@@ -30,14 +30,14 @@ import Lembretes from './pages/Lembretes'
 import Entrada from './pages/Entrada'
 
 const TABS_BASE = [
-  { to: '/', label: 'Inicio', icone: 'casa' },
+  { to: '/', label: 'Início', icone: 'casa' },
   { to: '/treinos', label: 'Treino', icone: 'halter' },
   { to: '/dieta', label: 'Dieta', icone: 'prato' },
   { to: '/progresso', label: 'Progresso', icone: 'barras' },
   { to: '/perfil', label: 'Perfil', icone: 'pessoa' },
 ]
 
-const TAB_DIARIO = { to: '/diario', label: 'Diario', icone: 'sangue' }
+const TAB_DIARIO = { to: '/diario', label: 'Diário', icone: 'sangue' }
 
 /** A aba acesa usa a cor da propria secao, nao o roxo de sempre. */
 const corDaAba = (to: string) => secaoDe(to === '/' ? '/' : to).cor
@@ -47,7 +47,7 @@ function BarraSessao() {
   const loc = useLocation()
   if (!sessao || loc.pathname.startsWith('/sessao') || loc.pathname.includes('/imprimir')) return null
   return (
-    <Link to={`/sessao/${sessao.id}`}
+    <Link to={`/sessão/${sessao.id}`}
       className="fixed left-3 right-3 bottom-[72px] z-40 flex items-center gap-3 px-4 h-12 rounded-2xl grad-accent glow-accent text-white shadow-xl anim-up safe-b">
       <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
       <span className="text-[13px] font-bold flex-1 truncate">Treino em andamento - {sessao.nome}</span>
@@ -136,7 +136,7 @@ export default function App() {
     if (localStorage.getItem(CHAVE_ENTRADA) === '1') { setEntrada('ok'); return }
     // ja tem sessao valida (voltou noutro dia, ou outro aparelho): nao pergunta
     // de novo. Offline a chamada falha, e tudo bem - cai na tela, que tem a
-    // saida "usar so neste aparelho".
+    // saida "usar só neste aparelho".
     usuarioAtual()
       .then(u => {
         if (!u) return setEntrada('mostrar')
@@ -169,7 +169,7 @@ export default function App() {
       <div className="min-h-full flex items-center justify-center p-8 text-center">
         <div>
           <div className="flex justify-center mb-4 text-bad"><Icone nome="alerta" tamanho={40} /></div>
-          <p className="font-bold mb-2">Nao consegui abrir o banco local</p>
+          <p className="font-bold mb-2">Não consegui abrir o banco local</p>
           <p className="text-[13px] text-muted">{erro}</p>
         </div>
       </div>

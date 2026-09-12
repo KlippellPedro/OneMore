@@ -21,19 +21,19 @@ export function CodigoRecuperacao({ codigo, email, onPronto }: {
   async function copiar() {
     try {
       await navigator.clipboard.writeText(codigo)
-      toast('Codigo copiado', 'ok')
+      toast('Código copiado', 'ok')
     } catch {
-      toast('Copie na mao', 'erro', 'O navegador nao deixou copiar sozinho')
+      toast('Copie na mao', 'erro', 'O navegador não deixou copiar sozinho')
     }
   }
 
   function baixar() {
     const texto =
-      `OneMore - codigo de recuperacao\n\n`
+      `OneMore - código de recuperação\n\n`
       + (email ? `Conta: ${email}\n` : '')
-      + `Codigo: ${codigo}\n\n`
-      + `Guarde este arquivo. Sem este codigo, senha esquecida = conta perdida,\n`
-      + `porque o OneMore nao envia e-mail de recuperacao.\n`
+      + `Código: ${codigo}\n\n`
+      + `Guarde este arquivo. Sem este código, senha esquecida = conta perdida,\n`
+      + `porque o OneMore não envia e-mail de recuperação.\n`
       + `Gerado em ${new Date().toLocaleString('pt-BR')}\n`
     const url = URL.createObjectURL(new Blob([texto], { type: 'text/plain' }))
     const a = document.createElement('a')
@@ -48,13 +48,13 @@ export function CodigoRecuperacao({ codigo, email, onPronto }: {
       <div className="flex items-center gap-2 mb-2 text-warn">
         <Icone nome="escudo" tamanho={16} />
         <h3 className="text-[11px] font-bold uppercase tracking-widest">
-          Guarde este codigo agora
+          Guarde este código agora
         </h3>
       </div>
 
       <p className="text-[12.5px] text-txt/85 leading-relaxed mb-3">
-        Ele aparece <b>uma unica vez</b>. E com ele que voce troca a senha se
-        esquecer - o OneMore nao manda e-mail de recuperacao. Sem o codigo, senha
+        Ele aparece <b>uma única vez</b>. E com ele que você troca a senha se
+        esquecer - o OneMore não manda e-mail de recuperação. Sem o código, senha
         esquecida vira conta perdida.
       </p>
 

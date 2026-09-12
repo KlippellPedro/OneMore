@@ -50,7 +50,7 @@ interface Modelo {
  */
 const MODELO: Modelo[] = [
   {
-    nome: 'Cafe da manha', horario: '07:30', carbo: 0.17,
+    nome: 'Café da manhã', horario: '07:30', carbo: 0.17,
     slots: [
       { alimento: 'al_aveia-em-flocos', papel: 'carbo', peso: 2 },
       { alimento: 'al_banana-prata', papel: 'carbo', peso: 1 },
@@ -60,7 +60,7 @@ const MODELO: Modelo[] = [
     ],
   },
   {
-    nome: 'Lanche da manha', horario: '10:00', carbo: 0.16,
+    nome: 'Lanche da manhã', horario: '10:00', carbo: 0.16,
     slots: [
       { alimento: 'al_pao-de-forma-integral', papel: 'carbo', peso: 2.2 },
       { alimento: 'al_maca', papel: 'carbo', peso: 1 },
@@ -68,7 +68,7 @@ const MODELO: Modelo[] = [
     ],
   },
   {
-    nome: 'Almoco', horario: '12:30', carbo: 0.18,
+    nome: 'Almoço', horario: '12:30', carbo: 0.18,
     slots: [
       { alimento: 'al_arroz-branco-cozido', papel: 'carbo', peso: 2.4 },
       { alimento: 'al_feijao-carioca-cozido', papel: 'carbo', peso: 1 },
@@ -90,7 +90,7 @@ const MODELO: Modelo[] = [
   },
   {
     nome: 'Pre-treino', horario: '18:00', carbo: 0.16,
-    nota: 'So carboidrato de proposito: proteina e gordura antes do treino atrapalham a digestao, e voce ja comeu whey as 16h.',
+    nota: 'So carboidrato de proposito: proteína e gordura antes do treino atrapalham a digestao, e você já comeu whey as 16h.',
     slots: [
       { alimento: 'al_batata-doce-cozida', papel: 'carbo', peso: 2.5 },
       { alimento: 'al_pao-frances', papel: 'carbo', peso: 1 },

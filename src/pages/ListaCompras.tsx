@@ -48,7 +48,7 @@ export default function ListaCompras() {
         <header className="mb-6 border-b-2 border-gray-900 pb-4">
           <h1 className="text-2xl font-black">Lista de compras</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {perfil.nome} · cardapio de {pl(dias, 'dia')} · gerado em {geradoEm}
+            {perfil.nome} · cardápio de {pl(dias, 'dia')} · gerado em {geradoEm}
           </p>
         </header>
 
@@ -71,7 +71,7 @@ export default function ListaCompras() {
           </div>
           {quantos > 0 && (
             <p className="text-[12px] text-gray-500 mt-3 leading-relaxed">
-              Toque num item pra marcar o que voce <strong>ja tem em casa</strong> - ele sai riscado
+              Toque num item pra marcar o que você <strong>já tem em casa</strong> - ele sai riscado
               no PDF. As quantidades saem do seu plano alimentar
               ({n0(totalDia.kcal)} kcal e {n0(totalDia.carb)} g de carbo por dia).
             </p>
@@ -80,13 +80,13 @@ export default function ListaCompras() {
 
         {quantos === 0 ? (
           <p className="text-gray-500 text-[13px] leading-relaxed">
-            Seu plano alimentar esta vazio, entao nao ha o que comprar ainda.
-            Monte o cardapio em Dieta {'>'} Plano e volte aqui.
+            Seu plano alimentar está vazio, entao não ha o que comprar ainda.
+            Monte o cardápio em Dieta {'>'} Plano e volte aqui.
           </p>
         ) : (
           <>
             <p className="text-[13px] text-gray-500 mb-5">
-              {pl(quantos, 'item', 'itens')} · {pl(dias, 'dia')} de cardapio
+              {pl(quantos, 'item', 'itens')} · {pl(dias, 'dia')} de cardápio
             </p>
 
             <div className="space-y-6">
@@ -126,7 +126,7 @@ export default function ListaCompras() {
 
                               {i.trocas.length > 0 && (
                                 <span className="block text-[11px] text-gray-400 mt-0.5 leading-snug">
-                                  Se nao tiver:{' '}
+                                  Se não tiver:{' '}
                                   {i.trocas.map((t, k) => (
                                     <span key={t.alimento.id}>
                                       {k > 0 && ' · '}

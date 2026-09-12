@@ -3,7 +3,7 @@ import type { SerieLog, Sessao } from './types'
 /**
  * Resumo por exercicio: o recorde de sempre e o que foi feito na ultima vez.
  *
- * Existe porque responder "qual foi minha ultima carga no supino?" varria a
+ * Existe porque responder "qual foi minha última carga no supino?" varria a
  * tabela inteira de sessoes - uma vez POR EXERCICIO. Comecar um treino de 7
  * exercicios eram 8 varreduras do historico inteiro, e isso so piora a cada
  * treino registrado.
@@ -22,7 +22,7 @@ export interface MelhorExercicio {
   /** Melhor carga da sessao mais recente - e o que o app pre-preenche. */
   ultimaCarga: number
   ultimaReps: number
-  /** `inicio` da sessao mais recente que tem esse exercicio. */
+  /** `início` da sessao mais recente que tem esse exercicio. */
   ultimaEm: number
 }
 
@@ -49,7 +49,7 @@ export function dobrarSessao(
   const recordeAntes = atual?.recordeCarga ?? 0
   const bateuCarga = melhorDaVez.carga > recordeAntes
   // sessao fora de ordem (import, backup antigo) nao pode mandar na "ultima".
-  // O `!atual` vem primeiro de proposito: com `inicio` invalido num backup
+  // O `!atual` vem primeiro de proposito: com `início` invalido num backup
   // corrompido a comparacao daria false e a linha de baixo leria atual!.x
   const ehMaisRecente = !atual || inicio >= atual.ultimaEm
 

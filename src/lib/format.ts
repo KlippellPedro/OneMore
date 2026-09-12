@@ -23,8 +23,8 @@ export function duracao(ms: number) {
   return `${Math.floor(min / 60)}h ${String(min % 60).padStart(2, '0')}min`
 }
 
-const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
-const DIAS_LONGO = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado']
+const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const DIAS_LONGO = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado']
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
 
 export const diaCurto = (i: number) => DIAS[i]
@@ -67,3 +67,17 @@ export function clamp(v: number, min: number, max: number) {
 /** "1 dia" / "3 dias" - evita o "1 dias" que denuncia app mal acabado. */
 export const pl = (n: number, singular: string, plural = singular + 's') =>
   `${n0(n)} ${Math.round(n) === 1 ? singular : plural}`
+
+/**
+ * Compara texto ignorando acento e caixa.
+ *
+ * Precisa existir porque dado JA SALVO no aparelho guarda o texto do jeito que
+ * estava quando foi gravado. O catalogo passou a ter acento, mas o plano
+ * alimentar e o diario de quem ja usava o app continuam com a forma antiga.
+ * Comparar com === faria a medida nao resolver e a refeicao de ontem nao casar
+ * com a do plano.
+ */
+export const semAcento = (s: string) =>
+  String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim()
+
+export const mesmoTexto = (a: string, b: string) => semAcento(a) === semAcento(b)

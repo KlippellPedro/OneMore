@@ -159,7 +159,7 @@ const SLUGS: Record<string, string> = {
  */
 export function imagemExercicio(exercicioId: string, quadro: 1 | 2 = 1): string | null {
   const slug = SLUGS[exercicioId]
-  return slug ? `${import.meta.env.BASE_URL}exercicios/${slug}-${quadro}.svg` : null
+  return slug ? `${import.meta.env.BASE_URL}exercícios/${slug}-${quadro}.svg` : null
 }
 
 /** Quantos exercicios do catalogo tem ilustracao. */

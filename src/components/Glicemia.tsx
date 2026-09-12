@@ -114,15 +114,15 @@ export function SheetGlicemia({ aberto, fechar, momentoInicial, carboSugerido }:
         </Campo>
       )}
 
-      <Campo label="Observacao">
+      <Campo label="Observação">
         <Input value={obs} onChange={e => setObs(e.target.value)}
           placeholder="Ex: cai depois do treino de perna" />
       </Campo>
 
       <Card className="p-3 mb-4">
         <p className="text-[11.5px] text-muted leading-relaxed">
-          O app so anota e mostra o historico. Dose de insulina, razao e correcao
-          sao com voce e seu endocrinologista.
+          O app só anota e mostra o histórico. Dose de insulina, razao e correcao
+          sao com você e seu endocrinologista.
         </p>
       </Card>
 

@@ -28,7 +28,7 @@ export class OneMoreDB extends Dexie {
     this.version(1).stores({
       exercicios: 'id, nome, grupo, equipamento, favorito, custom',
       rotinas: 'id, nome, ordem, arquivada',
-      sessoes: 'id, rotinaId, inicio, concluida',
+      sessoes: 'id, rotinaId, inicio, concluída',
       alimentos: 'id, nome, categoria, favorito, custom',
       planos: 'id, ordem',
       dieta: 'id, data, refeicao, alimentoId, [data+refeicao]',
@@ -66,7 +66,7 @@ export class OneMoreDB extends Dexie {
     /**
      * v6: flags indexadas viram 0/1.
      *
-     * `concluida` e `arquivada` eram boolean, e o IndexedDB nao aceita boolean
+     * `concluída` e `arquivada` eram boolean, e o IndexedDB nao aceita boolean
      * como chave: o indice existia no schema mas nao indexava nada, entao toda
      * consulta caia em varredura da tabela inteira.
      *

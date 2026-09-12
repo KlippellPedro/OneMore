@@ -16,7 +16,7 @@ import { imagemExercicio } from '../db/imagensExercicios'
 export default function DetalheExercicio() {
   const { id = '' } = useParams()
   const { toast } = useUI()
-  // `?? null` separa "carregando" de "nao existe" - ver DetalheSessao
+  // `?? null` separa "carregando" de "não existe" - ver DetalheSessao
   const ex = useLiveQuery(() => db.exercicios.get(id).then(e => e ?? null), [id])
   const [editVideo, setEditVideo] = useState(false)
   const [url, setUrl] = useState('')
@@ -47,8 +47,8 @@ export default function DetalheExercicio() {
   if (ex === null) {
     return (
       <div>
-        <Cabecalho titulo="Exercicio" voltarPara="/exercicios" />
-        <Vazio icone="halter" titulo="Exercicio nao encontrado"
+        <Cabecalho titulo="Exercício" voltarPara="/exercicios" />
+        <Vazio icone="halter" titulo="Exercício não encontrado"
           texto="Ele pode ter sido apagado do catalogo." />
       </div>
     )
@@ -88,7 +88,7 @@ export default function DetalheExercicio() {
           <Card className="p-3 mb-3">
             <ImagemExercicio exercicioId={ex.id} />
             <p className="text-[11px] text-muted text-center mt-1">
-              Inicio e fim do movimento
+              Início e fim do movimento
             </p>
           </Card>
         )}
@@ -101,19 +101,19 @@ export default function DetalheExercicio() {
                 className="absolute inset-0 w-full h-full"
                 src={`https://www.youtube.com/embed/${yt}`}
                 title={ex.nome}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-média; gyroscope; picture-in-picture"
                 allowFullScreen />
             </div>
           </div>
         ) : ex.videoUrl ? (
           <a href={ex.videoUrl} target="_blank" rel="noreferrer"
             className="flex items-center justify-center gap-2 p-4 rounded-2xl bg-surface border border-line mb-3 text-[13px] font-semibold text-accent">
-            Abrir video da execucao
+            Abrir vídeo da execução
             <Icone nome="link-externo" tamanho={15} />
           </a>
         ) : (
           <Card className="p-4 mb-3 text-center">
-            <p className="text-[13px] text-muted mb-3">Nenhum video de execucao ainda.</p>
+            <p className="text-[13px] text-muted mb-3">Nenhum vídeo de execução ainda.</p>
             <Btn size="sm" onClick={() => { setUrl(ex.videoUrl ?? ''); setEditVideo(true) }}>
               Colar link do YouTube
             </Btn>
@@ -126,7 +126,7 @@ export default function DetalheExercicio() {
 
         {ex.videoUrl && (
           <button onClick={() => { setUrl(ex.videoUrl ?? ''); setEditVideo(true) }}
-            className="text-[12px] text-muted mb-4 px-1">Trocar link do video</button>
+            className="text-[12px] text-muted mb-4 px-1">Trocar link do vídeo</button>
         )}
 
         {/* -------- execucao -------- */}
@@ -166,7 +166,7 @@ export default function DetalheExercicio() {
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">Sua evolucao</h2>
             <div className="grid grid-cols-3 gap-3 mb-4">
               <Mini rotulo="Recorde" valor={`${n0(recorde)} kg`} destaque />
-              <Mini rotulo="Sessoes" valor={String(historico.length)} />
+              <Mini rotulo="Sessões" valor={String(historico.length)} />
               <Mini rotulo="Volume" valor={peso(volumeTotal)} />
             </div>
             {historico.length > 1 && (
@@ -187,12 +187,12 @@ export default function DetalheExercicio() {
 
         {ex.custom && (
           <Btn variant="danger" className="w-full mb-4" onClick={() => setApagar(true)}>
-            Apagar esse exercicio
+            Apagar esse exercício
           </Btn>
         )}
       </div>
 
-      <Sheet aberto={editVideo} fechar={() => setEditVideo(false)} titulo="Link do video">
+      <Sheet aberto={editVideo} fechar={() => setEditVideo(false)} titulo="Link do vídeo">
         <Campo label="URL" hint="YouTube toca aqui dentro. Outros links abrem em nova aba.">
           <Input value={url} onChange={e => setUrl(e.target.value)}
             placeholder="https://www.youtube.com/watch?v=..." autoFocus />
@@ -201,17 +201,17 @@ export default function DetalheExercicio() {
           {ex.videoUrl && (
             <Btn variant="ghost" className="flex-1" onClick={async () => {
               await db.exercicios.update(id, { videoUrl: undefined })
-              setEditVideo(false); toast('Video removido', 'ok')
+              setEditVideo(false); toast('Vídeo removido', 'ok')
             }}>Remover</Btn>
           )}
           <Btn variant="primary" className="flex-1" onClick={async () => {
             await db.exercicios.update(id, { videoUrl: url.trim() || undefined })
-            setEditVideo(false); toast('Video salvo', 'ok')
+            setEditVideo(false); toast('Vídeo salvo', 'ok')
           }}>Salvar</Btn>
         </div>
       </Sheet>
 
-      <Confirmar aberto={apagar} perigo titulo="Apagar exercicio?"
+      <Confirmar aberto={apagar} perigo titulo="Apagar exercício?"
         texto={textoApagar(usos)}
         onNao={() => setApagar(false)}
         onSim={async () => {
@@ -223,7 +223,7 @@ export default function DetalheExercicio() {
   )
 }
 
-const FIM = 'Os treinos ja registrados no historico continuam la.'
+const FIM = 'Os treinos já registrados no histórico continuam lá.'
 
 /** Diz de onde o exercicio vai sumir, com o numero na frente: "das rotinas que
  *  usam" era vago demais pra decidir se pode apagar. */

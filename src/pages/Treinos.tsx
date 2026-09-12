@@ -45,9 +45,9 @@ export default function Treinos() {
   }
 
   async function comecar(r: Rotina) {
-    if (!r.itens.length) return toast('Esse treino esta vazio', 'erro', 'Adicione exercicios primeiro')
+    if (!r.itens.length) return toast('Esse treino está vazio', 'erro', 'Adicione exercícios primeiro')
     vibrar(20)
-    nav(`/sessao/${await iniciarSessao(r)}`)
+    nav(`/sessão/${await iniciarSessao(r)}`)
   }
 
   async function duplicar(r: Rotina) {
@@ -72,7 +72,7 @@ export default function Treinos() {
 
       <div className="px-4">
         {sessaoAtiva && (
-          <Card className="p-4 mb-4 border-accent/40" onClick={() => nav(`/sessao/${sessaoAtiva.id}`)}>
+          <Card className="p-4 mb-4 border-accent/40" onClick={() => nav(`/sessão/${sessaoAtiva.id}`)}>
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
               <p className="flex-1 text-[14px] font-bold truncate">{sessaoAtiva.nome}</p>
@@ -126,7 +126,7 @@ export default function Treinos() {
                       <div className="flex-1 min-w-0 py-0.5">
                         <p className="text-[13.5px] font-semibold leading-tight line-clamp-2">{r.nome}</p>
                         <p className="text-[11px] text-muted mt-0.5">
-                          {pl(r.itens.length, 'exercicio')}
+                          {pl(r.itens.length, 'exercício')}
                         </p>
                       </div>
                       {ehHoje && r.itens.length > 0 && (
@@ -162,7 +162,7 @@ export default function Treinos() {
                         <Link to={`/treinos/${r.id}`} className="flex-1 min-w-0">
                           <p className="font-bold text-[15px] leading-tight">{r.nome}</p>
                           <p className="text-[11.5px] text-muted mt-1">
-                            {pl(r.itens.length, 'exercicio')} - {pl(totalSeries, 'serie')}
+                            {pl(r.itens.length, 'exercício')} - {pl(totalSeries, 'série')}
                             {r.dias?.length ? ' - ' + r.dias.map(diaCurto).join(', ') : ' - sem dia fixo'}
                           </p>
                         </Link>
@@ -192,7 +192,7 @@ export default function Treinos() {
                       <div className="flex gap-2">
                         <Btn size="sm" className="flex-1" onClick={() => nav(`/treinos/${r.id}`)}>Editar</Btn>
                         <Btn size="sm" variant="primary" className="flex-1" onClick={() => comecar(r)}>
-                          Comecar
+                          Começar
                         </Btn>
                       </div>
                     </div>
@@ -204,10 +204,10 @@ export default function Treinos() {
         )}
 
         <Card className="p-4 mt-3" onClick={async () => {
-          nav(`/sessao/${await iniciarSessao(undefined, 'Treino livre')}`)
+          nav(`/sessão/${await iniciarSessao(undefined, 'Treino livre')}`)
         }}>
           <p className="text-[14px] font-semibold">Treino livre</p>
-          <p className="text-[12px] text-muted mt-0.5">Sem rotina. Vai adicionando os exercicios na hora.</p>
+          <p className="text-[12px] text-muted mt-0.5">Sem rotina. Vai adicionando os exercícios na hora.</p>
         </Card>
       </div>
 
@@ -230,7 +230,7 @@ export default function Treinos() {
                 <span className="w-1 h-9 rounded-full shrink-0" style={{ background: r.cor }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-semibold truncate">{r.nome}</p>
-                  <p className="text-[11.5px] text-muted">{pl(r.itens.length, 'exercicio')}</p>
+                  <p className="text-[11.5px] text-muted">{pl(r.itens.length, 'exercício')}</p>
                 </div>
                 {ativo && <Icone nome="check" tamanho={17} traco={2.4} className="text-accent shrink-0" />}
               </button>
@@ -248,7 +248,7 @@ export default function Treinos() {
       <Sheet aberto={novo} fechar={() => setNovo(false)} titulo="Novo treino">
         <Campo label="Nome">
           <Input value={nome} onChange={e => setNome(e.target.value)}
-            placeholder="Treino A - Peito e Triceps" autoFocus />
+            placeholder="Treino A - Peito e Tríceps" autoFocus />
         </Campo>
         <Campo label="Cor">
           <div className="flex gap-2 flex-wrap">
@@ -259,15 +259,15 @@ export default function Treinos() {
           </div>
         </Campo>
         <p className="text-[11.5px] text-muted mb-4 leading-relaxed">
-          O dia da semana voce escolhe depois, em "Minha semana".
+          O dia da semana você escolhe depois, em "Minha semana".
         </p>
         <Btn variant="primary" size="lg" className="w-full" onClick={criar}>
-          Criar e escolher exercicios
+          Criar e escolher exercícios
         </Btn>
       </Sheet>
 
       <Confirmar aberto={!!apagar} perigo titulo="Apagar treino?"
-        texto="A rotina sai da lista. Os treinos ja registrados no historico continuam la."
+        texto="A rotina sai da lista. Os treinos já registrados no histórico continuam lá."
         onSim={async () => {
           if (apagar) await apagarLinha('rotinas', apagar)
           setApagar(null); toast('Treino removido', 'ok')

@@ -47,7 +47,7 @@ export function Grafico({ pontos, cor = 'var(--color-accent)', sufixo = '', altu
   if (pontos.length < 2) {
     return (
       <div className="flex items-center justify-center text-[12px] text-muted" style={{ height: altura }}>
-        Poucos dados para o grafico ainda.
+        Poucos dados para o gráfico ainda.
       </div>
     )
   }
@@ -109,7 +109,7 @@ export function Barras({ dados, cor = 'var(--color-accent)', altura = 120, sufix
   if (semDados) {
     return (
       <div className="flex items-center justify-center text-[12px] text-muted" style={{ height: altura }}>
-        Sem dados ainda para esse periodo.
+        Sem dados ainda para esse período.
       </div>
     )
   }

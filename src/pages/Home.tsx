@@ -43,7 +43,7 @@ export default function Home() {
   // o streak do perfil so e recalculado quando cai XP: pra mostrar, vale o vivo
   const streak = streakVivo(perfil, hj)
 
-  // pelo indice de `inicio`, de tras pra frente: o cursor para nas 3 primeiras
+  // pelo indice de `início`, de tras pra frente: o cursor para nas 3 primeiras
   // em vez de carregar o historico inteiro so pra jogar quase tudo fora
   const recentes = useLiveQuery(
     () => db.sessoes.orderBy('inicio').reverse().filter(x => x.concluida === 1).limit(3).toArray(),
@@ -76,8 +76,8 @@ export default function Home() {
    * multiplicador de streak. */
   const missoes: Missao[] = [
     { id: 'treino', icone: 'halter', nome: 'Fazer o treino de hoje', ok: !!treinouHoje, xp: XP.TREINO, aPartirDe: true },
-    { id: 'prot', icone: 'talheres', nome: `Bater ${perfil.metaProt} g de proteina`, ok: total.prot >= perfil.metaProt * 0.9, xp: XP.PROTEINA_OK, prog: total.prot / perfil.metaProt },
-    { id: 'agua', icone: 'gota', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de agua`, ok: mlAgua >= perfil.metaAgua, xp: XP.AGUA_OK, prog: mlAgua / perfil.metaAgua },
+    { id: 'prot', icone: 'talheres', nome: `Bater ${perfil.metaProt} g de proteína`, ok: total.prot >= perfil.metaProt * 0.9, xp: XP.PROTEINA_OK, prog: total.prot / perfil.metaProt },
+    { id: 'agua', icone: 'gota', nome: `Beber ${n1(perfil.metaAgua / 1000)} L de água`, ok: mlAgua >= perfil.metaAgua, xp: XP.AGUA_OK, prog: mlAgua / perfil.metaAgua },
     { id: 'peso', icone: 'balanca', nome: 'Registrar o peso', ok: !!pesoHoje?.peso, xp: XP.PESO },
     ...(perfil.diabetesTipo1 === true
       ? [{ id: 'gli', icone: 'sangue', nome: 'Medir a glicemia (4x)', ok: glicemias.length >= 4, xp: XP.GLICEMIA, prog: glicemias.length / 4 }]
@@ -89,11 +89,11 @@ export default function Home() {
   const saudacao = hora < 6 ? 'Boa madrugada' : hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
 
   async function comecar() {
-    if (sessaoAtiva) return nav(`/sessao/${sessaoAtiva.id}`)
+    if (sessaoAtiva) return nav(`/sessão/${sessaoAtiva.id}`)
     if (!sugerida) return nav('/treinos')
     vibrar(20)
     const id = await iniciarSessao(sugerida)
-    nav(`/sessao/${id}`)
+    nav(`/sessão/${id}`)
   }
 
   async function beber(ml: number) {
@@ -141,14 +141,14 @@ export default function Home() {
               Rank {rank.nome}
               <span className="font-mono px-1.5 rounded border" style={{ borderColor: rank.cor }}>{rank.letra}</span>
             </p>
-            <p className="text-[15px] font-bold">Nivel {nivel}</p>
+            <p className="text-[15px] font-bold">Nível {nivel}</p>
             <p className="text-[11.5px] text-muted">
-              {n0(xpNoNivel)} / {n0(xpParaProximo)} XP para o nivel {nivel + 1}
+              {n0(xpNoNivel)} / {n0(xpParaProximo)} XP para o nível {nivel + 1}
             </p>
           </div>
           {streak > 1 && (
             <div className="text-right shrink-0">
-              <p className="text-[10px] text-muted uppercase tracking-wide">Bonus</p>
+              <p className="text-[10px] text-muted uppercase tracking-wide">Bônus</p>
               <p className="text-sm font-black text-xp">{multiplicadorStreak(streak).toFixed(2)}x</p>
             </div>
           )}
@@ -161,13 +161,13 @@ export default function Home() {
         <Link to="/treinos" className="toque text-[12px] font-semibold text-accent">Ver todos</Link>
       }>
         {sessaoAtiva ? (
-          <Card className="p-4" onClick={() => nav(`/sessao/${sessaoAtiva.id}`)}>
+          <Card className="p-4" onClick={() => nav(`/sessão/${sessaoAtiva.id}`)}>
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-[15px] truncate">{sessaoAtiva.nome}</p>
                 <p className="text-[12px] text-muted">
-                  Em andamento - {sessaoAtiva.series.filter(s => s.feito).length}/{sessaoAtiva.series.length} series
+                  Em andamento - {sessaoAtiva.series.filter(s => s.feito).length}/{sessaoAtiva.series.length} séries
                 </p>
               </div>
               <span className="text-accent font-bold text-sm">Continuar</span>
@@ -180,7 +180,7 @@ export default function Home() {
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-[15px] leading-tight">{sugerida.nome}</p>
                 <p className="text-[12px] text-muted mt-1">
-                  {pl(sugerida.itens.length, 'exercicio')} - {pl(sugerida.itens.reduce((t, i) => t + i.series, 0), 'serie')}
+                  {pl(sugerida.itens.length, 'exercício')} - {pl(sugerida.itens.reduce((t, i) => t + i.series, 0), 'série')}
                 </p>
               </div>
               {treinouHoje && (
@@ -192,7 +192,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-1.5 mb-4">
               {sugerida.itens.slice(0, 4).map((it, i) => (
                 <span key={i} className="text-[11px] px-2 py-1 rounded-lg bg-surface-2 text-muted truncate max-w-[46%]">
-                  {mapaEx.get(it.exercicioId)?.nome ?? 'Exercicio'}
+                  {mapaEx.get(it.exercicioId)?.nome ?? 'Exercício'}
                 </span>
               ))}
               {sugerida.itens.length > 4 && (
@@ -202,12 +202,12 @@ export default function Home() {
               )}
             </div>
             <Btn variant="primary" size="lg" className="w-full" onClick={comecar}>
-              Comecar treino
+              Começar treino
             </Btn>
           </Card>
         ) : (
           <Card className="p-5 text-center">
-            <p className="text-[13px] text-muted mb-3">Voce ainda nao tem nenhuma rotina.</p>
+            <p className="text-[13px] text-muted mb-3">Você ainda não tem nenhuma rotina.</p>
             <Btn variant="primary" onClick={() => nav('/treinos')}>Criar meu primeiro treino</Btn>
           </Card>
         )}
@@ -236,7 +236,7 @@ export default function Home() {
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">
-            <MacroMini nome="Proteina" atual={total.prot} meta={perfil.metaProt} cor="var(--color-good)" />
+            <MacroMini nome="Proteína" atual={total.prot} meta={perfil.metaProt} cor="var(--color-good)" />
             <MacroMini nome="Carbo" atual={total.carb} meta={perfil.metaCarb} cor="var(--color-warn)" />
             <MacroMini nome="Gordura" atual={total.gord} meta={perfil.metaGord} cor="#9b7fc7" />
           </div>
@@ -245,7 +245,7 @@ export default function Home() {
 
       {/* -------- glicemia -------- */}
       {perfil.diabetesTipo1 === true && (
-        <Secao titulo="Glicemia de hoje" cor={SECOES.diario.cor} acao={<Link to="/diario" className="toque text-[12.5px] font-semibold text-accent">Ver diario</Link>}>
+        <Secao titulo="Glicemia de hoje" cor={SECOES.diario.cor} acao={<Link to="/diario" className="toque text-[12.5px] font-semibold text-accent">Ver diário</Link>}>
           <Card className="overflow-hidden">
             <div className="flex items-center gap-3 px-4 py-3">
               <div className="flex-1 min-w-0">
@@ -256,12 +256,12 @@ export default function Home() {
                       <span className="text-[11px] text-muted font-medium ml-1">mg/dL agora</span>
                     </p>
                     <p className="text-[11.5px] text-muted">
-                      {glicemias.length} medic{glicemias.length === 1 ? 'ao' : 'oes'} - media{' '}
+                      {glicemias.length} medic{glicemias.length === 1 ? 'ao' : 'oes'} - média{' '}
                       {n0(glicemias.reduce((t, g) => t + g.valor, 0) / glicemias.length)}
                     </p>
                   </>
                 ) : (
-                  <p className="text-[13px] text-muted">Nenhuma medicao registrada hoje</p>
+                  <p className="text-[13px] text-muted">Nenhuma medição registrada hoje</p>
                 )}
               </div>
               <Btn size="sm" variant="primary" onClick={() => setMedir(true)}>+ Medir</Btn>
@@ -272,7 +272,7 @@ export default function Home() {
       )}
 
       {/* -------- agua -------- */}
-      <Secao titulo="Agua" cor="var(--color-accent-2)">
+      <Secao titulo="Água" cor="var(--color-accent-2)">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[15px] font-bold">
@@ -292,11 +292,11 @@ export default function Home() {
       </Secao>
 
       {/* -------- missoes -------- */}
-      <Secao titulo={`Missoes de hoje - ${feitas}/${missoes.length}`} cor={SECOES.progresso.cor}>
+      <Secao titulo={`Missões de hoje - ${feitas}/${missoes.length}`} cor={SECOES.progresso.cor}>
         {feitas === missoes.length && (
           <div className="flex items-center gap-2.5 mb-2.5 px-3.5 py-2.5 rounded-2xl bg-xp/12 border border-xp/30 anim-pop">
             <Icone nome="trofeu" tamanho={18} className="text-xp shrink-0" />
-            <p className="text-[12.5px] font-bold text-xp">Dia perfeito! Todas as missoes concluidas.</p>
+            <p className="text-[12.5px] font-bold text-xp">Dia perfeito! Todas as missões concluidas.</p>
           </div>
         )}
         <Card className={`p-2 ${feitas === missoes.length ? 'border-xp/30' : ''}`}>
@@ -325,13 +325,13 @@ export default function Home() {
 
       {/* -------- historico -------- */}
       {recentes.length > 0 && (
-        <Secao titulo="Ultimos treinos" cor={SECOES.treino.cor} acao={
-          <Link to="/progresso" className="toque text-[12px] font-semibold text-accent">Historico</Link>
+        <Secao titulo="Últimos treinos" cor={SECOES.treino.cor} acao={
+          <Link to="/progresso" className="toque text-[12px] font-semibold text-accent">Histórico</Link>
         }>
           <div className="space-y-2">
             {recentes.map(s => (
               <Card key={s.id} className="p-3.5 flex items-center gap-3"
-                onClick={() => nav(`/historico/${s.id}`)}>
+                onClick={() => nav(`/histórico/${s.id}`)}>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-semibold truncate">{s.nome}</p>
                   <p className="text-[11.5px] text-muted">

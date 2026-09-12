@@ -1,4 +1,5 @@
 import type { Alimento, Perfil, RegistroDieta, ItemRefeicao } from '../db/types'
+import { mesmoTexto } from './format'
 
 export interface Macros {
   kcal: number; prot: number; carb: number; gord: number; fibra: number
@@ -77,7 +78,9 @@ export function pendentesDoPlano(
 /** Converte uma quantidade numa medida caseira para gramas. */
 export function paraGramas(a: Alimento, qtd: number, medida: string): number {
   if (medida === 'g' || medida === 'ml') return qtd
-  const m = a.medidas.find(x => x.nome === medida)
+  // mesmoTexto e nao ===: o plano salvo antes do catalogo ganhar acento guarda
+  // "unidade média" sem acento, e a medida precisa resolver do mesmo jeito
+  const m = a.medidas.find(x => mesmoTexto(x.nome, medida))
   return m ? qtd * m.gramas : qtd
 }
 
@@ -159,4 +162,16 @@ export function diaBatido(t: Macros, p: Pick<Perfil, 'metaKcal' | 'metaProt'>) {
   const k = pct(t.kcal, p.metaKcal)
   const pr = pct(t.prot, p.metaProt)
   return { kcalOk: k >= 0.9 && k <= 1.1, protOk: pr >= 0.9 }
+}
+
+/**
+ * Nome da medida do jeito que o catalogo escreve hoje.
+ *
+ * O item do plano guarda o texto de quando foi criado - quem montou o cardapio
+ * antes do catalogo ganhar acento tem "unidade media" salvo. Mostrar a grafia
+ * do catalogo deixa a tela inteira acentuada sem precisar reescrever o dado da
+ * pessoa, e se o alimento sumiu, devolve o que estava salvo mesmo.
+ */
+export function nomeMedida(a: Alimento | undefined, medida: string): string {
+  return a?.medidas.find(x => mesmoTexto(x.nome, medida))?.nome ?? medida
 }

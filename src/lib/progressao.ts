@@ -8,7 +8,7 @@ import type { Sessao } from '../db/types'
  * Abrir exercicio por exercicio pra descobrir isso nao acontece na pratica.
  *
  * O criterio e a melhor carga de cada sessao, comparando a media das sessoes
- * mais recentes com a media das anteriores. Media e nao "ultimo valor" porque
+ * mais recentes com a media das anteriores. Media e nao "último valor" porque
  * um dia ruim (dormiu mal, treinou com pressa) nao e estagnacao.
  */
 
@@ -84,5 +84,5 @@ export const ROTULO_TENDENCIA: Record<Tendencia, { texto: string; cor: string }>
   subindo: { texto: 'subindo', cor: 'var(--color-good)' },
   parado: { texto: 'parado', cor: 'var(--color-warn)' },
   caindo: { texto: 'caindo', cor: 'var(--color-bad)' },
-  novo: { texto: 'pouco historico', cor: 'var(--color-muted)' },
+  novo: { texto: 'pouco histórico', cor: 'var(--color-muted)' },
 }

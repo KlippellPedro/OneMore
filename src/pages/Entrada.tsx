@@ -34,7 +34,7 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
     try {
       if (recuperando) {
         const u = await redefinirSenha(email.trim(), codigo, senha)
-        toast('Senha trocada', 'ok', 'Voce ja entrou na conta')
+        toast('Senha trocada', 'ok', 'Você já entrou na conta')
         // o codigo usado queimou: o servidor devolve um novo e ele precisa ser
         // guardado antes de a pessoa sair da tela
         setMostrarCodigo(u!.codigo)
@@ -49,7 +49,7 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
       toast(`Bem-vindo, ${u?.email ?? ''}`, 'ok')
       pronto()
     } catch (e) {
-      toast('Nao deu', 'erro', (e as Error).message)
+      toast('Não deu', 'erro', (e as Error).message)
     } finally {
       setOcupado(false)
     }
@@ -78,7 +78,7 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
       </div>
 
       <div className="flex gap-1.5 mb-4">
-        <Chip ativo={modo === 'entrar'} onClick={() => setModo('entrar')}>Ja tenho conta</Chip>
+        <Chip ativo={modo === 'entrar'} onClick={() => setModo('entrar')}>Já tenho conta</Chip>
         <Chip ativo={criando} onClick={() => setModo('criar')}>Criar conta</Chip>
       </div>
 
@@ -87,14 +87,14 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
           autoComplete="email" placeholder="voce@email.com" inputMode="email" />
       </Campo>
       {recuperando && (
-        <Campo label="Codigo de recuperacao" hint="Aquele que apareceu quando voce criou a conta.">
+        <Campo label="Código de recuperação" hint="Aquele que apareceu quando você criou a conta.">
           <Input value={codigo} onChange={e => setCodigo(e.target.value)}
             placeholder="ABCD-2345-EFGH" autoCapitalize="characters" autoComplete="off" />
         </Campo>
       )}
 
       <Campo label={recuperando ? 'Nova senha' : 'Senha'}
-        hint={criando || recuperando ? 'Minimo 8 caracteres.' : undefined}>
+        hint={criando || recuperando ? 'Mínimo 8 caracteres.' : undefined}>
         <Input type="password" value={senha} onChange={e => setSenha(e.target.value)}
           autoComplete={criando || recuperando ? 'new-password' : 'current-password'}
           onKeyDown={e => { if (e.key === 'Enter') autenticar() }} />
@@ -108,7 +108,7 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
 
       {criando && (
         <p className="text-[11px] text-muted leading-relaxed mt-2.5 text-center">
-          Voce vai receber um codigo de recuperacao pra guardar - e o unico jeito
+          Você vai receber um código de recuperação pra guardar - e o único jeito
           de voltar se esquecer a senha.
         </p>
       )}
@@ -126,7 +126,7 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
 
       <button onClick={pronto}
         className="toque w-full h-12 rounded-2xl border border-line text-[14px] font-semibold text-txt/90 active:bg-surface-2">
-        Usar so neste aparelho
+        Usar só neste aparelho
       </button>
       <p className="text-[11.5px] text-muted leading-relaxed mt-3 text-center">
         Tudo funciona sem conta e sem internet - os dados ficam neste aparelho.

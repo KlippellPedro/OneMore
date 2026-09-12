@@ -31,33 +31,33 @@ export const MARCADORES: Record<Marcador, InfoMarcador> = {
    */
   lactose: {
     nome: 'Lactose',
-    rotulo: 'Intolerancia a lactose',
+    rotulo: 'Intolerância a lactose',
     descricao:
       'Marca o que tem lactose de verdade - as versoes "sem lactose" continuam '
       + 'aparecendo. Queijo curado e whey isolado tem pouquissima e muita gente '
-      + 'tolera: o aviso e pra voce decidir, nao um veto.',
+      + 'tolera: o aviso e pra você decidir, não um veto.',
   },
   leite: {
     nome: 'Leite e derivados',
-    rotulo: 'Nao como derivados de leite',
+    rotulo: 'Não como derivados de leite',
     descricao:
       'Qualquer coisa que venha do leite, inclusive as versoes sem lactose. '
-      + 'Use se for alergia a proteina do leite, ou se voce for vegano.',
+      + 'Use se for alergia a proteína do leite, ou se você for vegano.',
   },
   gluten: {
-    nome: 'Gluten',
-    rotulo: 'Doenca celiaca ou sensibilidade ao gluten',
+    nome: 'Glúten',
+    rotulo: 'Doenca celíaca ou sensibilidade ao glúten',
     descricao:
-      'Trigo, cevada e centeio. A aveia entra junto de proposito: ela nao tem '
-      + 'gluten, mas quase sempre e processada onde se processa trigo - quem tem '
-      + 'doenca celiaca so deve comer aveia com selo "sem gluten".',
+      'Trigo, cevada e centeio. A aveia entra junto de proposito: ela não tem '
+      + 'glúten, mas quase sempre e processada onde se processa trigo - quem tem '
+      + 'doenca celíaca só deve comer aveia com selo "sem glúten".',
   },
-  carne: { nome: 'Carne', rotulo: 'Nao como carne', descricao: 'Boi, porco e aves, incluindo embutidos.' },
-  peixe: { nome: 'Peixe e frutos do mar', rotulo: 'Nao como peixe', descricao: 'Peixes, frutos do mar e enlatados.' },
-  ovo: { nome: 'Ovo', rotulo: 'Alergia ou restricao a ovo', descricao: 'Ovo e o que leva ovo, como maionese e albumina.' },
+  carne: { nome: 'Carne', rotulo: 'Não como carne', descricao: 'Boi, porco e aves, incluindo embutidos.' },
+  peixe: { nome: 'Peixe e frutos do mar', rotulo: 'Não como peixe', descricao: 'Peixes, frutos do mar e enlatados.' },
+  ovo: { nome: 'Ovo', rotulo: 'Alergia ou restrição a ovo', descricao: 'Ovo e o que leva ovo, como maionese e albumina.' },
   amendoim: { nome: 'Amendoim', rotulo: 'Alergia a amendoim', descricao: 'Amendoim e derivados.' },
   castanhas: { nome: 'Castanhas', rotulo: 'Alergia a castanhas', descricao: 'Castanhas, nozes e amendoas.' },
-  soja: { nome: 'Soja', rotulo: 'Alergia ou restricao a soja', descricao: 'Soja e derivados, incluindo shoyu.' },
+  soja: { nome: 'Soja', rotulo: 'Alergia ou restrição a soja', descricao: 'Soja e derivados, incluindo shoyu.' },
 }
 
 /** Alimentos de cada marcador, pelo NOME exato do catalogo. */
@@ -65,35 +65,35 @@ const POR_MARCADOR: Record<Marcador, string[]> = {
   lactose: [
     'Leite integral', 'Leite desnatado', 'Iogurte natural integral',
     'Iogurte natural desnatado', 'Iogurte grego', 'Queijo minas frescal',
-    'Queijo mussarela', 'Queijo prato', 'Requeijao cremoso', 'Queijo cottage',
-    'Ricota', 'Creme de leite', 'Manteiga', 'Pao de queijo', 'Queijo coalho',
+    'Queijo mussarela', 'Queijo prato', 'Requeijão cremoso', 'Queijo cottage',
+    'Ricota', 'Creme de leite', 'Manteiga', 'Pão de queijo', 'Queijo coalho',
     'Kefir de leite', 'Whey protein concentrado', 'Whey protein isolado',
-    'Caseina', 'Barra de proteina', 'Hipercalorico', 'Chocolate ao leite',
+    'Caseína', 'Barra de proteína', 'Hipercalórico', 'Chocolate ao leite',
     'Sorvete de creme', 'Pizza de mussarela',
   ],
   // tudo que tem lactose entra aqui tambem (somado abaixo), mais o que veio de
   // leite mas teve a lactose quebrada
   leite: ['Leite sem lactose integral', 'Iogurte sem lactose'],
   gluten: [
-    'Macarrao cozido', 'Pao frances', 'Pao de forma integral', 'Pao de forma branco',
-    'Aveia em flocos', 'Granola', 'Macarrao instantaneo', 'Panqueca de aveia',
-    'Torrada integral', 'Biscoito recheado', 'Bolacha agua e sal',
-    'Pizza de mussarela', 'Coxinha', 'Shoyu', 'Barra de proteina', 'Cerveja',
+    'Macarrão cozido', 'Pão francês', 'Pão de forma integral', 'Pão de forma branco',
+    'Aveia em flocos', 'Granola', 'Macarrão instantaneo', 'Panqueca de aveia',
+    'Torrada integral', 'Biscoito recheado', 'Bolacha água e sal',
+    'Pizza de mussarela', 'Coxinha', 'Shoyu', 'Barra de proteína', 'Cerveja',
   ],
   carne: [
-    'Peito de frango desfiado', 'Coracao de frango grelhado',
-    'Figado bovino grelhado', 'Musculo bovino cozido',
+    'Peito de frango desfiado', 'Coração de frango grelhado',
+    'Fígado bovino grelhado', 'Músculo bovino cozido',
     'Carne seca dessalgada cozida',
     'Peito de frango grelhado', 'Coxa de frango sem pele cozida',
     'Sobrecoxa assada sem pele', 'Patinho grelhado', 'Alcatra grelhada',
-    'Coxao mole cozido', 'Contrafile grelhado', 'Carne moida (acem) refogada',
-    'Lombo suino assado', 'Bisteca suina grelhada', 'Peito de peru defumado',
-    'Presunto magro', 'Linguica calabresa', 'Bacon frito', 'Hamburguer bovino',
+    'Coxão mole cozido', 'Contrafilé grelhado', 'Carne moida (acém) refogada',
+    'Lombo suíno assado', 'Bisteca suina grelhada', 'Peito de peru defumado',
+    'Presunto magro', 'Linguiça calabresa', 'Bacon frito', 'Hambúrguer bovino',
     'Coxinha',
   ],
   peixe: [
-    'File de merluza grelhado', 'Tilapia grelhada', 'Salmao grelhado', 'Sardinha em lata (drenada)',
-    'Atum em lata na agua', 'Camarao cozido',
+    'File de merluza grelhado', 'Tilápia grelhada', 'Salmão grelhado', 'Sardinha em lata (drenada)',
+    'Atum em lata na água', 'Camarão cozido',
   ],
   ovo: [
     'Ovo de codorna cozido', 'Ovo de galinha cozido', 'Ovo mexido (com oleo)', 'Clara de ovo',
@@ -101,10 +101,10 @@ const POR_MARCADOR: Record<Marcador, string[]> = {
   ],
   amendoim: ['Amendoim', 'Pasta de amendoim integral'],
   castanhas: [
-    'Castanha do Para', 'Castanha de caju', 'Amendoas', 'Nozes',
-    'Leite de amendoas sem acucar', 'Pasta de castanha de caju',
+    'Castanha do Para', 'Castanha de caju', 'Amêndoas', 'Nozes',
+    'Leite de amendoas sem açúcar', 'Pasta de castanha de caju',
   ],
-  soja: ['Soja cozida', 'Tofu', 'Oleo de soja', 'Shoyu', 'Proteina de soja texturizada (hidratada)'],
+  soja: ['Soja cozida', 'Tofu', 'Oleo de soja', 'Shoyu', 'Proteína de soja texturizada (hidratada)'],
 }
 
 const idDe = (nome: string) =>

@@ -40,20 +40,20 @@ export default function ImprimirDiario() {
         </div>
 
         <header className="mb-8 border-b-2 border-gray-900 pb-4">
-          <h1 className="text-2xl font-black">Diario de glicemia</h1>
+          <h1 className="text-2xl font-black">Diário de glicemia</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {perfil.nome} · {registros.length ? `${dataCurta(porDia[0][0])} a ${dataCurta(porDia[porDia.length - 1][0])}` : `ultimos ${dias} dias`} · gerado em {geradoEm}
+            {perfil.nome} · {registros.length ? `${dataCurta(porDia[0][0])} a ${dataCurta(porDia[porDia.length - 1][0])}` : `últimos ${dias} dias`} · gerado em {geradoEm}
           </p>
         </header>
 
         {registros.length === 0 ? (
-          <p className="text-gray-500">Nenhuma medicao registrada nesse periodo.</p>
+          <p className="text-gray-500">Nenhuma medição registrada nesse período.</p>
         ) : (
           <>
             {/* -------- resumo -------- */}
             <section className="grid grid-cols-4 gap-3 mb-6" style={{ breakInside: 'avoid' }}>
-              <MetaBox rotulo="Medicoes" valor={String(stats.total)} />
-              <MetaBox rotulo="Media" valor={`${n0(stats.media)} mg/dL`} />
+              <MetaBox rotulo="Medições" valor={String(stats.total)} />
+              <MetaBox rotulo="Média" valor={`${n0(stats.media)} mg/dL`} />
               <MetaBox rotulo="Tempo no alvo" valor={`${n0(stats.pctAlvo * 100)}%`} />
               <MetaBox rotulo="Variabilidade" valor={`${n0(stats.cv)}%`} />
             </section>
@@ -71,7 +71,7 @@ export default function ImprimirDiario() {
               </div>
               <p className="text-[10.5px] text-gray-400 mt-2 leading-relaxed">
                 Faixa de referencia geral {FAIXA_ALVO.min}-{FAIXA_ALVO.max} mg/dL, confirme a sua com o endocrinologista.
-                Percentuais sao por medicao registrada, nao por tempo continuo.
+                Percentuais sao por medição registrada, não por tempo continuo.
               </p>
             </section>
 
@@ -108,8 +108,8 @@ export default function ImprimirDiario() {
         )}
 
         <footer className="mt-10 pt-4 border-t border-gray-200 text-[10.5px] text-gray-400">
-          Gerado pelo OneMore em {geradoEm}. O app registra e mostra o historico - nao calcula dose,
-          razao carbo/insulina nem avalia se um valor esta bom ou ruim. Isso e com o endocrinologista.
+          Gerado pelo OneMore em {geradoEm}. O app registra e mostra o histórico - não calcula dose,
+          razao carbo/insulina nem avalia se um valor está bom ou ruim. Isso e com o endocrinologista.
         </footer>
       </div>
     </div>

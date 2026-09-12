@@ -29,7 +29,7 @@ export function conflitos(alimentoId: string, restricoes: Marcador[]): Marcador[
 export const temConflito = (alimentoId: string, restricoes: Marcador[]) =>
   conflitos(alimentoId, restricoes).length > 0
 
-/** Texto curto pro aviso na tela: "contem leite e gluten". */
+/** Texto curto pro aviso na tela: "contem leite e glúten". */
 export function textoConflito(ms: Marcador[]): string {
   const nomes = ms.map(m => MARCADORES[m].nome.toLowerCase())
   if (nomes.length === 1) return `contem ${nomes[0]}`

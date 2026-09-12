@@ -8,7 +8,7 @@ import { Cabecalho } from '../components/Cabecalho'
 import { Btn, Input, Chip, Sheet, Campo, Select, Confirmar, Card } from '../components/ui'
 import { BotaoFavorito, Icone } from '../components/Icone'
 import { useUI } from '../state/ui'
-import { n0, n1 } from '../lib/format'
+import { n0, n1, mesmoTexto } from '../lib/format'
 import type { Alimento, Medida } from '../db/types'
 
 export default function Alimentos() {
@@ -26,7 +26,10 @@ export default function Alimentos() {
       .filter(a => {
         if (cat === 'favoritos' && !a.favorito) return false
         if (cat === 'meus' && !a.custom) return false
-        if (cat !== 'todos' && cat !== 'favoritos' && cat !== 'meus' && a.categoria !== cat) return false
+        // mesmoTexto: alimento que VOCE criou antes do catalogo ganhar acento
+        // ficou gravado como "Laticinios" e nao casaria com a aba "Laticínios"
+        if (cat !== 'todos' && cat !== 'favoritos' && cat !== 'meus'
+          && !mesmoTexto(a.categoria, cat)) return false
         if (!q) return true
         return normalizar(a.nome).includes(q)
       })
@@ -92,7 +95,7 @@ export default function Alimentos() {
         onSalvo={n => toast(`${n} salvo`, 'ok')} />
 
       <Confirmar aberto={!!apagar} perigo titulo="Apagar alimento?"
-        texto="Registros ja feitos no diario ficam sem nome."
+        texto="Registros já feitos no diário ficam sem nome."
         onNao={() => setApagar(null)}
         onSim={async () => { await apagarLinha('alimentos', apagar!); setApagar(null) }} />
     </div>
@@ -112,7 +115,7 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
   const base = novo || !alvo ? null : alvo
 
   const [f, setF] = useState({
-    nome: '', categoria: 'Proteinas', kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0,
+    nome: '', categoria: 'Proteínas', kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0,
     unidadeBase: 'g' as 'g' | 'ml',
   })
   const [medidas, setMedidas] = useState<Medida[]>([])
@@ -129,7 +132,7 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
       })
       setMedidas(base.medidas)
     } else {
-      setF({ nome: '', categoria: 'Proteinas', kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0, unidadeBase: 'g' })
+      setF({ nome: '', categoria: 'Proteínas', kcal: 0, prot: 0, carb: 0, gord: 0, fibra: 0, unidadeBase: 'g' })
       setMedidas([])
     }
   }
@@ -192,7 +195,7 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
       </p>
       <div className="grid grid-cols-2 gap-3">
         <Campo label="Calorias (kcal)"><Input {...num('kcal')} /></Campo>
-        <Campo label="Proteina (g)"><Input {...num('prot')} /></Campo>
+        <Campo label="Proteína (g)"><Input {...num('prot')} /></Campo>
         <Campo label="Carboidrato (g)"><Input {...num('carb')} /></Campo>
         <Campo label="Gordura (g)"><Input {...num('gord')} /></Campo>
         <Campo label="Fibra (g)"><Input {...num('fibra')} /></Campo>

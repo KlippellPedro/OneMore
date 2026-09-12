@@ -40,7 +40,7 @@ export interface ItemRotina {
 
 export interface Rotina {
   id: string
-  nome: string            // "Treino A - Peito e Triceps"
+  nome: string            // "Treino A - Peito e Tríceps"
   descricao?: string
   cor: string
   itens: ItemRotina[]
@@ -83,7 +83,7 @@ export interface Sessao {
 }
 
 export interface Medida {
-  nome: string            // "colher de sopa", "unidade media", "fatia"
+  nome: string            // "colher de sopa", "unidade média", "fatia"
   gramas: number
 }
 
@@ -123,7 +123,7 @@ export interface ItemRefeicao {
 
 export interface PlanoRefeicao {
   id: string
-  nome: NomeRefeicao      // "Cafe da manha"
+  nome: NomeRefeicao      // "Café da manhã"
   horario: string         // "07:30"
   itens: ItemRefeicao[]
   ordem: number

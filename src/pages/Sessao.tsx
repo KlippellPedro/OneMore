@@ -75,7 +75,7 @@ export default function Sessao() {
   const { id = '' } = useParams()
   const nav = useNavigate()
   const { celebrar, toast } = useUI()
-  // `?? null` separa "carregando" de "nao existe" - ver DetalheSessao
+  // `?? null` separa "carregando" de "não existe" - ver DetalheSessao
   const sessao = useLiveQuery(() => db.sessoes.get(id).then(s => s ?? null), [id])
   const mapaEx = useMapaExercicios()
   const rotina = useLiveQuery(
@@ -127,21 +127,21 @@ export default function Sessao() {
   if (sessao === null) {
     return (
       <div className="p-10 text-center">
-        <p className="text-sm text-muted mb-4">Esse treino nao existe mais.</p>
-        <Btn variant="primary" onClick={() => nav('/')}>Voltar ao inicio</Btn>
+        <p className="text-sm text-muted mb-4">Esse treino não existe mais.</p>
+        <Btn variant="primary" onClick={() => nav('/')}>Voltar ao início</Btn>
       </div>
     )
   }
   if (sessao.concluida && !resumo) {
     return (
       <div className="p-10 text-center">
-        <p className="text-sm text-muted mb-4">Esse treino ja foi finalizado.</p>
-        <Btn variant="primary" onClick={() => nav('/')}>Voltar ao inicio</Btn>
+        <p className="text-sm text-muted mb-4">Esse treino já foi finalizado.</p>
+        <Btn variant="primary" onClick={() => nav('/')}>Voltar ao início</Btn>
       </div>
     )
   }
 
-  /* ------------- agrupa por exercicio, mantendo a ordem ------------- */
+  /* ------------- agrupa por exercício, mantendo a ordem ------------- */
   const grupos: { exercicioId: string; series: { s: SerieLog; i: number }[] }[] = []
   sessao.series.forEach((s, i) => {
     let g = grupos.find(x => x.exercicioId === s.exercicioId)
@@ -167,7 +167,7 @@ export default function Sessao() {
     if (s.feito) return alterar(i, { feito: false, ts: undefined })
 
     if (s.reps <= 0) {
-      toast('Preencha as repeticoes', 'erro')
+      toast('Preencha as repetições', 'erro')
       return
     }
     vibrar([15, 40, 15])
@@ -258,7 +258,7 @@ export default function Sessao() {
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-bold truncate leading-tight">{sessao.nome}</p>
             <p className="text-[11.5px] text-muted tabular-nums">
-              {duracao(agora - sessao.inicio)} - {feitas}/{totalSeries} series - {peso(volume)}
+              {duracao(agora - sessao.inicio)} - {feitas}/{totalSeries} séries - {peso(volume)}
             </p>
           </div>
           <Btn size="sm" variant="primary" onClick={() => setConfirmarFim(true)}>Finalizar</Btn>
@@ -274,8 +274,8 @@ export default function Sessao() {
           <div className="text-center py-14 px-6">
             <div className="flex justify-center mb-3 text-muted/50"><Icone nome="halter" tamanho={36} traco={1.5} /></div>
             <p className="font-semibold mb-1">Treino livre</p>
-            <p className="text-[13px] text-muted mb-4">Adicione o primeiro exercicio.</p>
-            <Btn variant="primary" onClick={() => setSeletor(true)}>Adicionar exercicio</Btn>
+            <p className="text-[13px] text-muted mb-4">Adicione o primeiro exercício.</p>
+            <Btn variant="primary" onClick={() => setSeletor(true)}>Adicionar exercício</Btn>
           </div>
         )}
 
@@ -289,13 +289,13 @@ export default function Sessao() {
               <div className="flex items-start gap-2.5 mb-3">
                 <span className="w-1 self-stretch rounded-full shrink-0"
                   style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
-                <Link to={`/exercicios/${g.exercicioId}`} className="shrink-0">
+                <Link to={`/exercícios/${g.exercicioId}`} className="shrink-0">
                   <ImagemExercicio exercicioId={g.exercicioId} tamanho="mini" />
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/exercicios/${g.exercicioId}`} className="text-[14.5px] font-bold leading-tight block">
-                    {ex?.nome ?? 'Exercicio'}
-                    <span className="text-muted font-normal text-[11px] ml-1.5 whitespace-nowrap">ver execucao ›</span>
+                  <Link to={`/exercícios/${g.exercicioId}`} className="text-[14.5px] font-bold leading-tight block">
+                    {ex?.nome ?? 'Exercício'}
+                    <span className="text-muted font-normal text-[11px] ml-1.5 whitespace-nowrap">ver execução ›</span>
                   </Link>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-muted">
                     {item && <span>alvo {item.series}x{item.repsAlvo}</span>}
@@ -339,17 +339,17 @@ export default function Sessao() {
 
               <button onClick={() => addSerie(g.exercicioId)}
                 className="w-full mt-2 h-11 rounded-xl text-[12.5px] font-semibold text-muted bg-surface-2/60 active:bg-surface-2">
-                + Adicionar serie
+                + Adicionar série
               </button>
             </Card>
           )
         })}
 
         {grupos.length > 0 && (
-          <Btn className="w-full" onClick={() => setSeletor(true)}>+ Adicionar exercicio</Btn>
+          <Btn className="w-full" onClick={() => setSeletor(true)}>+ Adicionar exercício</Btn>
         )}
         <Btn variant="ghost" className="w-full" onClick={() => setNotas(true)}>
-          {sessao.notas ? 'Editar anotacoes' : 'Adicionar anotacao'}
+          {sessao.notas ? 'Editar anotações' : 'Adicionar anotação'}
         </Btn>
       </div>
 
@@ -395,9 +395,9 @@ export default function Sessao() {
         jaEscolhidos={grupos.map(g => g.exercicioId).filter(x => x !== trocando)}
         onEscolher={ex => { if (trocando) trocarExercicio(trocando, ex.id) }} />
 
-      <Sheet aberto={notas} fechar={() => setNotas(false)} titulo="Anotacoes do treino">
+      <Sheet aberto={notas} fechar={() => setNotas(false)} titulo="Anotações do treino">
         <Textarea rows={6} defaultValue={sessao.notas ?? ''}
-          placeholder="Como foi? Dor, energia, o que mudar na proxima..."
+          placeholder="Como foi? Dor, energia, o que mudar na próxima..."
           onBlur={e => db.sessoes.update(id, { notas: e.target.value })} />
         <Btn variant="primary" className="w-full mt-3" onClick={() => setNotas(false)}>Pronto</Btn>
       </Sheet>
@@ -405,12 +405,12 @@ export default function Sessao() {
       <Confirmar aberto={!!removerEx} perigo titulo="Tirar do treino?"
         texto={(() => {
           if (!removerEx) return undefined
-          const nome = mapaEx.get(removerEx)?.nome ?? 'Esse exercicio'
+          const nome = mapaEx.get(removerEx)?.nome ?? 'Esse exercício'
           const feitasEx = sessao.series.filter(s => s.exercicioId === removerEx && s.feito).length
           return feitasEx > 0
             ? `${nome} sai do treino de hoje e ${feitasEx === 1
-                ? 'a serie ja marcada nao vai contar'
-                : `as ${feitasEx} series ja marcadas nao vao contar`}.`
+                ? 'a série já marcada não vai contar'
+                : `as ${feitasEx} séries já marcadas não vao contar`}.`
             : `${nome} sai do treino de hoje. Da pra adicionar de novo depois.`
         })()}
         onNao={() => setRemoverEx(null)}
@@ -418,18 +418,18 @@ export default function Sessao() {
           const nome = mapaEx.get(removerEx!)?.nome
           await removerExercicio(removerEx!)
           setRemoverEx(null)
-          toast(nome ? `${nome} saiu do treino` : 'Exercicio removido', 'ok')
+          toast(nome ? `${nome} saiu do treino` : 'Exercício removido', 'ok')
         }} />
 
       <Confirmar aberto={confirmarFim} titulo="Finalizar treino?"
         texto={feitas < totalSeries
-          ? `Voce fez ${feitas} de ${totalSeries} series. As nao marcadas nao contam.`
-          : `${feitas} series concluidas. Mandou bem.`}
+          ? `Você fez ${feitas} de ${totalSeries} séries. As não marcadas não contam.`
+          : `${feitas} séries concluidas. Mandou bem.`}
         onSim={finalizar} onNao={() => setConfirmarFim(false)} />
 
       <Confirmar aberto={confirmarSair} titulo="Sair do treino?"
         texto={feitas > 0
-          ? 'O treino continua em andamento e voce pode voltar depois pela tela inicial.'
+          ? 'O treino continua em andamento e você pode voltar depois pela tela inicial.'
           : 'Nada foi registrado ainda. O treino sera descartado.'}
         onNao={() => setConfirmarSair(false)}
         onSim={async () => {
@@ -455,7 +455,7 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
       <div className={`flex items-center gap-2 rounded-xl transition-colors ${
         serie.feito ? 'bg-good/10' : ''
       }`}>
-        <button onClick={() => setMenu(true)} aria-label={`Opcoes da serie ${serie.serie}`}
+        <button onClick={() => setMenu(true)} aria-label={`Opções da série ${serie.serie}`}
           className={`w-9 h-11 shrink-0 rounded-lg text-[12px] font-bold ${
             serie.aquecimento ? 'text-warn' : serie.feito ? 'text-good' : 'text-muted'
           }`}>
@@ -477,15 +477,15 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
         </button>
       </div>
 
-      <Sheet aberto={menu} fechar={() => setMenu(false)} titulo={`Serie ${serie.serie}`}>
+      <Sheet aberto={menu} fechar={() => setMenu(false)} titulo={`Série ${serie.serie}`}>
         <Btn className="w-full mb-2" onClick={() => { onAquecimento(); setMenu(false) }}>
-          {serie.aquecimento ? 'Marcar como serie normal' : 'Marcar como aquecimento'}
+          {serie.aquecimento ? 'Marcar como série normal' : 'Marcar como aquecimento'}
         </Btn>
         <p className="text-[11.5px] text-muted mb-4 px-1 leading-relaxed">
-          Series de aquecimento nao contam volume, nem XP, nem recorde.
+          Séries de aquecimento não contam volume, nem XP, nem recorde.
         </p>
         <Btn variant="danger" className="w-full" onClick={() => { onRemover(); setMenu(false) }}>
-          Remover essa serie
+          Remover essa série
         </Btn>
       </Sheet>
     </>
@@ -531,13 +531,13 @@ function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
       <div className="max-w-[560px] mx-auto px-6 py-10 safe-t safe-b">
         <div className="text-center mb-8 anim-pop">
           <div className="flex justify-center mb-4 text-accent"><Icone nome="chama" tamanho={60} traco={1.5} /></div>
-          <h1 className="text-3xl font-black mb-1.5">Treino concluido</h1>
+          <h1 className="text-3xl font-black mb-1.5">Treino concluído</h1>
           <p className="text-sm text-muted">{sessao.nome}</p>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mb-4">
-          <Estatistica rotulo="Duracao" valor={duracao(resumo.duracaoMs)} />
-          <Estatistica rotulo="Series" valor={String(resumo.series)} />
+          <Estatistica rotulo="Duração" valor={duracao(resumo.duracaoMs)} />
+          <Estatistica rotulo="Séries" valor={String(resumo.series)} />
           <Estatistica rotulo="Volume" valor={peso(resumo.volume)} />
           <Estatistica rotulo="XP ganho" valor={`+${n0(resumo.ganho.xp)}`} destaque />
         </div>
@@ -552,10 +552,10 @@ function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
                 <div key={pr.exercicioId} className="flex items-baseline justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[13.5px] font-semibold truncate">
-                      {mapaEx.get(pr.exercicioId)?.nome ?? 'Exercicio'}
+                      {mapaEx.get(pr.exercicioId)?.nome ?? 'Exercício'}
                     </p>
                     <p className="text-[10.5px] uppercase tracking-wider text-muted">
-                      {pr.tipo === 'carga' ? 'carga' : 'melhor serie'}
+                      {pr.tipo === 'carga' ? 'carga' : 'melhor série'}
                     </p>
                   </div>
                   <span className="text-[13px] font-bold text-xp shrink-0 tabular-nums text-right">
@@ -569,7 +569,7 @@ function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
           </div>
         )}
 
-        <Btn variant="primary" size="lg" className="w-full" onClick={onFechar}>Voltar ao inicio</Btn>
+        <Btn variant="primary" size="lg" className="w-full" onClick={onFechar}>Voltar ao início</Btn>
       </div>
     </div>
   )

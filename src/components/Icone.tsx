@@ -41,7 +41,7 @@ const ICONES: Record<string, ReactNode> = {
   casa: <><path d="M3 10.4 12 3l9 7.4" /><path d="M5.2 9.3V20.8h13.6V9.3" /></>,
   pessoa: <><circle cx="12" cy="8" r="3.6" /><path d="M4.6 20.4c1.2-4 4-6 7.4-6s6.2 2 7.4 6" /></>,
 
-  /* -------- treino, dieta e saude -------- */
+  /* -------- treino, dieta e saúde -------- */
   halter: <path d="M4 9v6M7 6.5v11M17 6.5v11M20 9v6M7 12h10" />,
   gota: <path d="M12 2.8c0 0 6.2 6.7 6.2 10.7a6.2 6.2 0 1 1-12.4 0C5.8 9.5 12 2.8 12 2.8z" />,
   sangue: <>
@@ -71,7 +71,7 @@ const ICONES: Record<string, ReactNode> = {
   </>,
   escudo: <path d="M12 2.9 19.1 5.8v5.4c0 4.4-2.9 7.4-7.1 8.9-4.2-1.5-7.1-4.5-7.1-8.9V5.8z" />,
   montanha: <path d="M2.4 19.2 9.6 6.8l3.6 6.2 2-3.2 6.4 9.4z" />,
-  'grafico-linha': <><path d="M3.2 20.2h17.6" /><path d="M5.2 16.4 10.2 10.6l3 3 5.6-6.8" /></>,
+  'gráfico-linha': <><path d="M3.2 20.2h17.6" /><path d="M5.2 16.4 10.2 10.6l3 3 5.6-6.8" /></>,
   chip: <>
     <rect x="6.8" y="6.8" width="10.4" height="10.4" rx="2.2" />
     <rect x="10.2" y="10.2" width="3.6" height="3.6" rx="1" />

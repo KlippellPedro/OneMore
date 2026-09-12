@@ -9,7 +9,7 @@ import type { Perfil } from '../db/types'
 
 const OBJETIVOS = [
   { v: 'cutting', nome: 'Perder gordura', desc: '20% abaixo do gasto' },
-  { v: 'manutencao', nome: 'Manter', desc: 'No gasto diario' },
+  { v: 'manutencao', nome: 'Manter', desc: 'No gasto diário' },
   { v: 'bulking', nome: 'Ganhar massa', desc: '12% acima do gasto' },
 ] as const
 
@@ -48,7 +48,7 @@ export function SheetMetas({ aberto, fechar, perfil }: {
       </Campo>
 
       <Card className="p-3.5 mb-4">
-        <p className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Sugestao do app</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2">Sugestão do app</p>
         <p className="text-[12.5px] text-muted leading-relaxed mb-3">
           Gasto {n0(sugestao.gasto)} kcal → meta <b className="text-txt">{n0(sugestao.kcal)} kcal</b>,
           P {n0(sugestao.prot)}g - C {n0(sugestao.carb)}g - G {n0(sugestao.gord)}g
@@ -56,7 +56,7 @@ export function SheetMetas({ aberto, fechar, perfil }: {
         <Btn size="sm" onClick={() => setF(v => ({
           ...v, metaKcal: sugestao.kcal, metaProt: sugestao.prot,
           metaCarb: sugestao.carb, metaGord: sugestao.gord,
-        }))}>Usar essa sugestao</Btn>
+        }))}>Usar essa sugestão</Btn>
       </Card>
 
       <div className="grid grid-cols-2 gap-3">
@@ -64,7 +64,7 @@ export function SheetMetas({ aberto, fechar, perfil }: {
           <Input type="number" inputMode="numeric" value={f.metaKcal || ''}
             onChange={e => setF(v => ({ ...v, metaKcal: Number(e.target.value || 0) }))} />
         </Campo>
-        <Campo label="Proteina (g)">
+        <Campo label="Proteína (g)">
           <Input type="number" inputMode="numeric" value={f.metaProt || ''}
             onChange={e => setF(v => ({ ...v, metaProt: Number(e.target.value || 0) }))} />
         </Campo>
@@ -81,12 +81,12 @@ export function SheetMetas({ aberto, fechar, perfil }: {
       {Math.abs(kcalDosMacros - f.metaKcal) > 60 && (
         <Card className="p-3 mb-4 border-warn/30">
           <p className="text-[12px] text-warn leading-relaxed">
-            Seus macros somam {n0(kcalDosMacros)} kcal, mas a meta esta em {n0(f.metaKcal)} kcal.
+            Seus macros somam {n0(kcalDosMacros)} kcal, mas a meta está em {n0(f.metaKcal)} kcal.
           </p>
         </Card>
       )}
 
-      <Campo label="Meta de agua (ml)">
+      <Campo label="Meta de água (ml)">
         <Input type="number" inputMode="numeric" value={f.metaAgua || ''}
           onChange={e => setF(v => ({ ...v, metaAgua: Number(e.target.value || 0) }))} />
       </Campo>

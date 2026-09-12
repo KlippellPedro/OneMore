@@ -36,8 +36,8 @@ export default function Programas() {
 
       <div className="px-4 pt-3">
         <p className="text-[12.5px] text-muted leading-relaxed mb-4">
-          Sao os splits mais usados e testados. Aplicar um programa cria as rotinas
-          com os exercicios, series e descanso ja definidos - depois voce edita o que quiser.
+          São os splits mais usados e testados. Aplicar um programa cria as rotinas
+          com os exercícios, séries e descanso já definidos - depois você edita o que quiser.
         </p>
 
         <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-3">
@@ -77,7 +77,7 @@ export default function Programas() {
                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted">
                   <span>{p.foco}</span>
                   <span>{pl(p.treinos.length, 'treino')}</span>
-                  <span>{totalSeries} series na semana</span>
+                  <span>{totalSeries} séries na semana</span>
                 </div>
               </Card>
             )
@@ -130,7 +130,7 @@ export default function Programas() {
                       <p className="text-[13.5px] font-bold leading-tight">{t.nome}</p>
                       <p className="text-[11px] text-muted mt-0.5">
                         {detalhe.sugestaoDias[i] != null ? diaCurto(detalhe.sugestaoDias[i]) + ' - ' : ''}
-                        {pl(t.itens.length, 'exercicio')}
+                        {pl(t.itens.length, 'exercício')}
                         {t.emCasa ? ' - em casa' : ''}
                       </p>
                     </div>
@@ -173,8 +173,8 @@ export default function Programas() {
         aberto={!!confirmar}
         titulo={confirmar?.substituir ? 'Trocar seus treinos?' : 'Adicionar esses treinos?'}
         texto={confirmar?.substituir
-          ? 'Suas rotinas atuais saem da lista, mas o historico de treinos continua intacto - da pra recuperar depois.'
-          : `${pl(confirmar?.prog.treinos.length ?? 0, 'treino')} entram na sua lista junto com os que voce ja tem.`}
+          ? 'Suas rotinas atuais saem da lista, mas o histórico de treinos continua intacto - da pra recuperar depois.'
+          : `${pl(confirmar?.prog.treinos.length ?? 0, 'treino')} entram na sua lista junto com os que você já tem.`}
         onNao={() => setConfirmar(null)}
         onSim={() => confirmar && usar(confirmar.prog, confirmar.substituir)} />
     </div>

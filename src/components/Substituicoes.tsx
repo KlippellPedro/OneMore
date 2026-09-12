@@ -8,7 +8,7 @@ import { n0, n1, nq } from '../lib/format'
 import type { Alimento } from '../db/types'
 import { semConflito, restricoesDoPerfil } from '../lib/restricoes'
 
-/** O que esta na mesa e vai ser trocado. */
+/** O que está na mesa e vai ser trocado. */
 export interface AlvoTroca {
   alimento: Alimento
   qtd: number
@@ -69,7 +69,7 @@ export function SheetSubstituir({ alvo, fechar, onEscolher, onManter, manterText
 
       {eq.alvo > 0 && (
         <p className="text-[11.5px] text-muted leading-relaxed mb-3">
-          Porcoes ajustadas pra bater o mesmo tanto de {ROTULO_CHAVE[eq.chave]} da porcao
+          Porcoes ajustadas pra bater o mesmo tanto de {ROTULO_CHAVE[eq.chave]} da porção
           acima -{' '}
           <span className="text-txt font-semibold">
             {eq.chave === 'kcal' ? n0(eq.alvo) : n1(eq.alvo)} {UNIDADE_CHAVE[eq.chave]}
@@ -86,9 +86,9 @@ export function SheetSubstituir({ alvo, fechar, onEscolher, onManter, manterText
       {eq.lista.length === 0 ? (
         <p className="text-center text-[12.5px] text-muted py-10 leading-relaxed">
           {eq.alvo <= 0
-            ? 'Esse alimento nao tem macro suficiente pra calcular uma troca.'
+            ? 'Esse alimento não tem macro suficiente pra calcular uma troca.'
             : ampliar
-              ? 'Nao achei nada equivalente. Cadastre mais alimentos em Perfil > Alimentos.'
+              ? 'Não achei nada equivalente. Cadastre mais alimentos em Perfil > Alimentos.'
               : 'Nada parecido na mesma categoria. Tente "Qualquer alimento".'}
         </p>
       ) : (

@@ -56,7 +56,7 @@ export default function Lembretes() {
     if (r === 'granted') {
       await salvarConfig({ ativo: true })
       setFechadoOk(await registrarSyncPeriodico())
-      toast('Notificacoes ligadas', 'ok')
+      toast('Notificações ligadas', 'ok')
     } else if (r === 'denied') {
       toast('O celular bloqueou as notificacoes', 'erro')
     }
@@ -68,14 +68,14 @@ export default function Lembretes() {
     <div>
       <Cabecalho titulo="Lembretes" voltarPara="/perfil"
         sub={perfil.diabetesTipo1
-          ? 'Avisos de agua, refeicao, treino e glicemia'
-          : 'Avisos de agua, refeicao e treino'} />
+          ? 'Avisos de água, refeição, treino e glicemia'
+          : 'Avisos de água, refeição e treino'} />
 
       <div className="px-4 pt-4">
         {/* -------- permissao -------- */}
         {estado === 'indisponivel' ? (
           <Card className="p-4 mb-4 border-warn/30">
-            <p className="text-[13px] font-bold mb-1">Esse navegador nao manda notificacao</p>
+            <p className="text-[13px] font-bold mb-1">Esse navegador não manda notificacao</p>
             <p className="text-[12px] text-muted leading-relaxed">
               Abra o OneMore no Chrome do Android pra usar os lembretes.
             </p>
@@ -88,12 +88,12 @@ export default function Lembretes() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-bold">
-                  {estado === 'denied' ? 'Notificacoes bloqueadas' : 'Ligar as notificacoes'}
+                  {estado === 'denied' ? 'Notificações bloqueadas' : 'Ligar as notificacoes'}
                 </p>
                 <p className="text-[12px] text-muted leading-relaxed mt-1">
                   {estado === 'denied'
-                    ? 'Voce negou antes. Libere em Configuracoes do site > Notificacoes, no menu do navegador, e volte aqui.'
-                    : 'O celular vai pedir sua autorizacao. Sem ela o app nao consegue avisar nada.'}
+                    ? 'Você negou antes. Libere em Configurações do site > Notificações, no menu do navegador, e volte aqui.'
+                    : 'O celular vai pedir sua autorizacao. Sem ela o app não consegue avisar nada.'}
                 </p>
                 {estado !== 'denied' && (
                   <Btn variant="primary" size="sm" className="mt-3" onClick={ativar}>Ativar</Btn>
@@ -108,9 +108,9 @@ export default function Lembretes() {
                 <Icone nome="check" tamanho={18} traco={2.6} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[13.5px] font-bold">Notificacoes liberadas</p>
+                <p className="text-[13.5px] font-bold">Notificações liberadas</p>
                 <p className="text-[11.5px] text-muted">
-                  Com o app fechado: {fechadoOk ? 'ligado' : 'so com o app instalado'}
+                  Com o app fechado: {fechadoOk ? 'ligado' : 'só com o app instalado'}
                 </p>
               </div>
               <Btn size="sm" onClick={() => testar()}>Testar</Btn>
@@ -133,13 +133,13 @@ export default function Lembretes() {
                 <span className="text-txt font-semibold">Com o app fechado</span>, quem decide a
                 hora de acordar o OneMore e o Android - o aviso pode atrasar. Pra isso funcionar,
                 o app precisa estar <span className="text-txt font-semibold">instalado na tela de
-                inicio</span> (menu do Chrome {'>'} Instalar aplicativo).
+                início</span> (menu do Chrome {'>'} Instalar aplicativo).
                 {!instalado() && (
-                  <span className="text-warn"> Agora ele esta aberto pelo navegador.</span>
+                  <span className="text-warn"> Agora ele está aberto pelo navegador.</span>
                 )}
               </li>
               <li>
-                Aviso na hora exata com o app fechado so com um servidor de push - da pra fazer
+                Aviso na hora exata com o app fechado só com um servidor de push - da pra fazer
                 num segundo passo.
               </li>
             </ul>
@@ -162,7 +162,7 @@ export default function Lembretes() {
 
         <div className={c.ativo ? '' : 'opacity-50 pointer-events-none'}>
           {/* -------- agua -------- */}
-          <Bloco icone="gota" titulo="Agua"
+          <Bloco icone="gota" titulo="Água"
             sub={`Meta de ${n1(perfil.metaAgua / 1000)} L por dia`}
             ligado={c.agua.ativo} onLigar={v => mudar({ agua: { ...c.agua, ativo: v } })}>
             <p className="text-[11px] font-semibold text-muted mb-1.5">De quanto em quanto tempo</p>
@@ -176,7 +176,7 @@ export default function Lembretes() {
             </div>
             <div className="flex items-center gap-2">
               <label className="flex-1">
-                <span className="block text-[11px] font-semibold text-muted mb-1.5">Comeca</span>
+                <span className="block text-[11px] font-semibold text-muted mb-1.5">Começa</span>
                 <Input type="time" value={c.agua.inicio}
                   onChange={e => mudar({ agua: { ...c.agua, inicio: e.target.value } })} />
               </label>
@@ -187,15 +187,15 @@ export default function Lembretes() {
               </label>
             </div>
             <p className="text-[11px] text-muted mt-2.5 leading-relaxed">
-              Se voce ja bateu a meta do dia, o aviso nao sai. Quando sai, mostra quanto falta.
+              Se você já bateu a meta do dia, o aviso não sai. Quando sai, mostra quanto falta.
             </p>
           </Bloco>
 
           {/* -------- refeicoes -------- */}
-          <Bloco icone="prato" titulo="Refeicoes"
+          <Bloco icone="prato" titulo="Refeições"
             sub={planos.length
-              ? `Nos horarios do plano: ${planos.map(p => p.horario).join(', ')}`
-              : 'Voce ainda nao tem plano alimentar'}
+              ? `Nos horários do plano: ${planos.map(p => p.horario).join(', ')}`
+              : 'Você ainda não tem plano alimentar'}
             ligado={c.refeicoes.ativo}
             onLigar={v => mudar({ refeicoes: { ...c.refeicoes, ativo: v } })}>
             <p className="text-[11px] font-semibold text-muted mb-1.5">Quando avisar</p>
@@ -208,7 +208,7 @@ export default function Lembretes() {
               ))}
             </div>
             <p className="text-[11px] text-muted mt-2.5 leading-relaxed">
-              Refeicao que voce ja lancou no diario nao gera aviso. Pra mudar os horarios,
+              Refeição que você já lancou no diário não gera aviso. Pra mudar os horários,
               edite o plano alimentar.
             </p>
           </Bloco>
@@ -240,7 +240,7 @@ export default function Lembretes() {
               })}
             </div>
             <label className="block mb-3">
-              <span className="block text-[11px] font-semibold text-muted mb-1.5">Horario do treino</span>
+              <span className="block text-[11px] font-semibold text-muted mb-1.5">Horário do treino</span>
               <Input type="time" value={c.treino.horario}
                 onChange={e => mudar({ treino: { ...c.treino, horario: e.target.value } })} />
             </label>
@@ -253,7 +253,7 @@ export default function Lembretes() {
               ))}
             </div>
             <p className="text-[11px] text-muted mt-2.5 leading-relaxed">
-              Se voce ja treinou naquele dia, o aviso nao sai.
+              Se você já treinou naquele dia, o aviso não sai.
             </p>
           </Bloco>
 
@@ -262,10 +262,10 @@ export default function Lembretes() {
             <Bloco icone="sangue" titulo="Glicemia"
               sub={c.glicemia.horarios.length
                 ? c.glicemia.horarios.join(', ')
-                : 'Nenhum horario ainda'}
+                : 'Nenhum horário ainda'}
               ligado={c.glicemia.ativo}
               onLigar={v => mudar({ glicemia: { ...c.glicemia, ativo: v } })}>
-              <p className="text-[11px] font-semibold text-muted mb-1.5">Horarios pra medir</p>
+              <p className="text-[11px] font-semibold text-muted mb-1.5">Horários pra medir</p>
               <div className="space-y-2">
                 {c.glicemia.horarios.map((h, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -275,7 +275,7 @@ export default function Lembretes() {
                         horarios[i] = e.target.value
                         mudar({ glicemia: { ...c.glicemia, horarios: horarios.sort() } })
                       }} />
-                    <button aria-label="Remover horario"
+                    <button aria-label="Remover horário"
                       onClick={() => mudar({
                         glicemia: {
                           ...c.glicemia,
@@ -292,10 +292,10 @@ export default function Lembretes() {
                 onClick={() => mudar({
                   glicemia: { ...c.glicemia, horarios: [...c.glicemia.horarios, '20:00'].sort() },
                 })}>
-                + Adicionar horario
+                + Adicionar horário
               </Btn>
               <p className="text-[11px] text-muted mt-2.5 leading-relaxed">
-                Se voce ja mediu perto daquele horario, o aviso nao sai. O app so lembra -
+                Se você já mediu perto daquele horário, o aviso não sai. O app só lembra -
                 dose e com o seu medico.
               </p>
             </Bloco>
@@ -306,7 +306,7 @@ export default function Lembretes() {
         {podeUsar && c.ativo && (
           <>
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 px-1 mt-5">
-              Proximos avisos
+              Próximos avisos
             </h2>
             <Card className="overflow-hidden mb-4">
               {agenda.length === 0 ? (

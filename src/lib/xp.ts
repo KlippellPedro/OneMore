@@ -199,15 +199,15 @@ export const CONQUISTAS: Conquista[] = [
   c('t100', 'Centuriao', 'Conclua 100 treinos', 'escudo', 900, s => s.treinos, 100),
   c('t250', 'Inabalavel', 'Conclua 250 treinos', 'montanha', 2500, s => s.treinos, 250),
 
-  c('s500', 'Meio Milhar', 'Complete 500 series', 'grafico-linha', 200, s => s.series, 500),
-  c('s2000', 'Maquina', 'Complete 2000 series', 'chip', 700, s => s.series, 2000),
+  c('s500', 'Meio Milhar', 'Complete 500 séries', 'grafico-linha', 200, s => s.series, 500),
+  c('s2000', 'Máquina', 'Complete 2000 séries', 'chip', 700, s => s.series, 2000),
 
   c('v50', '50 Toneladas', 'Levante 50.000 kg no total', 'anilha', 250, s => s.volumeTotal, 50000),
   c('v250', '250 Toneladas', 'Levante 250.000 kg no total', 'predio', 800, s => s.volumeTotal, 250000),
   c('v1m', 'Um Milhao', 'Levante 1.000.000 kg no total', 'planeta', 3000, s => s.volumeTotal, 1000000),
 
   c('st7', 'Semana Cheia', '7 dias seguidos de atividade', 'calendario', 150, s => s.melhorStreak, 7),
-  c('st30', 'Mes Perfeito', '30 dias seguidos de atividade', 'lua', 600, s => s.melhorStreak, 30),
+  c('st30', 'Mês Perfeito', '30 dias seguidos de atividade', 'lua', 600, s => s.melhorStreak, 30),
   c('st100', 'Disciplina', '100 dias seguidos de atividade', 'diamante', 2000, s => s.melhorStreak, 100),
 
   c('d7', 'Dieta na Regua', '7 dias batendo a meta de calorias', 'folha', 200, s => s.diasDieta, 7),
@@ -216,14 +216,14 @@ export const CONQUISTAS: Conquista[] = [
   c('pr10', 'Mais Forte', 'Bata 10 recordes pessoais', 'foguete', 250, s => s.prs, 10),
   c('pr50', 'Evolucao Constante', 'Bata 50 recordes pessoais', 'barras', 900, s => s.prs, 50),
 
-  c('ex20', 'Explorador', 'Treine 20 exercicios diferentes', 'bussola', 150, s => s.exerciciosDistintos, 20),
+  c('ex20', 'Explorador', 'Treine 20 exercícios diferentes', 'bussola', 150, s => s.exerciciosDistintos, 20),
   c('p10', 'Sob Controle', 'Registre seu peso 10 vezes', 'balanca', 120, s => s.pesosRegistrados, 10),
 
-  c('n5', 'Aquecendo', 'Alcance o nivel 5', 'raio', 0, s => s.nivel, 5),
-  c('n10', 'Prata', 'Alcance o nivel 10', 'estrela', 0, s => s.nivel, 10),
-  c('n20', 'Ouro', 'Alcance o nivel 20', 'trofeu', 0, s => s.nivel, 20),
-  c('n35', 'Platina', 'Alcance o nivel 35', 'hexagono', 0, s => s.nivel, 35),
-  c('n50', 'Elite', 'Alcance o nivel 50', 'coroa', 0, s => s.nivel, 50),
+  c('n5', 'Aquecendo', 'Alcance o nível 5', 'raio', 0, s => s.nivel, 5),
+  c('n10', 'Prata', 'Alcance o nível 10', 'estrela', 0, s => s.nivel, 10),
+  c('n20', 'Ouro', 'Alcance o nível 20', 'trofeu', 0, s => s.nivel, 20),
+  c('n35', 'Platina', 'Alcance o nível 35', 'hexagono', 0, s => s.nivel, 35),
+  c('n50', 'Elite', 'Alcance o nível 50', 'coroa', 0, s => s.nivel, 50),
 ]
 
 export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {

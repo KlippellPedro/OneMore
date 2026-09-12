@@ -3,7 +3,7 @@
  *
  * O app inteiro era roxo: a mesma cor no titulo, na aba ativa, no botao e no
  * grafico de toda tela. Sem contraste entre secoes, tudo parecia a mesma
- * pagina e nada dizia "voce esta na dieta" sem voce ler o texto.
+ * pagina e nada dizia "você está na dieta" sem voce ler o texto.
  *
  * As cores saem dos tokens que ja existiam e estavam subaproveitados - nao ha
  * paleta nova aqui, so uso do que a paleta ja tinha:

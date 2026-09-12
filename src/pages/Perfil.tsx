@@ -22,10 +22,10 @@ import { Icone } from '../components/Icone'
 import type { Perfil as TPerfil } from '../db/types'
 
 const ATIVIDADES = [
-  { v: 1.2, nome: 'Sedentario', desc: 'Trabalho parado, sem exercicio' },
-  { v: 1.375, nome: 'Leve', desc: 'Exercicio 1 a 3x por semana' },
-  { v: 1.55, nome: 'Moderado', desc: 'Exercicio 3 a 5x por semana' },
-  { v: 1.725, nome: 'Intenso', desc: 'Exercicio 6 a 7x por semana' },
+  { v: 1.2, nome: 'Sedentario', desc: 'Trabalho parado, sem exercício' },
+  { v: 1.375, nome: 'Leve', desc: 'Exercício 1 a 3x por semana' },
+  { v: 1.55, nome: 'Moderado', desc: 'Exercício 3 a 5x por semana' },
+  { v: 1.725, nome: 'Intenso', desc: 'Exercício 6 a 7x por semana' },
   { v: 1.9, nome: 'Atleta', desc: 'Treino pesado 2x por dia' },
 ] as const
 
@@ -45,13 +45,13 @@ export default function Perfil() {
       toast(`${r.registros} registros restaurados`, 'ok')
       setTimeout(() => location.reload(), 900)
     } catch (e) {
-      toast('Nao consegui ler esse arquivo', 'erro', String((e as Error).message))
+      toast('Não consegui ler esse arquivo', 'erro', String((e as Error).message))
     }
   }
 
   return (
     <div>
-      <Titulo titulo="Perfil" sub={`${perfil.nome} - Nivel ${nivel}`} />
+      <Titulo titulo="Perfil" sub={`${perfil.nome} - Nível ${nivel}`} />
 
       <div className="px-4">
         <Card className="p-4 mb-4">
@@ -68,17 +68,17 @@ export default function Perfil() {
                 <span className="font-mono text-[10px] px-1.5 rounded border" style={{ borderColor: rank.cor }}>{rank.letra}</span>
               </p>
               <p className="text-[11.5px] text-muted">
-                {n0(perfil.xp)} XP - sequencia {pl(streakVivo(perfil), 'dia')}
+                {n0(perfil.xp)} XP - sequência {pl(streakVivo(perfil), 'dia')}
               </p>
             </div>
           </div>
           <Barra valor={progresso} cor={rank.cor} altura={7} />
           <p className="text-[11px] text-muted mt-1.5">
-            {n0(xpParaProximo - xpNoNivel)} XP para o nivel {nivel + 1}
+            {n0(xpParaProximo - xpNoNivel)} XP para o nível {nivel + 1}
           </p>
         </Card>
 
-        <Grupo titulo="Voce">
+        <Grupo titulo="Você">
           <Linha titulo="Meus dados" sub={`${perfil.sexo === 'M' ? 'Homem' : 'Mulher'} - ${perfil.alturaCm} cm - ${n1(perfil.pesoKg)} kg`}
             onClick={() => setAberto('dados')} />
           <Linha titulo="Metas de dieta"
@@ -89,11 +89,11 @@ export default function Perfil() {
         <Grupo titulo="Avisos">
           <LinhaLink to="/lembretes" titulo="Lembretes"
             sub={perfil.diabetesTipo1
-              ? 'Agua, refeicao, treino e glicemia no celular'
-              : 'Agua, refeicao e treino no celular'} />
+              ? 'Água, refeição, treino e glicemia no celular'
+              : 'Água, refeição e treino no celular'} />
         </Grupo>
 
-        <Grupo titulo="Saude">
+        <Grupo titulo="Saúde">
           <Linha titulo="Diabetes tipo 1"
             sub={perfil.diabetesTipo1
               ? 'Ligado - carboidrato em destaque e registro de glicemia'
@@ -103,16 +103,16 @@ export default function Perfil() {
 
         <Grupo titulo="Catalogos">
           <LinhaLink to="/treinos/programas" titulo="Programas de treino" sub="PPL, Upper/Lower, Full Body, Arnold, 5x5" />
-          <LinhaLink to="/exercicios" titulo="Exercicios" sub="Ver, favoritar, adicionar video, criar novos" />
+          <LinhaLink to="/exercicios" titulo="Exercícios" sub="Ver, favoritar, adicionar vídeo, criar novos" />
           <LinhaLink to="/alimentos" titulo="Alimentos" sub="Macros e medidas caseiras" />
-          <LinhaLink to="/dieta/plano" titulo="Plano alimentar" sub="Cardapio padrao das refeicoes" />
+          <LinhaLink to="/dieta/plano" titulo="Plano alimentar" sub="Cardápio padrão das refeições" />
         </Grupo>
 
         <Grupo titulo="Seus dados">
-          <Linha titulo="Sua conta e sincronizacao"
-            sub={ultimoSync() ? `Ultimo envio: ${ultimoSync()!.toLocaleString('pt-BR')}` : 'Entre pra ter backup na nuvem'}
+          <Linha titulo="Sua conta e sincronização"
+            sub={ultimoSync() ? `Último envio: ${ultimoSync()!.toLocaleString('pt-BR')}` : 'Entre pra ter backup na nuvem'}
             onClick={() => setAberto('nuvem')} />
-          <Linha titulo="Baixar backup" sub="Arquivo JSON com tudo que esta no aparelho"
+          <Linha titulo="Baixar backup" sub="Arquivo JSON com tudo que está no aparelho"
             onClick={async () => { await baixarBackup(); toast('Backup gerado', 'ok') }} />
           <Linha titulo="Restaurar backup" sub="Substitui tudo pelo conteudo do arquivo"
             onClick={() => arquivo.current?.click()} />
@@ -134,7 +134,7 @@ export default function Perfil() {
       <SheetSaude aberto={aberto === 'saude'} fechar={() => setAberto(null)} perfil={perfil} />
 
       <Confirmar aberto={apagar} perigo titulo="Apagar tudo mesmo?"
-        texto="Treinos, dieta, medidas, XP e conquistas somem deste aparelho. Baixe um backup antes se tiver duvida."
+        texto="Treinos, dieta, medidas, XP e conquistas somem deste aparelho. Baixe um backup antes se tiver dúvida."
         onNao={() => setApagar(false)}
         onSim={async () => {
           await apagarTudo(); await rodarSeed()
@@ -219,7 +219,7 @@ function SheetDados({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
         </Campo>
       </div>
 
-      <Campo label="Nivel de atividade">
+      <Campo label="Nível de atividade">
         <div className="space-y-1.5">
           {ATIVIDADES.map(a => (
             <button key={a.v} onClick={() => setF(v => ({ ...v, atividade: a.v }))}
@@ -248,7 +248,7 @@ function SheetDados({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
       <Card className="p-3.5 mb-4">
         <p className="text-[12px] text-muted leading-relaxed">
           Com esses dados: metabolismo basal <b className="text-txt">{n0(tmb(f))} kcal</b>,
-          gasto diario estimado <b className="text-txt">{n0(gasto)} kcal</b>
+          gasto diário estimado <b className="text-txt">{n0(gasto)} kcal</b>
           {f.nascimento ? ` (${idadeDe(f.nascimento)} anos)` : ''}.
         </p>
       </Card>
@@ -314,7 +314,7 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
     setUltima(r.quando)
     if (silencioso && r.semNovidade) return
     if (r.primeiraVez) return toast('Tudo salvo na nuvem', 'ok', 'Era a primeira vez deste perfil')
-    if (r.semNovidade) return toast('Ja estava em dia', 'info')
+    if (r.semNovidade) return toast('Já estava em dia', 'info')
     toast('Sincronizado', 'ok',
       r.recebidos ? `${r.recebidos} ${r.recebidos === 1 ? 'registro veio' : 'registros vieram'} de outro aparelho` : undefined)
   }
@@ -340,11 +340,11 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
             <div className="flex items-center gap-3">
               <p className="flex-1 text-[13px] truncate">Conectado como <b>{usuario}</b></p>
               <Btn size="sm" disabled={ocupado === 'sair'} onClick={() => tentar('sair', async () => {
-                await sair(); setUsuario(null); toast('Voce saiu', 'ok')
+                await sair(); setUsuario(null); toast('Você saiu', 'ok')
               })}>Sair</Btn>
             </div>
             <p className="text-[11.5px] text-muted leading-relaxed mt-3">
-              Perdeu o codigo de recuperacao? Gere outro enquanto ainda esta
+              Perdeu o código de recuperação? Gere outro enquanto ainda está
               logado - o anterior para de valer na hora.
             </p>
             <Btn size="sm" className="w-full mt-2" disabled={ocupado === 'codigo'}
@@ -352,20 +352,20 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
                 const r = await novoCodigoRecuperacao()
                 setCodigo(r!.codigo)
               })}>
-              {ocupado === 'codigo' ? 'Gerando...' : 'Gerar novo codigo de recuperacao'}
+              {ocupado === 'codigo' ? 'Gerando...' : 'Gerar novo código de recuperação'}
             </Btn>
           </>
         ) : (
           <>
             <div className="flex gap-1.5 mb-3">
-              <Chip ativo={!criando} onClick={() => setCriando(false)}>Ja tenho conta</Chip>
+              <Chip ativo={!criando} onClick={() => setCriando(false)}>Já tenho conta</Chip>
               <Chip ativo={criando} onClick={() => setCriando(true)}>Criar conta</Chip>
             </div>
             <Campo label="E-mail">
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 autoComplete="email" placeholder="voce@email.com" />
             </Campo>
-            <Campo label="Senha" hint={criando ? 'Minimo 8 caracteres.' : undefined}>
+            <Campo label="Senha" hint={criando ? 'Mínimo 8 caracteres.' : undefined}>
               <Input type="password" value={senha} onChange={e => setSenha(e.target.value)}
                 autoComplete={criando ? 'new-password' : 'current-password'}
                 onKeyDown={e => { if (e.key === 'Enter') tentar('auth', autenticar) }} />
@@ -377,8 +377,8 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
                 : (criando ? 'Criar conta' : 'Entrar')}
             </Btn>
             <p className="text-[11px] text-muted leading-relaxed mt-2.5">
-              Ao criar a conta voce recebe um codigo de recuperacao - guarde. E o
-              unico jeito de trocar a senha se esquecer, porque o app nao envia
+              Ao criar a conta você recebe um código de recuperação - guarde. E o
+              único jeito de trocar a senha se esquecer, porque o app não envia
               e-mail. Esqueceu a senha? Saia do app e use "Esqueci a senha" na
               tela de entrada.
             </p>
@@ -399,8 +399,8 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
         </Btn>
         <p className="text-[11px] text-muted mt-2.5 text-center">
           {ultima
-            ? `Ultima vez: ${ultima.toLocaleString('pt-BR')}`
-            : 'Ainda nao sincronizou neste aparelho'}
+            ? `Última vez: ${ultima.toLocaleString('pt-BR')}`
+            : 'Ainda não sincronizou neste aparelho'}
         </p>
       </Passo>
     </Sheet>
@@ -415,14 +415,14 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
   const ligado = perfil.diabetesTipo1 === true
 
   return (
-    <Sheet aberto={aberto} fechar={fechar} titulo="Saude">
+    <Sheet aberto={aberto} fechar={fechar} titulo="Saúde">
       <Card className="p-4 mb-4">
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-bold">Diabetes tipo 1</p>
             <p className="text-[12px] text-muted leading-relaxed mt-1">
-              Com isso ligado, o carboidrato aparece em destaque em cada refeicao
-              e voce ganha o registro de glicemia e insulina.
+              Com isso ligado, o carboidrato aparece em destaque em cada refeição
+              e você ganha o registro de glicemia e insulina.
             </p>
           </div>
           <button
@@ -447,21 +447,21 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
               O que o app faz
             </h3>
             <ul className="text-[12.5px] leading-relaxed text-txt/85 space-y-1.5">
-              <li>Mostra o carboidrato de cada refeicao antes do total de calorias.</li>
-              <li>Gera o cardapio com carboidrato parecido entre as refeicoes, pra dose ficar previsivel.</li>
-              <li>Guarda glicemia, insulina aplicada e contexto, com historico e grafico.</li>
+              <li>Mostra o carboidrato de cada refeição antes do total de calorias.</li>
+              <li>Gera o cardápio com carboidrato parecido entre as refeições, pra dose ficar previsivel.</li>
+              <li>Guarda glicemia, insulina aplicada e contexto, com histórico e gráfico.</li>
             </ul>
           </Card>
 
           <Card className="p-4 mb-3 border-warn/30">
             <h3 className="text-[11px] font-bold uppercase tracking-widest text-warn mb-2">
-              O que o app nao faz
+              O que o app não faz
             </h3>
             <p className="text-[12.5px] leading-relaxed text-txt/85">
-              Nao calcula dose de insulina, razao carboidrato/insulina nem fator de
-              correcao, e nao avalia se um valor esta bom ou ruim. Isso e do seu
-              endocrinologista. Leve o plano de treino e o cardapio pra ele e pro
-              nutricionista antes de comecar - superavit calorico muda a necessidade
+              Não calcula dose de insulina, razao carboidrato/insulina nem fator de
+              correcao, e não avalia se um valor está bom ou ruim. Isso e do seu
+              endocrinologista. Leve o plano de treino e o cardápio pra ele e pro
+              nutricionista antes de começar - superavit calorico muda a necessidade
               de insulina.
             </p>
           </Card>
@@ -473,7 +473,7 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
             <p className="text-[12.5px] leading-relaxed text-txt/85">
               Leve carboidrato de acao rapida na mochila e meca antes e depois do
               treino - o app tem os momentos "pre-treino" e "pos-treino" prontos no
-              registro justamente pra voce enxergar esse padrao com o tempo.
+              registro justamente pra você enxergar esse padrão com o tempo.
             </p>
           </Card>
         </>
@@ -495,14 +495,14 @@ function Hipertensao({ perfil }: { perfil: TPerfil }) {
   return (
     <>
       <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 mt-7 px-1">
-        Pressao alta
+        Pressão alta
       </h3>
       <Card className="p-4">
         <div className="flex items-start gap-3">
           <div className="flex-1 min-w-0">
-            <p className="text-[14px] font-bold">Acompanhar sodio</p>
+            <p className="text-[14px] font-bold">Acompanhar sódio</p>
             <p className="text-[12px] text-muted leading-relaxed mt-1">
-              Mostra o sodio do dia na Dieta, com o teto de 2.000 mg da OMS.
+              Mostra o sódio do dia na Dieta, com o teto de 2.000 mg da OMS.
             </p>
           </div>
           <button
@@ -521,18 +521,18 @@ function Hipertensao({ perfil }: { perfil: TPerfil }) {
       {ligado && (
         <Card className="p-4 mt-3 border-warn/30">
           <h3 className="text-[11px] font-bold uppercase tracking-widest text-warn mb-2">
-            Leia isto antes de confiar no numero
+            Leia isto antes de confiar no número
           </h3>
           <p className="text-[12.5px] leading-relaxed text-txt/85">
-            O catalogo traz o sodio do alimento <b>sem sal adicionado</b>. Arroz e
-            feijao cozidos aparecem com quase nada porque e isso que o grao tem - o
-            sal da panela nao esta ai. Pra conta fechar, lance tambem o
+            O catalogo traz o sódio do alimento <b>sem sal adicionado</b>. Arroz e
+            feijão cozidos aparecem com quase nada porque e isso que o grão tem - o
+            sal da panela não está aí. Pra conta fechar, lance também o
             <b> "Sal de cozinha"</b>: uma colher de cha rasa tem cerca de 1.900 mg,
             quase o dia inteiro sozinha.
           </p>
           <p className="text-[12.5px] leading-relaxed text-txt/85 mt-2.5">
-            Ou seja: o total e um <b>piso</b>, nao um retrato. E ele nao substitui
-            medir a pressao nem conversar com seu medico.
+            Ou seja: o total e um <b>piso</b>, não um retrato. E ele não substitui
+            medir a pressão nem conversar com seu medico.
           </p>
         </Card>
       )}
@@ -566,12 +566,12 @@ function Restricoes({ perfil }: { perfil: TPerfil }) {
   return (
     <>
       <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 mt-7 px-1">
-        O que voce evita
+        O que você evita
       </h3>
       <p className="text-[12.5px] text-muted leading-relaxed mb-3 px-1">
-        Marque o que nao pode ou nao quer comer. O app passa a avisar quando
-        aparecer no seu plano, marca no catalogo, para de sugerir na substituicao
-        e nao usa no cardapio gerado. Nada fica bloqueado - a escolha continua sua.
+        Marque o que não pode ou não quer comer. O app passa a avisar quando
+        aparecer no seu plano, marca no catalogo, para de sugerir na substituição
+        e não usa no cardápio gerado. Nada fica bloqueado - a escolha continua sua.
       </p>
 
       <div className="flex gap-1.5 mb-3 px-1">
@@ -608,7 +608,7 @@ function Restricoes({ perfil }: { perfil: TPerfil }) {
 
       <p className="text-[11px] text-muted leading-relaxed mt-3 px-1">
         Alergia grave e coisa seria: o catalogo cobre o que e obvio pelo alimento,
-        mas nao substitui ler o rotulo do que voce compra.
+        mas não substitui ler o rotulo do que você compra.
       </p>
     </>
   )

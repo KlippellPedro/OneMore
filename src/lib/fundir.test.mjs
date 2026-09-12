@@ -85,3 +85,16 @@ test('fusao e idempotente: rodar de novo nao muda nada', () => {
   assert.deepEqual(ids(um), ids(dois))
   assert.equal(um.find(x => x.id === 'b').atualizadoEm, 9)
 })
+
+/* --- acentuacao: dado antigo tem que continuar resolvendo --- */
+import { mesmoTexto, semAcento } from './format.ts'
+
+test('refeicao salva sem acento casa com a do plano', () => {
+  assert.ok(mesmoTexto('Cafe da manha', 'Café da manhã'))
+  assert.ok(mesmoTexto('Pre-treino', 'Pré-treino'))
+  assert.ok(!mesmoTexto('Almoco', 'Jantar'))
+})
+
+test('semAcento ignora caixa e espaco nas pontas', () => {
+  assert.equal(semAcento('  Café Da Manhã '), 'cafe da manha')
+})

@@ -22,7 +22,7 @@ export interface Backup {
 
 /** O que entra no backup: dado que a pessoa criou. */
 const TABELAS = [
-  'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos', 'dietas',
+  'exercicios', 'rotinas', 'sessões', 'alimentos', 'planos', 'dietas',
   'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
   // as lapides viajam junto: sem elas o outro aparelho nao tem como saber que
   // um registro foi apagado, e a fusao o traria de volta
@@ -63,7 +63,7 @@ export interface ResultadoImport { tabelas: number; registros: number }
 /** Substitui TUDO pelo conteudo do backup. */
 export async function importar(backup: Backup): Promise<ResultadoImport> {
   if (backup?.app !== 'onemore' || !backup.dados) {
-    throw new Error('Esse arquivo nao e um backup do OneMore.')
+    throw new Error('Esse arquivo não e um backup do OneMore.')
   }
   let registros = 0
   let tabelas = 0
@@ -78,7 +78,7 @@ export async function importar(backup: Backup): Promise<ResultadoImport> {
     registros += linhas.length
     tabelas++
   }
-  // um backup de antes da v6 traz `concluida`/`arquivada` como boolean, e nesse
+  // um backup de antes da v6 traz `concluída`/`arquivada` como boolean, e nesse
   // formato a linha NAO entra no indice: as rotinas sumiriam da lista e o
   // historico ficaria invisivel. Normaliza antes de qualquer leitura
   await normalizarFlags()

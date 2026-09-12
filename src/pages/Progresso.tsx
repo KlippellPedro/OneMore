@@ -66,7 +66,7 @@ export default function Progresso() {
 
   return (
     <div>
-      <Titulo titulo="Progresso" sub={`Nivel ${nivel} - Rank ${rank.nome} [${rank.letra}]`} />
+      <Titulo titulo="Progresso" sub={`Nível ${nivel} - Rank ${rank.nome} [${rank.letra}]`} />
 
       <div className="px-4">
         {/* -------- cartao de nivel -------- */}
@@ -77,7 +77,7 @@ export default function Progresso() {
                 Rank {rank.nome}
                 <span className="font-mono px-1.5 rounded border" style={{ borderColor: rank.cor }}>{rank.letra}</span>
               </p>
-              <p className="text-[22px] font-black leading-tight">Nivel {nivel}</p>
+              <p className="text-[22px] font-black leading-tight">Nível {nivel}</p>
             </div>
             <div className="text-right">
               <p className="text-[11px] text-muted uppercase tracking-wide">XP total</p>
@@ -86,7 +86,7 @@ export default function Progresso() {
           </div>
           <Barra valor={progresso} cor={rank.cor} altura={9} brilho />
           <p className="text-[11px] text-muted mt-2">
-            {n0(xpParaProximo - xpNoNivel)} XP para o nivel {nivel + 1}
+            {n0(xpParaProximo - xpNoNivel)} XP para o nível {nivel + 1}
           </p>
         </Card>
 
@@ -94,9 +94,9 @@ export default function Progresso() {
         {stats && (
           <div className="grid grid-cols-2 gap-2.5 mb-4">
             <Numero rotulo="Treinos" valor={n0(stats.treinos)} />
-            <Numero rotulo="Series" valor={n0(stats.series)} />
+            <Numero rotulo="Séries" valor={n0(stats.series)} />
             <Numero rotulo="Volume total" valor={peso(stats.volumeTotal)} />
-            <Numero rotulo="Melhor sequencia" valor={pl(stats.melhorStreak, 'dia')} destaque={perfil.streak > 2} />
+            <Numero rotulo="Melhor sequência" valor={pl(stats.melhorStreak, 'dia')} destaque={perfil.streak > 2} />
           </div>
         )}
 
@@ -122,24 +122,24 @@ export default function Progresso() {
             {progressao.length > 0 && (
               <Card className="p-4 mb-3">
                 <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-1">
-                  Seus exercicios
+                  Seus exercícios
                 </h2>
                 <p className="text-[11.5px] text-muted leading-relaxed mb-3">
-                  Compara a media das ultimas 3 sessoes com a das 3 anteriores. Media
-                  e nao ultimo peso: um dia ruim nao e estagnacao.
+                  Compara a média das últimas 3 sessões com a das 3 anteriores. Média
+                  e não último peso: um dia ruim não e estagnacao.
                 </p>
                 <div className="space-y-1">
                   {progressao.slice(0, 8).map(p => {
                     const t = ROTULO_TENDENCIA[p.tendencia]
                     return (
-                      <button key={p.exercicioId} onClick={() => nav(`/exercicios/${p.exercicioId}`)}
+                      <button key={p.exercicioId} onClick={() => nav(`/exercícios/${p.exercicioId}`)}
                         className="w-full flex items-center gap-3 py-2 text-left active:bg-surface-2 rounded-lg px-1">
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-medium truncate">
                             {mapaEx.get(p.exercicioId)?.nome ?? p.exercicioId}
                           </p>
                           <p className="text-[10.5px] text-muted">
-                            {pl(p.sessoes, 'sessao', 'sessoes')} - recorde {n0(p.recorde)} kg
+                            {pl(p.sessoes, 'sessão', 'sessões')} - recorde {n0(p.recorde)} kg
                           </p>
                         </div>
                         <div className="text-right shrink-0">
@@ -157,7 +157,7 @@ export default function Progresso() {
 
             <Card className="p-4 mb-3">
               <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-3">
-                Ultimos 28 dias
+                Últimos 28 dias
               </h2>
               <div className="grid grid-cols-7 gap-1.5">
                 {calendario.map(d => (
@@ -169,27 +169,27 @@ export default function Progresso() {
                 ))}
               </div>
               <p className="text-[11.5px] text-muted mt-3">
-                {pl(calendario.filter(d => d.treinou).length, 'treino')} nas ultimas 4 semanas
+                {pl(calendario.filter(d => d.treinou).length, 'treino')} nas últimas 4 semanas
                 {' - '}meta {perfil.metaTreinosSemana * 4}
               </p>
             </Card>
 
             <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 px-1 mt-5">
-              Historico
+              Histórico
             </h2>
             {sessoes.length === 0 ? (
               <Vazio icone="prancheta" titulo="Nenhum treino registrado" texto="Faca o primeiro treino e ele aparece aqui." />
             ) : (
               <div className="space-y-2 pb-4">
                 {sessoes.slice(0, 40).map(s => (
-                  <Card key={s.id} className="p-3.5" onClick={() => nav(`/historico/${s.id}`)}>
+                  <Card key={s.id} className="p-3.5" onClick={() => nav(`/histórico/${s.id}`)}>
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-[13.5px] font-semibold truncate">{s.nome}</p>
                         <p className="text-[11.5px] text-muted">
                           {dataCurta(isoDia(new Date(s.inicio)))}
                           {s.fim ? ` - ${duracao(s.fim - s.inicio)}` : ''}
-                          {' - '}{s.series.filter(g => g.feito).length} series
+                          {' - '}{s.series.filter(g => g.feito).length} séries
                         </p>
                         {s.notas && <p className="text-[11.5px] text-muted/80 mt-1 italic">{s.notas}</p>}
                       </div>
@@ -222,7 +222,7 @@ export default function Progresso() {
                     <p className={`text-[12px] font-semibold ${
                       variacaoPeso > 0 ? 'text-warn' : variacaoPeso < 0 ? 'text-good' : 'text-muted'
                     }`}>
-                      {variacaoPeso > 0 ? '+' : ''}{n1(variacaoPeso)} kg desde o inicio
+                      {variacaoPeso > 0 ? '+' : ''}{n1(variacaoPeso)} kg desde o início
                     </p>
                   )}
                 </div>
@@ -244,7 +244,7 @@ export default function Progresso() {
                       {c.peso && <span className="font-semibold">{n1(c.peso)} kg</span>}
                       {c.gorduraPct && <span className="text-muted">{n1(c.gorduraPct)}% gord</span>}
                       {c.cintura && <span className="text-muted">cintura {n0(c.cintura)}</span>}
-                      {c.braco && <span className="text-muted">braco {n0(c.braco)}</span>}
+                      {c.braco && <span className="text-muted">braço {n0(c.braco)}</span>}
                       {c.peito && <span className="text-muted">peito {n0(c.peito)}</span>}
                       {c.coxa && <span className="text-muted">coxa {n0(c.coxa)}</span>}
                     </div>
@@ -346,7 +346,7 @@ function SheetPeso({ aberto, fechar, pesoAtual, onSalvo }: {
       <div className="grid grid-cols-2 gap-3">
         {campo('peito', 'Peito', '')}
         {campo('cintura', 'Cintura', '')}
-        {campo('braco', 'Braco', '')}
+        {campo('braco', 'Braço', '')}
         {campo('coxa', 'Coxa', '')}
         {campo('quadril', 'Quadril', '')}
       </div>

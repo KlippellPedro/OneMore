@@ -305,7 +305,7 @@ export function Confirmar({ aberto, titulo, texto, onSim, onNao, perigo }: {
   )
 }
 
-/** Foca o input assim que monta - util em sheets de busca. */
+/** Foca o input assim que monta - útil em sheets de busca. */
 export function useAutoFoco<T extends HTMLElement>(ativo: boolean) {
   const ref = useRef<T>(null)
   useEffect(() => {
