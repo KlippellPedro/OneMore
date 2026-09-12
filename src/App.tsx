@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
+import { usuarioAtual } from './lib/sync'
 import { iniciarLembretes } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
 import { Icone } from './components/Icone'
@@ -25,6 +26,7 @@ import ListaCompras from './pages/ListaCompras'
 import Progresso from './pages/Progresso'
 import Perfil from './pages/Perfil'
 import Lembretes from './pages/Lembretes'
+import Entrada from './pages/Entrada'
 
 const TABS_BASE = [
   { to: '/', label: 'Inicio', icone: 'casa' },
@@ -104,13 +106,39 @@ function Miolo({ children }: { children: ReactNode }) {
   return <div className="max-w-[560px] mx-auto pb-24 min-h-full">{children}</div>
 }
 
+/**
+ * Marca que a pessoa ja passou pela porta de entrada - entrando, criando conta
+ * ou escolhendo usar sem conta. So a primeira abertura mostra aquela tela.
+ */
+const CHAVE_ENTRADA = 'onemore:entrada'
+
 export default function App() {
   const [pronto, setPronto] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [entrada, setEntrada] = useState<'vendo' | 'mostrar' | 'ok'>('vendo')
 
   useEffect(() => {
     rodarSeed().then(() => setPronto(true)).catch(e => setErro(String(e)))
   }, [])
+
+  useEffect(() => {
+    if (localStorage.getItem(CHAVE_ENTRADA) === '1') { setEntrada('ok'); return }
+    // ja tem sessao valida (voltou noutro dia, ou outro aparelho): nao pergunta
+    // de novo. Offline a chamada falha, e tudo bem - cai na tela, que tem a
+    // saida "usar so neste aparelho".
+    usuarioAtual()
+      .then(u => {
+        if (!u) return setEntrada('mostrar')
+        localStorage.setItem(CHAVE_ENTRADA, '1')
+        setEntrada('ok')
+      })
+      .catch(() => setEntrada('mostrar'))
+  }, [])
+
+  function passouDaEntrada() {
+    localStorage.setItem(CHAVE_ENTRADA, '1')
+    setEntrada('ok')
+  }
 
   // rodizio dos lembretes: so faz algo depois que o usuario liberou notificacao
   useEffect(() => {
@@ -130,13 +158,15 @@ export default function App() {
     )
   }
 
-  if (!pronto) {
+  if (!pronto || entrada === 'vendo') {
     return (
       <div className="min-h-full flex items-center justify-center">
         <div className="w-10 h-10 rounded-full border-2 border-line border-t-accent animate-spin" />
       </div>
     )
   }
+
+  if (entrada === 'mostrar') return <><Entrada pronto={passouDaEntrada} /><Feedback /></>
 
   return (
     <HashRouter>
