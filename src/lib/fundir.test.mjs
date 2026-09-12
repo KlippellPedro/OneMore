@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fundirTabela, fundirLapides, lapidesDe, assinatura } from './fundir.ts'
+import { fundirTabela, fundirLapides, lapidesDe, assinatura, mudouTabela } from './fundir.ts'
 
 const ids = a => a.map(x => x.id).sort()
 
@@ -97,4 +97,38 @@ test('refeicao salva sem acento casa com a do plano', () => {
 
 test('semAcento ignora caixa e espaco nas pontas', () => {
   assert.equal(semAcento('  Café Da Manhã '), 'cafe da manha')
+})
+
+/* ---------- mudouTabela: decide o que o importar reescreve ---------- */
+
+test('mudouTabela: nada novo do outro lado = false', () => {
+  const a = { id: 'a', atualizadoEm: 10 }
+  const b = { id: 'b', atualizadoEm: 20 }
+  const local = [a, b]
+  assert.equal(mudouTabela(local, fundirTabela(local, [])), false)
+})
+
+test('mudouTabela: linha que veio da nuvem = true', () => {
+  const local = [{ id: 'a', atualizadoEm: 10 }]
+  const nuvem = [{ id: 'b', atualizadoEm: 20 }]
+  assert.equal(mudouTabela(local, fundirTabela(local, nuvem)), true)
+})
+
+test('mudouTabela: versao mais nova da nuvem sobrepondo a local = true', () => {
+  const local = [{ id: 'a', atualizadoEm: 10 }]
+  const nuvem = [{ id: 'a', atualizadoEm: 99 }]
+  const fundido = fundirTabela(local, nuvem)
+  assert.equal(fundido.length, 1)
+  assert.equal(mudouTabela(local, fundido), true)
+})
+
+/**
+ * O caso que a assinatura por contagem + carimbo nao pegaria: apagou uma linha
+ * e criou outra no mesmo instante. Contagem igual, carimbo igual, tabela
+ * diferente.
+ */
+test('mudouTabela: troca de linha com mesma contagem e mesmo carimbo = true', () => {
+  const local = [{ id: 'a', atualizadoEm: 50 }]
+  const fundido = [{ id: 'b', atualizadoEm: 50 }]
+  assert.equal(mudouTabela(local, fundido), true)
 })

@@ -235,6 +235,21 @@ async function getDados(req, res) {
   responder(res, 200, { payload: rows[0].payload, atualizadoEm: rows[0].atualizado_em })
 }
 
+/**
+ * So o carimbo de tempo, sem o payload. Existe pra sincronizacao continua: o
+ * aparelho pergunta "mudou?" de poucos em poucos segundos, e baixar o estado
+ * inteiro so pra descobrir que nada mudou seria desperdicio de banda a cada
+ * consulta - aqui a resposta tem algumas dezenas de bytes.
+ */
+async function getVersao(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { rows } = await consultar(
+    'select atualizado_em from dados where usuario_id = $1', [u.id],
+  )
+  responder(res, 200, { atualizadoEm: rows.length ? rows[0].atualizado_em : null })
+}
+
 async function putDados(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
@@ -260,6 +275,7 @@ const ROTAS = {
   'POST /api/recuperacao': postRecuperacao,
   'POST /api/senha': postSenha,
   'GET /api/dados': getDados,
+  'GET /api/dados/versao': getVersao,
   'PUT /api/dados': putDados,
 }
 

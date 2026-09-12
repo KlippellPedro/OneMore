@@ -182,12 +182,33 @@ carimbo de tempo, e o que você apagou continua apagado porque a remoção viaja
 treino de ninguém: era exatamente isso que o modelo antigo de sobrescrita fazia,
 calado.
 
-Além do botão, o app sincroniza sozinho: ao abrir, ao voltar pra ele (trocar de aba,
-destravar o celular) e quando a internet volta — no máximo uma vez a cada 2 minutos, e
-nunca com treino em andamento. A fusão reescreve todas as tabelas, recalcula recordes e
-refaz a agenda de lembretes; isso não pode acontecer na tela onde você está anotando
-série no meio do descanso. Erro de rede nesse caminho automático é engolido de
-propósito — quem está treinando não precisa de um alerta na cara.
+Na prática você não precisa tocar nesse botão: **o app se mantém sincronizado
+sozinho**. Mexeu em algo aqui, ele publica poucos segundos depois; mudou em outro
+aparelho, este busca em até ~10 segundos com a tela aberta. São três gatilhos, cada um
+cobrindo um buraco diferente:
+
+- **Gravou algo** — qualquer escrita no banco agenda a publicação. Sem isso, mexer no PC
+  e continuar no PC não mandava nada pra lugar nenhum, porque só saía do aparelho ao
+  trocar de aba
+- **Consulta periódica** — com o app na tela, pergunta de 10 em 10 s se a nuvem mudou.
+  A resposta tem algumas dezenas de bytes (`GET /api/dados/versao`, só o carimbo de
+  tempo), e o estado inteiro só é baixado quando há mesmo o que baixar. Parado, o custo
+  é praticamente zero
+- **Voltar pro app e reconectar** — cobre o aparelho que estava fechado
+
+Com o app **fechado** nada chega até você abrir: avisar app fechado exige servidor de
+Web Push, que é outra obra.
+
+Sincronizar deixou de ser pesado, e por isso deixou de ser bloqueado durante o treino:
+a fusão diz quais tabelas mudaram e só essas são regravadas — no caso comum, nenhuma.
+Antes ela reescrevia as 13 tabelas e recalculava tudo, o que não podia acontecer na tela
+onde você anota série. O bloqueio antigo era pior do que parecia: valia enquanto
+houvesse sessão aberta, então um treino abandonado pela metade desligava a
+sincronização daquele aparelho para sempre, calado.
+
+Erro de rede no caminho automático é engolido de propósito — quem está treinando não
+precisa de um alerta na cara —, mas a última falha fica registrada e aparece em
+**Perfil → Sua conta**, embaixo de "Última vez".
 
 Sem nuvem, **Perfil → Baixar backup** gera um JSON com tudo, e **Restaurar backup**
 traz de volta.

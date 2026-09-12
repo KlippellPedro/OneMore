@@ -80,6 +80,25 @@ export function lapidesDe(lapides: Lapide[], tabela: string) {
 }
 
 /**
+ * Uma tabela mudou na fusao? Compara por IDENTIDADE de objeto, nao por
+ * conteudo: `fundirTabela` devolve as proprias linhas que recebeu, entao uma
+ * linha que veio do lado local e continua sendo o mesmo objeto. Se todas as
+ * linhas do resultado sao objetos do lado local e a contagem bate, aquele lado
+ * nao tem nada novo pra gravar.
+ *
+ * Isto decide QUAIS tabelas o `importar` reescreve. Por isso nao serve a
+ * assinatura barata daqui de baixo: ela resume a tabela em contagem + carimbo
+ * mais alto, e duas tabelas diferentes podem cair no mesmo resumo (apagar uma
+ * linha e criar outra no mesmo milissegundo). Errar pra menos aqui significa
+ * nao gravar uma mudanca que chegou.
+ */
+export function mudouTabela<T>(local: T[] = [], fundido: T[] = []): boolean {
+  if (local.length !== fundido.length) return true
+  const daqui = new Set<unknown>(local)
+  return fundido.some(l => !daqui.has(l))
+}
+
+/**
  * Assinatura barata do estado, pra saber se vale a pena reenviar pra nuvem.
  * Nao precisa ser criptografica - so precisa mudar quando algo mudou.
  */

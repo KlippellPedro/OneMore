@@ -1,9 +1,11 @@
-import { db, normalizarFlags, limparLapidesVelhas } from '../db'
+import {
+  db, normalizarFlags, limparLapidesVelhas, escutarEscrita, semAvisarEscrita,
+} from '../db'
 import { resetarCacheSeed } from '../db/seed'
 import { reconstruirMelhores } from './acoes'
 import { regerarAgenda } from './lembretes'
 import {
-  fundirTabela, fundirLapides, lapidesDe, assinatura,
+  fundirTabela, fundirLapides, lapidesDe, assinatura, mudouTabela,
   type LinhaSync, type Lapide,
 } from './fundir'
 
@@ -60,14 +62,27 @@ export async function baixarBackup() {
 
 export interface ResultadoImport { tabelas: number; registros: number }
 
-/** Substitui TUDO pelo conteudo do backup. */
-export async function importar(backup: Backup): Promise<ResultadoImport> {
+/**
+ * Substitui pelo conteudo do backup. Sem `apenas`, troca TUDO - e o que o
+ * "Restaurar backup" faz.
+ *
+ * `apenas` existe pra sincronizacao continua: reescrever as 13 tabelas,
+ * recalcular recordes e refazer a agenda a cada sincronizacao era trabalho
+ * pesado demais pra acontecer de poucos em poucos segundos, e era por isso que
+ * o sync automatico se recusava a rodar com treino em andamento. Recebendo so
+ * as tabelas que a fusao mudou, o caso comum - nada mudou, ou mudou uma linha
+ * de uma tabela - fica barato, e o trabalho derivado so roda se a tabela que o
+ * alimenta tiver sido tocada.
+ */
+export async function importar(backup: Backup, apenas?: readonly string[]): Promise<ResultadoImport> {
   if (backup?.app !== 'onemore' || !backup.dados) {
     throw new Error('Esse arquivo não e um backup do OneMore.')
   }
+  const alvo = apenas ?? TABELAS
+  const mexeu = (t: string) => (alvo as readonly string[]).includes(t)
   let registros = 0
   let tabelas = 0
-  for (const t of TABELAS) {
+  for (const t of alvo) {
     const linhas = backup.dados[t]
     if (!Array.isArray(linhas)) continue
     const tabela = (db as unknown as Record<string, {
@@ -81,19 +96,21 @@ export async function importar(backup: Backup): Promise<ResultadoImport> {
   // um backup de antes da v6 traz `concluída`/`arquivada` como boolean, e nesse
   // formato a linha NAO entra no indice: as rotinas sumiriam da lista e o
   // historico ficaria invisivel. Normaliza antes de qualquer leitura
-  await normalizarFlags()
-  // o backup traz sessoes novas: os recordes derivados precisam ser refeitos,
-  // e a agenda de lembretes velha aponta pra um plano que ja era
-  await limpar('lembretes')
-  await reconstruirMelhores()
+  if (mexeu('sessoes') || mexeu('rotinas')) await normalizarFlags()
+
+  // o backup traz sessoes novas: os recordes derivados precisam ser refeitos
+  if (mexeu('sessoes')) await reconstruirMelhores()
+
   /**
-   * Reconstruir a agenda AQUI e obrigatorio, nao um detalhe. Isto roda em toda
-   * sincronizacao que traz novidade, e o rodizio so refaz a agenda a cada 15
-   * minutos - sem esta linha o aparelho ficaria ate 15 min sem lembrete nenhum
-   * depois de cada sync, e com o app fechado o service worker leria a tabela
-   * vazia e nao avisaria nada. Inclui os lembretes de glicemia.
+   * Reconstruir a agenda AQUI e obrigatorio, nao um detalhe. O rodizio so
+   * refaz a agenda a cada 15 minutos - sem isto o aparelho ficaria ate 15 min
+   * com a agenda velha depois de receber um plano novo, e com o app fechado o
+   * service worker leria a tabela desatualizada. Inclui os de glicemia.
    */
-  await regerarAgenda().catch(() => {})
+  if (mexeu('planos') || mexeu('perfil') || mexeu('dieta') || mexeu('glicemia')) {
+    await limpar('lembretes')
+    await regerarAgenda().catch(() => {})
+  }
 
   return { tabelas, registros }
 }
@@ -223,21 +240,24 @@ export async function sincronizar(): Promise<ResultadoSync> {
   }
 
   const fundido = fundirBackups(local, nuvem.backup)
-  const antesLocal = assinatura(local.dados)
-  const antesNuvem = assinatura(nuvem.backup.dados)
-  const depois = assinatura(fundido.dados)
 
-  const mudouAqui = depois !== antesLocal
-  if (mudouAqui) await importar(fundido)
+  // quais tabelas a fusao mudou deste lado: so essas sao reescritas
+  const mudadas = TABELAS.filter(t => mudouTabela(local.dados[t] ?? [], fundido.dados[t] ?? []))
+  const mudouAqui = mudadas.length > 0
+  // semAvisarEscrita: gravar o que veio da nuvem nao pode contar como mudanca
+  // local, senao o aparelho publica o eco e os dois se cutucam sem parar
+  if (mudouAqui) await semAvisarEscrita(() => importar(fundido, mudadas))
 
-  if (depois !== antesNuvem) await publicar(fundido)
+  const mudouLa = assinatura(fundido.dados) !== assinatura(nuvem.backup.dados)
+  if (mudouLa) await publicar(fundido)
+  else marcarVersaoNuvem(nuvem.atualizadoEm)
 
   const recebidos = mudouAqui ? contar(fundido.dados) - contar(local.dados) : 0
   return {
     quando: marcarSync(),
     primeiraVez: false,
     recebidos: Math.max(0, recebidos),
-    semNovidade: !mudouAqui && depois === antesNuvem,
+    semNovidade: !mudouAqui && !mudouLa,
   }
 }
 
@@ -245,10 +265,13 @@ const contar = (d: Record<string, unknown[]>) =>
   Object.values(d).reduce((t, linhas) => t + (linhas?.length ?? 0), 0)
 
 async function publicar(backup: Backup) {
-  await chamar<{ atualizadoEm: string }>('/dados', {
+  const r = await chamar<{ atualizadoEm: string }>('/dados', {
     method: 'PUT',
     body: JSON.stringify({ payload: backup }),
   })
+  // guarda o carimbo que o servidor acabou de gravar: e ele que a consulta
+  // barata compara pra saber se a novidade la e nossa ou de outro aparelho
+  if (r?.atualizadoEm) marcarVersaoNuvem(new Date(r.atualizadoEm))
 }
 
 function marcarSync(): Date {
@@ -308,30 +331,55 @@ export function ultimaFalhaSync(): FalhaSync | null {
 }
 
 /* ------------------------------------------------------------------ */
-/* SINCRONIZACAO AUTOMATICA                                            */
+/* SINCRONIZACAO AUTOMATICA E CONTINUA                                 */
 /* ------------------------------------------------------------------ */
 
-const INTERVALO_MIN_MS = 2 * 60 * 1000
+/** Espera depois da ultima escrita antes de publicar. Junta a rajada de
+ *  gravacoes de uma acao so (concluir treino grava sessao, xp e melhores). */
+const ESPERA_ESCRITA_MS = 3000
+
+/** Respiro depois de uma sincronizacao, pra dois gatilhos quase simultaneos
+ *  nao virarem duas rodadas coladas. */
+const RESPIRO_MS = 1500
+
+/** Debounce dos gatilhos baratos (foco, internet de volta). */
+const ESPERA_GATILHO_MS = 300
+
+/** De quanto em quanto tempo perguntar "mudou?" com o app na tela. */
+const INTERVALO_CONSULTA_MS = 10_000
+
+const CHAVE_VERSAO = 'onemore:nuvem'
+
+const marcarVersaoNuvem = (d: Date | null) => {
+  if (d) localStorage.setItem(CHAVE_VERSAO, d.toISOString())
+}
 
 /**
- * Sincroniza sem incomodar: so se houver conta, so se houver internet, e no
- * maximo uma vez a cada dois minutos. Engole erro de proposito - se a rede
- * caiu, isso e problema de agora e nao motivo pra jogar um alerta na cara de
- * quem esta no meio de uma serie.
+ * Pergunta ao servidor so o carimbo de tempo da nuvem - algumas dezenas de
+ * bytes, contra o estado inteiro do `espiar()`. E o que torna viavel perguntar
+ * de 10 em 10 segundos.
+ */
+async function novidadeNaNuvem(): Promise<boolean> {
+  const r = await chamar<{ atualizadoEm: string | null }>('/dados/versao')
+  const remoto = r?.atualizadoEm ?? null
+  // nuvem vazia: so ha novidade se este aparelho tem algo pra publicar
+  if (!remoto) return true
+  return remoto !== localStorage.getItem(CHAVE_VERSAO)
+}
+
+/**
+ * Sincroniza sem incomodar: so se houver conta e internet. Engole erro de
+ * proposito - se a rede caiu, isso e problema de agora e nao motivo pra jogar
+ * um alerta na cara de quem esta no meio de uma serie -, mas guarda a falha
+ * (ver ultimaFalhaSync).
+ *
+ * Nao ha mais recusa por treino em andamento: com o `importar` gravando so as
+ * tabelas que a fusao mudou, o caso comum ficou barato o bastante pra rodar no
+ * meio do descanso. A recusa antiga era permanente na pratica - uma sessao
+ * abandonada pela metade desligava o sync daquele aparelho pra sempre.
  */
 export async function sincronizarEmSilencio(): Promise<ResultadoSync | null> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return null
-
-  const ultima = ultimoSync()
-  if (ultima && Date.now() - ultima.getTime() < INTERVALO_MIN_MS) return null
-
-  /**
-   * Treino em andamento adia a sincronizacao. Ela reescreve todas as tabelas,
-   * recalcula recordes e refaz a agenda - trabalho pesado bem na tela que a
-   * pessoa esta usando pra anotar serie, no meio do descanso. Espera terminar:
-   * o proximo gatilho (voltar pro app, ou a proxima abertura) pega.
-   */
-  if (await db.sessoes.where('concluida').equals(0).count()) return null
 
   try {
     if (!(await usuarioAtual())) return null
@@ -343,27 +391,94 @@ export async function sincronizarEmSilencio(): Promise<ResultadoSync | null> {
 }
 
 /**
- * Liga os gatilhos automaticos: ao abrir o app, ao voltar pra ele (trocar de
- * aba, destravar o celular) e quando a internet volta. Devolve a funcao que
- * desliga tudo.
+ * Liga a sincronizacao continua. Sao tres gatilhos, e cada um fecha um buraco
+ * diferente:
+ *
+ * - ESCRITA daqui: qualquer gravacao no banco agenda uma publicacao poucos
+ *   segundos depois. Sem isto, mexer no PC e continuar no PC nao mandava nada
+ *   pra lugar nenhum - so saia do aparelho quando voce trocasse de aba.
+ * - CONSULTA periodica: com o app na tela, pergunta de 10 em 10s se a nuvem
+ *   mudou (resposta minuscula) e so entao sincroniza de verdade. E o que faz o
+ *   celular parado na mesa se atualizar sozinho.
+ * - FOCO e INTERNET: voltar pro app e reconectar continuam disparando, que e o
+ *   que cobre o aparelho que estava fechado.
+ *
+ * Com o app FECHADO nada chega - isso exigiria servidor de Web Push.
+ *
+ * Devolve a funcao que desliga tudo.
  */
 export function iniciarSyncAutomatico(aoSincronizar?: (r: ResultadoSync) => void) {
   let vivo = true
+  let rodando = false
+  let pendente = false
+  let agendado: ReturnType<typeof setTimeout> | null = null
 
-  const rodar = () => {
+  /**
+   * Agenda uma rodada, juntando pedidos proximos num so. Todo gatilho passa
+   * por aqui - ninguem chama `executar` direto.
+   */
+  const agendar = (espera: number) => {
     if (!vivo) return
-    sincronizarEmSilencio().then(r => { if (r && vivo && aoSincronizar) aoSincronizar(r) })
+    if (agendado) clearTimeout(agendado)
+    agendado = setTimeout(() => { agendado = null; executar() }, espera)
   }
 
-  const aoVoltar = () => { if (document.visibilityState === 'visible') rodar() }
+  /**
+   * Pedido que chega com outra rodada em andamento NAO e descartado: fica
+   * pendente e roda em seguida. Descartar era um jeito silencioso de perder
+   * mudanca - voce mexia em algo bem no meio de uma sincronizacao e aquilo
+   * ficava parado no aparelho ate o proximo gatilho, sem sinal nenhum.
+   */
+  async function executar() {
+    if (!vivo) return
+    if (rodando) { pendente = true; return }
 
-  rodar()
+    rodando = true
+    try {
+      const r = await sincronizarEmSilencio()
+      if (r && vivo && aoSincronizar) aoSincronizar(r)
+    } finally {
+      rodando = false
+    }
+
+    if (pendente && vivo) {
+      pendente = false
+      agendar(RESPIRO_MS)
+    }
+  }
+
+  /** Gravou algo aqui: publica depois que a rajada passar. */
+  const aoEscrever = () => agendar(ESPERA_ESCRITA_MS)
+
+  /**
+   * Pergunta barata; so sincroniza de verdade se a nuvem mudou. E o que faz o
+   * aparelho parado na mesa se atualizar sozinho.
+   */
+  const consultar = async () => {
+    if (!vivo || rodando || document.visibilityState !== 'visible') return
+    try {
+      if (await novidadeNaNuvem()) await executar()
+    } catch { /* rede instavel: a proxima consulta tenta de novo */ }
+  }
+
+  const aoVoltar = () => {
+    if (document.visibilityState === 'visible') agendar(ESPERA_GATILHO_MS)
+  }
+  const aoVoltarInternet = () => agendar(ESPERA_GATILHO_MS)
+
+  const desligarEscuta = escutarEscrita(aoEscrever)
+  const timer = setInterval(consultar, INTERVALO_CONSULTA_MS)
+
+  executar()
   document.addEventListener('visibilitychange', aoVoltar)
-  window.addEventListener('online', rodar)
+  window.addEventListener('online', aoVoltarInternet)
 
   return () => {
     vivo = false
+    if (agendado) clearTimeout(agendado)
+    clearInterval(timer)
+    desligarEscuta()
     document.removeEventListener('visibilitychange', aoVoltar)
-    window.removeEventListener('online', rodar)
+    window.removeEventListener('online', aoVoltarInternet)
   }
 }

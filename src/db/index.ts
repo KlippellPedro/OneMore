@@ -95,6 +95,61 @@ export class OneMoreDB extends Dexie {
 
 export const db = new OneMoreDB()
 
+/* ------------------------------------------------------------------ */
+/* AVISO DE ESCRITA (sincronizacao continua)                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Derivadas: recalculadas a partir das outras, nunca sincronizadas. Gravar
+ * nelas nao e "o usuario mudou algo", entao nao acorda o sync - senao
+ * reconstruir os recordes depois de baixar ja agendaria outra publicacao.
+ */
+const DERIVADAS = new Set(['melhores', 'lembretes'])
+
+type OuvinteEscrita = (tabela: string) => void
+const ouvintes = new Set<OuvinteEscrita>()
+let silencio = 0
+
+/**
+ * Avisa a cada gravacao em tabela sincronizada. Um ponto so, em vez de marcar
+ * "sujo" nas dezenas de lugares que escrevem: o middleware do Dexie ve toda
+ * mutacao que passa, inclusive as que vierem de codigo novo amanha.
+ */
+export function escutarEscrita(cb: OuvinteEscrita) {
+  ouvintes.add(cb)
+  return () => { ouvintes.delete(cb) }
+}
+
+/**
+ * Roda sem avisar ninguem. A sincronizacao usa isto pra gravar o que baixou:
+ * sem o silencio, receber dado do outro aparelho contaria como mudanca local
+ * e agendaria nova publicacao - os dois aparelhos ficariam se cutucando em
+ * looping, cada um reagindo ao eco do outro.
+ */
+export async function semAvisarEscrita<T>(fn: () => Promise<T>): Promise<T> {
+  silencio++
+  try { return await fn() } finally { silencio-- }
+}
+
+db.use({
+  stack: 'dbcore',
+  name: 'aviso-de-escrita',
+  create: abaixo => ({
+    ...abaixo,
+    table: nome => {
+      const tabela = abaixo.table(nome)
+      if (DERIVADAS.has(nome)) return tabela
+      return {
+        ...tabela,
+        mutate: req => tabela.mutate(req).then(r => {
+          if (!silencio) for (const ouvinte of ouvintes) ouvinte(nome)
+          return r
+        }),
+      }
+    },
+  }),
+})
+
 /** Converte pra 0/1 - o formato que o IndexedDB aceita indexar. */
 export const flag = (v: unknown): 0 | 1 => (v ? 1 : 0)
 
@@ -140,7 +195,14 @@ const DIAS_LAPIDE = 180
 
 export async function limparLapidesVelhas() {
   const corte = Date.now() - DIAS_LAPIDE * 24 * 60 * 60 * 1000
-  await db.apagados.where('ts').below(corte).delete()
+  /**
+   * semAvisarEscrita e obrigatorio aqui, nao zelo. Isto roda no fim de TODA
+   * sincronizacao, e um delete conta como escrita mesmo quando nao ha lapide
+   * velha nenhuma pra apagar - avisando, cada sincronizacao agendaria a
+   * proxima e o app baixaria o estado inteiro de tres em tres segundos, para
+   * sempre, sem ninguem ter mexido em nada.
+   */
+  await semAvisarEscrita(() => db.apagados.where('ts').below(corte).delete())
 }
 
 export const uid = () =>
