@@ -180,3 +180,47 @@ input[type=number] { -moz-appearance: textfield; }
   background: conic-gradient(from 0deg, transparent 0turn, rgba(168,85,247,.5) .25turn, transparent .5turn, rgba(192,38,211,.5) .75turn, transparent 1turn);
   animation: girar 4s linear infinite;
 }
+
+/* ------------------------------------------------------------------ */
+/* PROFUNDIDADE                                                        */
+/*                                                                     */
+/* O app era escuro sobre escuro: card e fundo quase no mesmo valor,    */
+/* sem sombra nem luz, entao tudo lia como um retangulo chapado. Uma    */
+/* linha de luz no topo e uma sombra difusa embaixo bastam pra o card   */
+/* "subir" da pagina sem clarear a paleta.                              */
+/* ------------------------------------------------------------------ */
+.cartao {
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 94%, var(--color-accent-soft)) 0%,
+      var(--color-surface) 42%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, var(--color-accent-soft) 16%, transparent),
+    0 10px 26px -16px rgb(0 0 0 / 0.85);
+}
+
+/* Card que precisa puxar o olho - o de nivel na Home, o treino de hoje. */
+.cartao-destaque {
+  background:
+    radial-gradient(120% 100% at 0% 0%,
+      color-mix(in srgb, var(--color-accent) 22%, var(--color-surface)) 0%,
+      var(--color-surface) 58%);
+  box-shadow:
+    inset 0 1px 0 0 color-mix(in srgb, var(--color-accent-soft) 28%, transparent),
+    0 14px 32px -18px color-mix(in srgb, var(--color-accent) 55%, black);
+}
+
+/* Preenchimento de barra com volume, em vez de cor chapada. */
+.barra-cheia {
+  background-image: linear-gradient(90deg,
+    color-mix(in srgb, var(--cor-barra) 62%, black) 0%,
+    var(--cor-barra) 55%,
+    color-mix(in srgb, var(--cor-barra) 70%, white) 100%);
+}
+
+/* Moldura de icone em estado vazio: circulo tingido, nao icone solto. */
+.aro-vazio {
+  background: radial-gradient(circle,
+    color-mix(in srgb, var(--color-accent) 16%, transparent) 0%,
+    transparent 70%);
+}

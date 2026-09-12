@@ -6,14 +6,16 @@ import { Icone } from './Icone'
 /* CARD / SECAO                                                        */
 /* ------------------------------------------------------------------ */
 
-export function Card({ children, className = '', onClick }: {
+export function Card({ children, className = '', onClick, destaque }: {
   children: ReactNode; className?: string; onClick?: () => void
+  /** Card que puxa o olho da tela - use no maximo um por tela. */
+  destaque?: boolean
 }) {
   const Tag = onClick ? 'button' : 'div'
   return (
     <Tag
       onClick={onClick}
-      className={`w-full rounded-2xl bg-surface border border-line/70 ${onClick ? 'text-left active:scale-[.985] transition-transform' : ''} ${className}`}
+      className={`w-full rounded-2xl border ${destaque ? 'cartao-destaque border-accent/30' : 'cartao border-line/70'} ${onClick ? 'text-left active:scale-[.985] transition-transform' : ''} ${className}`}
     >
       {children}
     </Tag>
@@ -193,8 +195,8 @@ export function Barra({ valor, cor = 'var(--color-accent)', altura = 8, brilho }
   return (
     <div className="w-full rounded-full bg-surface-2 overflow-hidden relative" style={{ height: altura }}>
       <div
-        className={`h-full rounded-full transition-[width] duration-500 ease-out relative ${brilho ? 'xp-shine' : ''}`}
-        style={{ width: `${p}%`, background: estourou ? 'var(--color-bad)' : cor }}
+        className={`h-full rounded-full transition-[width] duration-500 ease-out relative barra-cheia ${brilho ? 'xp-shine' : ''}`}
+        style={{ width: `${p}%`, ['--cor-barra' as string]: estourou ? 'var(--color-bad)' : cor }}
       />
     </div>
   )
@@ -263,11 +265,11 @@ export function Vazio({ icone, titulo, texto, acao }: {
 }) {
   return (
     <div className="text-center py-12 px-6">
-      <div className="flex justify-center mb-4 text-muted/50">
-        <Icone nome={icone} tamanho={40} traco={1.5} />
+      <div className="aro-vazio w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center text-accent/65">
+        <Icone nome={icone} tamanho={38} traco={1.5} />
       </div>
-      <p className="font-semibold text-txt mb-1">{titulo}</p>
-      {texto && <p className="text-[13px] text-muted mb-4 leading-relaxed">{texto}</p>}
+      <p className="font-bold text-[15px] text-txt mb-1">{titulo}</p>
+      {texto && <p className="text-[13px] text-muted mb-4 leading-relaxed max-w-[280px] mx-auto">{texto}</p>}
       {acao}
     </div>
   )

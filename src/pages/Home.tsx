@@ -120,9 +120,14 @@ export default function Home() {
       </div>
 
       {/* -------- nivel -------- */}
-      <Card className="p-4 mb-4 relative overflow-hidden">
+      {/*
+        destaque: o rank comeca em Ferro, que e cinza de proposito. Sem um fundo
+        proprio, o primeiro card que a pessoa ve no app inteiro nascia sem cor
+        nenhuma. O roxo da marca segura a tela; a cor do rank fica nos detalhes.
+      */}
+      <Card destaque className="p-4 mb-4 relative overflow-hidden">
         <div
-          className="absolute -right-12 -top-12 w-44 h-44 rounded-full opacity-[0.12] pointer-events-none"
+          className="absolute -right-12 -top-12 w-44 h-44 rounded-full opacity-[0.16] pointer-events-none"
           style={{ background: `radial-gradient(circle, ${rank.cor}, transparent 68%)` }}
         />
         <div className="flex items-center gap-4 mb-3.5">
