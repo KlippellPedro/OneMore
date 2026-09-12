@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { db } from '../db'
-import { useAlimentos } from '../state/hooks'
+import { useAlimentos, usePerfil } from '../state/hooks'
 import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
 import { macrosDe, paraGramas } from '../lib/nutricao'
 import { Sheet, Input, Chip, Btn, Campo, Stepper, useAutoFoco } from './ui'
-import { BotaoFavorito } from './Icone'
+import { BotaoFavorito, Icone } from './Icone'
 import { normalizar } from './SeletorExercicio'
 import { n0, n1 } from '../lib/format'
 import type { Alimento } from '../db/types'
+import { restricoesDoPerfil, conflitos, textoConflito } from '../lib/restricoes'
 
 /** Passo 1: achar o alimento. */
 export function SeletorAlimento({ aberto, fechar, onEscolher, titulo = 'Adicionar alimento' }: {
@@ -106,6 +107,8 @@ export function SheetQuantidade({ alimento, fechar, onConfirmar, qtdInicial, med
 
   return (
     <Sheet aberto fechar={fechar} titulo={alimento.nome}>
+      <AvisoRestricaoAlimento alimentoId={alimento.id} />
+
       <Campo label="Medida">
         <div className="flex gap-1.5 flex-wrap">
           <Chip ativo={emGramas} onClick={() => { setMedida(alimento.unidadeBase); setQtd(100) }}>
@@ -163,6 +166,29 @@ function Bloco({ rotulo, valor, destaque }: { rotulo: string; valor: string; des
     <div className="rounded-xl bg-surface border border-line/60 p-2.5 text-center">
       <p className="text-[9.5px] uppercase tracking-wider text-muted font-semibold">{rotulo}</p>
       <p className={`text-[15px] font-black tabular-nums mt-0.5 ${destaque ? 'text-accent' : ''}`}>{valor}</p>
+    </div>
+  )
+}
+
+/**
+ * Aviso de restricao na hora de lancar o alimento - antes de confirmar, nao
+ * depois. Fica aqui dentro de proposito: esta sheet e a porta por onde comida
+ * entra no diario e no plano, entao uma implementacao so cobre as duas telas.
+ *
+ * Avisa, nao impede: quem marcou a restricao decide, e "comi assim mesmo"
+ * continua sendo uma resposta valida.
+ */
+function AvisoRestricaoAlimento({ alimentoId }: { alimentoId: string }) {
+  const evitar = restricoesDoPerfil(usePerfil())
+  const bate = conflitos(alimentoId, evitar)
+  if (!bate.length) return null
+  return (
+    <div className="flex items-start gap-2.5 mb-4 p-3 rounded-xl bg-warn/10 border border-warn/30">
+      <span className="text-warn shrink-0 mt-0.5"><Icone nome="alerta" tamanho={16} /></span>
+      <p className="text-[12px] leading-relaxed text-txt/85">
+        <b className="text-warn">Este {textoConflito(bate)}</b> - voce marcou pra evitar
+        em Perfil {'>'} Saude. Da pra lancar assim mesmo, ou voltar e escolher outro.
+      </p>
     </div>
   )
 }

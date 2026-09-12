@@ -24,6 +24,8 @@ import type {
   Alimento, RegistroDieta, PlanoRefeicao, ItemRefeicao, MomentoGlicemia,
 } from '../db/types'
 import type { Substituto } from '../lib/substituicoes'
+import { restricoesDoPerfil, conflitos, textoConflito } from '../lib/restricoes'
+import type { Marcador } from '../db/marcadores'
 
 /**
  * De onde a troca partiu: de um item ja lancado no diario (troca substitui o
@@ -57,6 +59,7 @@ export default function Dieta() {
   const restante = perfil.metaKcal - total.kcal
   const ehHoje = data === hoje()
   const diabetes = perfil.diabetesTipo1 === true
+  const evitar = restricoesDoPerfil(perfil)
 
   const nomesRefeicao = planos.length
     ? planos.map(p => p.nome)
@@ -286,7 +289,7 @@ export default function Dieta() {
             <RefeicaoCard key={nome}
               nome={nome} plano={plano} itens={itens} mapa={mapa}
               comido={itens.length > 0} destaque={nome === proximaNome}
-              diabetes={diabetes} ehHoje={ehHoje}
+              diabetes={diabetes} ehHoje={ehHoje} evitar={evitar}
               onComer={() => plano && comer(plano)}
               onDesfazer={() => setDesfazerAlvo(nome)}
               onAdicionar={() => setRefeicaoAlvo(nome)}
@@ -412,7 +415,7 @@ export default function Dieta() {
  * por exemplo), as duas listas aparecem juntas: o que ja entrou no diario e,
  * apagado, o que do plano ainda falta.
  */
-function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, ehHoje, onComer, onDesfazer, onAdicionar, onAbrirItem, onTrocarItem, onGlicemia }: {
+function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, ehHoje, evitar, onComer, onDesfazer, onAdicionar, onAbrirItem, onTrocarItem, onGlicemia }: {
   nome: string
   plano?: PlanoRefeicao
   itens: RegistroDieta[]
@@ -421,6 +424,8 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
   destaque: boolean
   diabetes: boolean
   ehHoje: boolean
+  /** O que a pessoa marcou pra evitar em Perfil > Saude. */
+  evitar: Marcador[]
   onComer: () => void
   onDesfazer: () => void
   onAdicionar: () => void
@@ -515,6 +520,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
                   {nq(l.qtd)} {l.medida}
                   {l.medida !== 'g' && l.medida !== 'ml' ? ` (${n0(l.gramas)} g)` : ''}
                 </p>
+                <AvisoRestricao alimentoId={l.alimentoId} evitar={evitar} />
               </div>
               <div className="text-right shrink-0">
                 <p className="text-[12.5px] font-bold text-accent tabular-nums">{n0(mm.carb)}g</p>
@@ -563,5 +569,20 @@ function Macro({ nome, atual, meta, cor }: { nome: string; atual: number; meta: 
         {falta >= 0 ? `faltam ${n0(falta)}g` : `${n0(-falta)}g acima`}
       </p>
     </div>
+  )
+}
+
+/**
+ * Selo de restricao numa linha do diario. Mesmo texto e mesma cor do plano
+ * alimentar e do catalogo - o aviso tem que ser reconhecivel em qualquer tela.
+ */
+function AvisoRestricao({ alimentoId, evitar }: { alimentoId: string; evitar: Marcador[] }) {
+  const bate = conflitos(alimentoId, evitar)
+  if (!bate.length) return null
+  return (
+    <p className="text-[10px] font-semibold text-warn mt-0.5 flex items-center gap-1">
+      <Icone nome="alerta" tamanho={10} />
+      {textoConflito(bate)}
+    </p>
   )
 }
