@@ -17,7 +17,23 @@ npm install
 npm run dev
 ```
 
-Abre em `http://localhost:5173`.
+Abre em `http://localhost:5173`. Isso basta pra mexer em treino, dieta e telas —
+tudo funciona offline, sem servidor.
+
+Pra mexer em **conta e sincronização** você precisa também da API e de um Postgres.
+Sobe um banco descartável no Docker e roda o servidor num segundo terminal:
+
+```bash
+docker run -d --name onemore-pg -e POSTGRES_PASSWORD=teste -e POSTGRES_DB=onemore -p 55432:5432 postgres:16-alpine
+```
+
+```bash
+npm run servidor:local
+```
+
+Copie `.env.example` pra `.env` e aponte a `DATABASE_URL` pro banco acima. O Vite
+já repassa `/api` pro servidor, então o navegador vê os dois na mesma origem —
+igual em produção. Quando terminar: `docker rm -f onemore-pg`.
 
 Pra testar no celular na mesma rede Wi-Fi:
 
@@ -139,19 +155,20 @@ antes de começar, porque superávit calórico muda a necessidade de insulina.
 
 ---
 
-## Sincronizar na nuvem (opcional)
+## Conta e sincronização
 
-O app funciona 100% offline. A nuvem serve pra ter backup e usar o mesmo perfil no
-celular e no PC. É **seu** projeto Supabase — ninguém além de você acessa.
+O app funciona 100% offline. A conta serve pra ter backup e usar o mesmo perfil no
+celular e no PC. Em **Perfil → Sua conta e sincronização** você cria a conta com
+e-mail e senha e usa **Enviar** / **Baixar**. Não há nada pra configurar: a API vem
+junto com o site.
 
-1. Cria um projeto grátis em [supabase.com](https://supabase.com)
-2. No app: **Perfil → Sincronizar na nuvem**
-3. **Ver SQL da tabela** → copia → cola no *SQL Editor* do Supabase → Run
-4. Copia a **URL do projeto** e a chave **anon public**
-   (Supabase → Project Settings → Data API) e cola no app
-5. Cria a conta com e-mail e senha, e usa **Enviar** / **Baixar**
+Como funciona por dentro: a senha é guardada com `scrypt` (nunca em texto puro), a
+sessão é um token aleatório de 256 bits gravado no banco **só como SHA-256**, e ele
+viaja num cookie `HttpOnly` — fora do alcance de qualquer script da página. Cada
+conta só enxerga a própria linha da tabela `dados`.
 
-> Use a chave `anon public`, nunca a `service_role`.
+> Ainda **não** existe recuperação de senha por e-mail — isso precisa de um servidor
+> de SMTP. Enquanto não tiver, **Perfil → Baixar backup** é a rede de segurança.
 
 A sincronização troca o estado inteiro: *enviar* sobrescreve a nuvem, *baixar*
 sobrescreve o aparelho. É proposital — pra um app de uma pessoa só, merge automático
@@ -163,15 +180,35 @@ traz de volta.
 
 ---
 
-## Publicar (pra abrir de qualquer lugar)
+## Publicar na Discloud
 
-```bash
-npm run build
-```
+O `servidor.js` serve **o site e a API no mesmo processo e na mesma porta**. Isso é
+de propósito: mesma origem significa zero CORS, zero mixed content e cookie de
+sessão `HttpOnly` funcionando. Por isso o site **não** pode ir pra um host estático
+puro (GitHub Pages, Netlify) — lá não existe `/api`, e o login quebraria.
 
-Sobe a pasta `dist/` em qualquer host estático. Netlify e Cloudflare Pages têm plano
-grátis e aceitam arrastar a pasta direto no site. O app usa rotas em `#/`, então
-funciona em qualquer host sem configuração de redirect.
+1. Na Discloud, **Templates → PostgreSQL**, provisione e copie a connection string
+2. Coloque ela na `DATABASE_URL` do `.env` e marque `PRODUCAO=1`
+3. `npm run build:site` — o `dist/` precisa estar pronto **antes** de empacotar
+4. Suba o app (`discloud commit` ou pelo painel)
+
+> **Por que o script se chama `build:site` e não `build`.** A Discloud roda
+> `npm run build --if-present` em todo deploy. Como o `vite build` esvazia o
+> `dist/` antes de compilar, ela apagava o `dist/` recém-enviado — e o resultado
+> da compilação dela não chega ao runtime, então sobrava uma pasta vazia e o
+> site respondia 500 em tudo (que a Discloud mascara com a página de erro
+> *dela*, com status 200). Sem um script chamado exatamente `build`, ela pula
+> esse passo e o `dist/` enviado fica intacto. Não renomeie de volta.
+
+O `.env` **não** sobe: a senha do banco fica em **Variáveis**, no painel do app.
+E não coloque `PORT` lá: `TYPE=site` espera a 8080, e um valor errado derruba o
+site. Pra rodar local noutra porta existe o `npm run servidor:local`.
+
+O app precisa de **Rede Privada (VLAN)** ligada em Configurações — o Postgres da
+Discloud não é exposto à internet e só aceita conexão de apps do mesmo cluster.
+
+As tabelas são criadas sozinhas na primeira subida (`create table if not exists`),
+então não há passo manual de migração.
 
 ---
 
@@ -193,7 +230,7 @@ src/
     acoes.ts            iniciar/concluir treino, registrar comida, água, peso, glicemia
     gerarPlano.ts       monta o cardápio a partir das metas
     nutricao.ts         macros, TMB, sugestão de metas
-    sync.ts             backup JSON + Supabase
+    sync.ts             backup JSON + cliente da API de conta/nuvem
     format.ts           formatação pt-BR
   components/           UI compartilhada, gráficos SVG, seletores
     Icone.tsx           todos os ícones do app, em SVG de traço (sem emoji)

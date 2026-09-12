@@ -10,8 +10,17 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+site
+
+# pacote de deploy, gerado por `discloud zip`
+OneMore.zip
 dev-dist
 *.local
+
+# segredos: sobem pra Discloud, nunca pro git
+.env
+.env.*
+!.env.example
 
 # Editor directories and files
 .vscode/*

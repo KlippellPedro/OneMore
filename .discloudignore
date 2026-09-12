@@ -1,13 +1,23 @@
-# sobe so o que o servidor precisa: dist/, servidor.js e o discloud.config.
-# o build e feito aqui antes de subir - la nao roda npm run build.
+# Sobem o CODIGO-FONTE e o site/ ja compilado - os dois de proposito:
+#
+# - fonte (src/, public/, index.html, vite.config.ts, tsconfig*) porque, se um
+#   dia a Discloud rodar um build, ele quebra sem esses arquivos;
+# - site/ (o build) porque o build feito por ela nao chega ao runtime. E a
+#   pasta se chama site/ e nao dist/ porque a Discloud IGNORA o conteudo de
+#   uma pasta chamada dist/ no upload - ela chegava vazia e o app respondia
+#   500 em tudo.
+#
+# O .env NAO sobe: a senha do banco fica nas Variaveis do painel da Discloud,
+# fora do pacote e fora do git. Aqui ele serve so pro desenvolvimento local.
 node_modules
-src
-public
-index.html
-vite.config.ts
-tsconfig*.json
-package-lock.json
+dist
+dev-dist
+.env
+.env.example
+.git
+.github
+.claude
+.gitignore
 .oxlintrc.json
 README.md
-.gitignore
-.git
+OneMore.zip
