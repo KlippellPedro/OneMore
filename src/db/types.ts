@@ -235,8 +235,6 @@ export interface Perfil {
   melhorStreak: number
   ultimoDiaAtivo?: string
   conquistas: string[]
-  supabaseUrl?: string
-  supabaseKey?: string
   atualizadoEm: number
 }
 

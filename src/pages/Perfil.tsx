@@ -4,8 +4,8 @@ import { salvarPerfil } from '../db'
 import { usePerfil, useNivel } from '../state/hooks'
 import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
-  baixarBackup, importar, apagarTudo, SQL_SUPABASE,
-  salvarCredenciais, entrar, criarConta, sair, usuarioAtual,
+  baixarBackup, importar, apagarTudo,
+  entrar, criarConta, sair, usuarioAtual,
   enviar, baixar, espiar, ultimoSync, type Backup, type DadosNuvem,
 } from '../lib/sync'
 import { rodarSeed } from '../db/seed'
@@ -106,8 +106,8 @@ export default function Perfil() {
         </Grupo>
 
         <Grupo titulo="Seus dados">
-          <Linha titulo="Sincronizar na nuvem"
-            sub={ultimoSync() ? `Ultimo envio: ${ultimoSync()!.toLocaleString('pt-BR')}` : 'Supabase - nao configurado'}
+          <Linha titulo="Sua conta e sincronizacao"
+            sub={ultimoSync() ? `Ultimo envio: ${ultimoSync()!.toLocaleString('pt-BR')}` : 'Entre pra ter backup na nuvem'}
             onClick={() => setAberto('nuvem')} />
           <Linha titulo="Baixar backup" sub="Arquivo JSON com tudo que esta no aparelho"
             onClick={async () => { await baixarBackup(); toast('Backup gerado', 'ok') }} />
@@ -127,7 +127,7 @@ export default function Perfil() {
 
       <SheetDados aberto={aberto === 'dados'} fechar={() => setAberto(null)} perfil={perfil} />
       <SheetMetas aberto={aberto === 'metas'} fechar={() => setAberto(null)} perfil={perfil} />
-      <SheetNuvem aberto={aberto === 'nuvem'} fechar={() => setAberto(null)} perfil={perfil} />
+      <SheetNuvem aberto={aberto === 'nuvem'} fechar={() => setAberto(null)} />
       <SheetSaude aberto={aberto === 'saude'} fechar={() => setAberto(null)} perfil={perfil} />
 
       <Confirmar aberto={apagar} perigo titulo="Apagar tudo mesmo?"
@@ -264,27 +264,21 @@ function SheetDados({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
 
 /* ------------------------------------------------------------------ */
 
-function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () => void; perfil: TPerfil }) {
+function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void }) {
   const { toast } = useUI()
-  const [url, setUrl] = useState('')
-  const [key, setKey] = useState('')
   const [email, setEmail] = useState('')
   const [senha, setSenha] = useState('')
+  const [criando, setCriando] = useState(false)
   const [usuario, setUsuario] = useState<string | null>(null)
   const [ocupado, setOcupado] = useState<string | null>(null)
-  const [verSql, setVerSql] = useState(false)
   const [nuvem, setNuvem] = useState<DadosNuvem | null>(null)
   const [confirmarBaixar, setConfirmarBaixar] = useState(false)
   const [confirmarEnviar, setConfirmarEnviar] = useState(false)
 
   useEffect(() => {
     if (!aberto) return
-    setUrl(perfil.supabaseUrl ?? '')
-    setKey(perfil.supabaseKey ?? '')
     usuarioAtual().then(u => setUsuario(u?.email ?? null)).catch(() => setUsuario(null))
   }, [aberto])
-
-  const configurado = !!perfil.supabaseUrl && !!perfil.supabaseKey
 
   async function tentar(nome: string, fn: () => Promise<void>) {
     setOcupado(nome)
@@ -315,69 +309,61 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
     await enviarAgora()
   }
 
+  async function autenticar() {
+    const fn = criando ? criarConta : entrar
+    const u = await fn(email.trim(), senha)
+    setUsuario(u?.email ?? null)
+    setSenha('')
+    toast(criando ? 'Conta criada' : 'Conectado', 'ok')
+  }
+
   return (
-    <Sheet aberto={aberto} fechar={fechar} titulo="Sincronizar na nuvem" alto>
+    <Sheet aberto={aberto} fechar={fechar} titulo="Sua conta" alto>
       <p className="text-[12.5px] text-muted leading-relaxed mb-4">
-        O app funciona 100% offline. A nuvem serve pra ter backup e usar o mesmo perfil
-        no celular e no PC. E o seu projeto Supabase - ninguem alem de voce acessa.
+        O app funciona 100% offline - a conta serve pra ter backup e usar o mesmo
+        perfil no celular e no PC. Seus dados ficam na sua conta e ninguem mais le.
       </p>
 
       {/* passo 1 */}
-      <Passo n={1} titulo="Conectar o projeto" feito={configurado}>
-        <Campo label="URL do projeto" hint="Supabase → Project Settings → Data API">
-          <Input value={url} onChange={e => setUrl(e.target.value)}
-            placeholder="https://xxxx.supabase.co" autoComplete="off" />
-        </Campo>
-        <Campo label="Chave anon (publica)" hint="A chave 'anon public'. Nunca use a service_role aqui.">
-          <Input value={key} onChange={e => setKey(e.target.value)}
-            placeholder="eyJhbGci..." autoComplete="off" />
-        </Campo>
-        <div className="flex gap-2">
-          <Btn className="flex-1" onClick={() => setVerSql(true)}>Ver SQL da tabela</Btn>
-          <Btn variant="primary" className="flex-1" onClick={() => tentar('cred', async () => {
-            await salvarCredenciais(url, key)
-            toast('Projeto conectado', 'ok')
-          })}>Salvar</Btn>
-        </div>
-      </Passo>
-
-      {/* passo 2 */}
-      <Passo n={2} titulo="Entrar na conta" feito={!!usuario} desabilitado={!configurado}>
+      <Passo n={1} titulo={usuario ? 'Conta' : 'Entrar ou criar conta'} feito={!!usuario}>
         {usuario ? (
           <div className="flex items-center gap-3">
             <p className="flex-1 text-[13px] truncate">Conectado como <b>{usuario}</b></p>
-            <Btn size="sm" onClick={() => tentar('sair', async () => {
+            <Btn size="sm" disabled={ocupado === 'sair'} onClick={() => tentar('sair', async () => {
               await sair(); setUsuario(null); toast('Voce saiu', 'ok')
             })}>Sair</Btn>
           </div>
         ) : (
           <>
+            <div className="flex gap-1.5 mb-3">
+              <Chip ativo={!criando} onClick={() => setCriando(false)}>Ja tenho conta</Chip>
+              <Chip ativo={criando} onClick={() => setCriando(true)}>Criar conta</Chip>
+            </div>
             <Campo label="E-mail">
               <Input type="email" value={email} onChange={e => setEmail(e.target.value)}
                 autoComplete="email" placeholder="voce@email.com" />
             </Campo>
-            <Campo label="Senha" hint="Minimo 6 caracteres.">
+            <Campo label="Senha" hint={criando ? 'Minimo 8 caracteres.' : undefined}>
               <Input type="password" value={senha} onChange={e => setSenha(e.target.value)}
-                autoComplete="current-password" />
+                autoComplete={criando ? 'new-password' : 'current-password'}
+                onKeyDown={e => { if (e.key === 'Enter') tentar('auth', autenticar) }} />
             </Campo>
-            <div className="flex gap-2">
-              <Btn className="flex-1" disabled={ocupado === 'conta'} onClick={() => tentar('conta', async () => {
-                const u = await criarConta(email, senha)
-                setUsuario(u?.email ?? null)
-                toast('Conta criada', 'ok', u?.email ? undefined : 'Confirme o e-mail que voce recebeu')
-              })}>Criar conta</Btn>
-              <Btn variant="primary" className="flex-1" disabled={ocupado === 'entrar'}
-                onClick={() => tentar('entrar', async () => {
-                  const u = await entrar(email, senha)
-                  setUsuario(u?.email ?? null); toast('Conectado', 'ok')
-                })}>Entrar</Btn>
-            </div>
+            <Btn variant="primary" size="lg" className="w-full" disabled={ocupado === 'auth'}
+              onClick={() => tentar('auth', autenticar)}>
+              {ocupado === 'auth'
+                ? (criando ? 'Criando...' : 'Entrando...')
+                : (criando ? 'Criar conta' : 'Entrar')}
+            </Btn>
+            <p className="text-[11px] text-muted leading-relaxed mt-2.5">
+              Ainda nao da pra recuperar senha esquecida por e-mail - anote a sua.
+              Enquanto isso, use "Baixar backup" pra ter uma copia dos seus dados.
+            </p>
           </>
         )}
       </Passo>
 
-      {/* passo 3 */}
-      <Passo n={3} titulo="Sincronizar" desabilitado={!usuario}>
+      {/* passo 2 */}
+      <Passo n={2} titulo="Sincronizar" desabilitado={!usuario}>
         <p className="text-[12px] text-muted leading-relaxed mb-3">
           A sincronizacao troca o estado inteiro: enviar sobrescreve a nuvem,
           baixar sobrescreve este aparelho. Sempre use o mais recente.
@@ -401,22 +387,6 @@ function SheetNuvem({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
           </p>
         )}
       </Passo>
-
-      <Sheet aberto={verSql} fechar={() => setVerSql(false)} titulo="SQL da tabela" alto>
-        <p className="text-[12.5px] text-muted leading-relaxed mb-3">
-          No painel do Supabase, abra <b>SQL Editor</b>, cole isso e clique em Run.
-          Cria a tabela e as regras que deixam so voce ler seus dados.
-        </p>
-        <pre className="text-[11px] leading-relaxed bg-bg border border-line rounded-xl p-3 overflow-x-auto whitespace-pre text-muted">
-          {SQL_SUPABASE}
-        </pre>
-        <Btn className="w-full mt-3" onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(SQL_SUPABASE)
-            toast('SQL copiado', 'ok')
-          } catch { toast('Copie manualmente', 'erro') }
-        }}>Copiar SQL</Btn>
-      </Sheet>
 
       <Confirmar aberto={confirmarBaixar} perigo titulo="Substituir os dados deste aparelho?"
         texto={nuvem

@@ -5,14 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:site": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "servidor": "node servidor.js",
+    "servidor:local": "node servidor.js --porta=8099"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.115.0",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
+    "pg": "^8.13.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.3",

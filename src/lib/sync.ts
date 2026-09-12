@@ -1,5 +1,4 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { db, getPerfil, salvarPerfil, normalizarFlags } from '../db'
+import { db, normalizarFlags } from '../db'
 import { resetarCacheSeed } from '../db/seed'
 import { reconstruirMelhores } from './acoes'
 
@@ -90,100 +89,56 @@ export async function apagarTudo() {
 }
 
 /* ------------------------------------------------------------------ */
-/* SUPABASE                                                            */
+/* CONTA E NUVEM (API propria)                                         */
 /* ------------------------------------------------------------------ */
 
-export const SQL_SUPABASE = `-- Cole isso no SQL Editor do seu projeto Supabase e clique em Run.
-create table if not exists public.onemore_dados (
-  user_id uuid primary key references auth.users(id) on delete cascade,
-  payload jsonb not null,
-  atualizado_em timestamptz not null default now()
-);
+/**
+ * A API mora na mesma origem que serve o site (/api), entao nao ha URL pra
+ * configurar nem CORS pra liberar. A sessao e um cookie HttpOnly: o token
+ * nunca passa por JavaScript, por isso `credentials: 'include'` em tudo e
+ * nenhuma chave e guardada aqui.
+ */
+const API = '/api'
 
-alter table public.onemore_dados enable row level security;
+export interface Usuario { email: string }
 
-drop policy if exists "dono le" on public.onemore_dados;
-create policy "dono le" on public.onemore_dados
-  for select using (auth.uid() = user_id);
-
-drop policy if exists "dono grava" on public.onemore_dados;
-create policy "dono grava" on public.onemore_dados
-  for insert with check (auth.uid() = user_id);
-
-drop policy if exists "dono atualiza" on public.onemore_dados;
-create policy "dono atualiza" on public.onemore_dados
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);`
-
-let cliente: SupabaseClient | null = null
-let chaveCliente = ''
-
-export async function getCliente(): Promise<SupabaseClient | null> {
-  const p = await getPerfil()
-  if (!p.supabaseUrl || !p.supabaseKey) return null
-  const chave = p.supabaseUrl + '|' + p.supabaseKey
-  if (!cliente || chaveCliente !== chave) {
-    // carregado sob demanda: o supabase-js sozinho dobra o tamanho do bundle
-    const { createClient } = await import('@supabase/supabase-js')
-    cliente = createClient(p.supabaseUrl, p.supabaseKey, {
-      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'onemore-auth' },
+async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null> {
+  let r: Response
+  try {
+    r = await fetch(API + rota, {
+      ...init,
+      credentials: 'include',
+      headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
     })
-    chaveCliente = chave
+  } catch {
+    throw new Error('Sem conexao com o servidor.')
   }
-  return cliente
+
+  if (r.status === 204) return null
+  const texto = await r.text()
+  const corpo = texto ? JSON.parse(texto) : null
+  if (!r.ok) throw new Error(corpo?.erro ?? `Erro ${r.status}.`)
+  return corpo as T
 }
 
-export async function salvarCredenciais(url: string, key: string) {
-  cliente = null
-  await salvarPerfil({
-    supabaseUrl: url.trim().replace(/\/+$/, '') || undefined,
-    supabaseKey: key.trim() || undefined,
-  })
-}
+export const usuarioAtual = () => chamar<Usuario>('/eu')
 
-export async function usuarioAtual() {
-  const c = await getCliente()
-  if (!c) return null
-  const { data } = await c.auth.getUser()
-  return data.user ?? null
-}
+export const criarConta = (email: string, senha: string) =>
+  chamar<Usuario>('/conta', { method: 'POST', body: JSON.stringify({ email, senha }) })
 
-export async function entrar(email: string, senha: string) {
-  const c = await getCliente()
-  if (!c) throw new Error('Configure a URL e a chave do Supabase primeiro.')
-  const { data, error } = await c.auth.signInWithPassword({ email, password: senha })
-  if (error) throw new Error(traduzir(error.message))
-  return data.user
-}
+export const entrar = (email: string, senha: string) =>
+  chamar<Usuario>('/sessao', { method: 'POST', body: JSON.stringify({ email, senha }) })
 
-export async function criarConta(email: string, senha: string) {
-  const c = await getCliente()
-  if (!c) throw new Error('Configure a URL e a chave do Supabase primeiro.')
-  const { data, error } = await c.auth.signUp({ email, password: senha })
-  if (error) throw new Error(traduzir(error.message))
-  return data.user
-}
-
-export async function sair() {
-  const c = await getCliente()
-  await c?.auth.signOut()
-}
+export const sair = () => chamar('/sessao', { method: 'DELETE' })
 
 /** Manda o estado local inteiro pra nuvem. */
 export async function enviar(): Promise<Date> {
-  const c = await getCliente()
-  if (!c) throw new Error('Supabase nao configurado.')
-  const { data: u } = await c.auth.getUser()
-  if (!u.user) throw new Error('Entre na sua conta primeiro.')
-
   const payload = await exportar()
-  const { error } = await c.from('onemore_dados').upsert({
-    user_id: u.user.id,
-    payload,
-    atualizado_em: new Date().toISOString(),
+  const r = await chamar<{ atualizadoEm: string }>('/dados', {
+    method: 'PUT',
+    body: JSON.stringify({ payload }),
   })
-  if (error) throw new Error(traduzir(error.message))
-
-  const agora = new Date()
+  const agora = new Date(r!.atualizadoEm)
   localStorage.setItem('onemore:sync', agora.toISOString())
   return agora
 }
@@ -191,16 +146,9 @@ export async function enviar(): Promise<Date> {
 export interface DadosNuvem { atualizadoEm: Date; backup: Backup }
 
 export async function espiar(): Promise<DadosNuvem | null> {
-  const c = await getCliente()
-  if (!c) throw new Error('Supabase nao configurado.')
-  const { data: u } = await c.auth.getUser()
-  if (!u.user) throw new Error('Entre na sua conta primeiro.')
-
-  const { data, error } = await c.from('onemore_dados')
-    .select('payload, atualizado_em').eq('user_id', u.user.id).maybeSingle()
-  if (error) throw new Error(traduzir(error.message))
-  if (!data) return null
-  return { atualizadoEm: new Date(data.atualizado_em), backup: data.payload as Backup }
+  const r = await chamar<{ payload: Backup; atualizadoEm: string }>('/dados')
+  if (!r) return null
+  return { atualizadoEm: new Date(r.atualizadoEm), backup: r.payload }
 }
 
 /** Puxa da nuvem e SUBSTITUI o que esta no aparelho. */
@@ -215,17 +163,4 @@ export async function baixar(): Promise<ResultadoImport> {
 export function ultimoSync(): Date | null {
   const s = localStorage.getItem('onemore:sync')
   return s ? new Date(s) : null
-}
-
-function traduzir(msg: string) {
-  const m = msg.toLowerCase()
-  if (m.includes('invalid login')) return 'E-mail ou senha incorretos.'
-  if (m.includes('already registered')) return 'Ja existe uma conta com esse e-mail.'
-  if (m.includes('password should be')) return 'A senha precisa de pelo menos 6 caracteres.'
-  if (m.includes('email not confirmed')) return 'Confirme o e-mail que o Supabase enviou antes de entrar.'
-  if (m.includes('relation') && m.includes('does not exist')) {
-    return 'A tabela onemore_dados nao existe. Rode o SQL de instalacao no Supabase.'
-  }
-  if (m.includes('failed to fetch')) return 'Sem conexao com o Supabase. Confira a URL e a internet.'
-  return msg
 }

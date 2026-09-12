@@ -1,17 +1,33 @@
 /**
- * Servidor estatico do OneMore, sem dependencia nenhuma.
+ * Servidor do OneMore: serve o site compilado (site/) e a API sob /api/.
  *
- * A Discloud exige que TYPE=site escute em 0.0.0.0:8080, entao a pasta dist/
- * nao sobe sozinha - precisa de alguem servindo. Node puro resolve: menos coisa
- * pra instalar, menos RAM, menos coisa pra quebrar.
+ * A Discloud exige que TYPE=site escute em 0.0.0.0:8080, entao a pasta do
+ * site nao sobe sozinha - precisa de alguem servindo.
+ *
+ * Site e API no MESMO processo e na MESMA origem de proposito: assim nao existe
+ * CORS, nao existe mixed content e o cookie de sessao pode ser HttpOnly - que e
+ * o que mantem o token fora do alcance de qualquer script da pagina.
  */
+// PRIMEIRO import de proposito: popula process.env antes que banco.js seja
+// avaliado e va procurar a DATABASE_URL.
+import './servidor/env.js'
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { conectarComRetentativa } from './servidor/banco.js'
+import { tratarApi } from './servidor/api.js'
 
-const RAIZ = join(fileURLToPath(new URL('.', import.meta.url)), 'dist')
-const PORTA = process.env.PORT || 8080
+// "site" e nao "dist" de proposito - veja build.outDir no vite.config.ts
+const RAIZ = join(fileURLToPath(new URL('.', import.meta.url)), 'site')
+/**
+ * 8080 e o que a Discloud espera de um TYPE=site. `--porta` existe so pro
+ * desenvolvimento em maquina onde a 8080 ja esta ocupada - e argumento, e nao
+ * PORT no .env, porque o .env sobe junto com o app e um PORT errado la
+ * derrubaria o site em producao.
+ */
+const argPorta = process.argv.find(a => a.startsWith('--porta='))
+const PORTA = process.env.PORT || argPorta?.split('=')[1] || 8080
 
 const TIPOS = {
   '.html': 'text/html; charset=utf-8',
@@ -28,7 +44,7 @@ const TIPOS = {
 
 /**
  * O service worker e o index nunca podem ficar presos em cache, senao o app
- * atualizado nunca chega no celular. O resto do dist tem hash no nome, entao
+ * atualizado nunca chega no celular. O resto do build tem hash no nome, entao
  * pode cachear pra sempre.
  */
 function cacheDe(caminho) {
@@ -54,9 +70,11 @@ async function achar(urlPath) {
   }
 }
 
-createServer(async (req, res) => {
+const servidor = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://local')
+    // a API vem antes do disco: senao /api/dados cairia no fallback do index
+    if (await tratarApi(req, res, url.pathname)) return
     // o app usa rotas em #/, entao qualquer caminho desconhecido e o index mesmo
     const alvo = (await achar(url.pathname)) ?? join(RAIZ, 'index.html')
     const corpo = await readFile(alvo)
@@ -69,6 +87,26 @@ createServer(async (req, res) => {
     res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
     res.end('Erro ao servir: ' + e.message)
   }
-}).listen(PORTA, '0.0.0.0', () => {
-  console.log(`OneMore servindo dist/ em http://0.0.0.0:${PORTA}`)
 })
+
+/**
+ * Sem site/index.html todo caminho vira 500, e a Discloud troca 5xx pela
+ * pagina de erro DELA - o log fica limpo e o motivo real, invisivel. Ja custou
+ * um deploy inteiro de diagnostico, entao agora o aviso sai na subida.
+ */
+try {
+  await stat(join(RAIZ, 'index.html'))
+} catch {
+  console.error(
+    `[site] ${join(RAIZ, 'index.html')} NAO existe - o site vai responder 500 em tudo.\n`
+    + '       Rode `npm run build:site` e garanta que site/ esta no pacote enviado.',
+  )
+}
+
+// escuta PRIMEIRO e conecta no banco depois, em segundo plano: o site e
+// estatico e nao depende do Postgres pra nada. Enquanto a conexao nao vem, a
+// API responde 503 e o site funciona normal.
+servidor.listen(PORTA, '0.0.0.0', () => {
+  console.log(`OneMore em http://0.0.0.0:${PORTA} (site + /api)`)
+})
+conectarComRetentativa()
