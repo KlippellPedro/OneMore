@@ -159,7 +159,7 @@ antes de começar, porque superávit calórico muda a necessidade de insulina.
 
 O app funciona 100% offline. A conta serve pra ter backup e usar o mesmo perfil no
 celular e no PC. Em **Perfil → Sua conta e sincronização** você cria a conta com
-e-mail e senha e usa **Enviar** / **Baixar**. Não há nada pra configurar: a API vem
+e-mail e senha e toca em **Sincronizar agora**. Não há nada pra configurar: a API vem
 junto com o site.
 
 Como funciona por dentro: a senha é guardada com `scrypt` (nunca em texto puro), a
@@ -167,13 +167,27 @@ sessão é um token aleatório de 256 bits gravado no banco **só como SHA-256**
 viaja num cookie `HttpOnly` — fora do alcance de qualquer script da página. Cada
 conta só enxerga a própria linha da tabela `dados`.
 
-> Ainda **não** existe recuperação de senha por e-mail — isso precisa de um servidor
-> de SMTP. Enquanto não tiver, **Perfil → Baixar backup** é a rede de segurança.
+> A recuperação de senha **não** passa por e-mail (isso exigiria um servidor de SMTP).
+> Ao criar a conta você recebe um **código de recuperação**, que aparece uma vez só —
+> no servidor fica apenas o hash dele. Guarde. Com o código, o *Esqueci a senha* da
+> tela de entrada troca a senha e já entra logado; estando logado, *Gerar novo código
+> de recuperação* emite outro e o anterior para de valer. Sem a senha e sem o código a
+> conta é irrecuperável, então **Perfil → Baixar backup** continua sendo a rede de
+> segurança.
 
-A sincronização troca o estado inteiro: *enviar* sobrescreve a nuvem, *baixar*
-sobrescreve o aparelho. É proposital — pra um app de uma pessoa só, merge automático
-entre dispositivos traz mais bug do que benefício. Sempre envie do aparelho onde você
-acabou de treinar.
+A sincronização **funde** os dois lados, registro por registro. Não existe mais
+*enviar* nem *baixar* — só **Sincronizar agora**. Cada linha é decidida pelo próprio
+carimbo de tempo, e o que você apagou continua apagado porque a remoção viaja como
+*lápide* (ver `lib/fundir.ts`). Treinar no celular e sincronizar do PC não apaga o
+treino de ninguém: era exatamente isso que o modelo antigo de sobrescrita fazia,
+calado.
+
+Além do botão, o app sincroniza sozinho: ao abrir, ao voltar pra ele (trocar de aba,
+destravar o celular) e quando a internet volta — no máximo uma vez a cada 2 minutos, e
+nunca com treino em andamento. A fusão reescreve todas as tabelas, recalcula recordes e
+refaz a agenda de lembretes; isso não pode acontecer na tela onde você está anotando
+série no meio do descanso. Erro de rede nesse caminho automático é engolido de
+propósito — quem está treinando não precisa de um alerta na cara.
 
 Sem nuvem, **Perfil → Baixar backup** gera um JSON com tudo, e **Restaurar backup**
 traz de volta.
@@ -189,16 +203,24 @@ puro (GitHub Pages, Netlify) — lá não existe `/api`, e o login quebraria.
 
 1. Na Discloud, **Templates → PostgreSQL**, provisione e copie a connection string
 2. Coloque ela na `DATABASE_URL` do `.env` e marque `PRODUCAO=1`
-3. `npm run build:site` — o `dist/` precisa estar pronto **antes** de empacotar
+3. `npm run build:site` — o `site/` precisa estar pronto **antes** de empacotar
 4. Suba o app (`discloud commit` ou pelo painel)
 
-> **Por que o script se chama `build:site` e não `build`.** A Discloud roda
-> `npm run build --if-present` em todo deploy. Como o `vite build` esvazia o
-> `dist/` antes de compilar, ela apagava o `dist/` recém-enviado — e o resultado
-> da compilação dela não chega ao runtime, então sobrava uma pasta vazia e o
-> site respondia 500 em tudo (que a Discloud mascara com a página de erro
-> *dela*, com status 200). Sem um script chamado exatamente `build`, ela pula
-> esse passo e o `dist/` enviado fica intacto. Não renomeie de volta.
+> **Duas armadilhas com o nome da pasta de build — as duas já derrubaram o site.**
+>
+> A primeira: a pasta compilada se chama `site/` e não `dist/` (`build.outDir` no
+> `vite.config.ts`). A Discloud ignora o conteúdo de uma pasta chamada `dist/` no
+> upload, assumindo que é artefato descartável — ela chegava vazia e o app respondia
+> 500 em tudo.
+>
+> A segunda: o script se chama `build:site` e não `build`. A Discloud roda
+> `npm run build --if-present` em todo deploy, e como o `vite build` esvazia a pasta
+> de saída antes de compilar, ela apagava o `site/` recém-enviado — e o resultado da
+> compilação dela não chega ao runtime, então sobrava uma pasta vazia. Sem um script
+> chamado exatamente `build`, ela pula esse passo e o `site/` enviado fica intacto.
+>
+> Os dois 500 a Discloud mascara com a página de erro *dela*, com status 200. Não
+> renomeie nem a pasta nem o script de volta.
 
 O `.env` **não** sobe: a senha do banco fica em **Variáveis**, no painel do app.
 E não coloque `PORT` lá: `TYPE=site` espera a 8080, e um valor errado derruba o

@@ -22,7 +22,7 @@ export interface Backup {
 
 /** O que entra no backup: dado que a pessoa criou. */
 const TABELAS = [
-  'exercicios', 'rotinas', 'sessões', 'alimentos', 'planos', 'dietas',
+  'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos', 'dietas',
   'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
   // as lapides viajam junto: sem elas o outro aparelho nao tem como saber que
   // um registro foi apagado, e a fusao o traria de volta

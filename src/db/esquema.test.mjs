@@ -41,3 +41,25 @@ test('nenhum import tem acento no caminho', () => {
     assert.deepEqual(caminhos.filter(temAcento), [], a)
   }
 })
+
+/**
+ * O nome de tabela dentro do sync e indexado por `db[nome]`: errou uma letra e
+ * `exportar()` estoura num `undefined.toArray()`. Pior, `sincronizarEmSilencio`
+ * engole o erro - foi assim que `'sessões'` deixou a sincronizacao e o backup
+ * mudos por inteiro, sem nada aparecer na tela. Nem typecheck nem lint pegam:
+ * o acesso e por string. Este teste pega.
+ */
+test('toda tabela citada no sync existe no banco', () => {
+  const sync = io.readFileSync(new URL('../lib/sync.ts', import.meta.url), 'utf8')
+  const tabelas = [...fonte.matchAll(/^ {2}(\w+)!: Table/gm)].map(m => m[1])
+  assert.ok(tabelas.length >= 10, 'deveria achar as tabelas do Dexie')
+
+  const listas = [...sync.matchAll(/const (TABELAS\w*) = \[([\s\S]*?)\] as const/g)]
+  assert.equal(listas.length, 2, 'deveria achar TABELAS e TABELAS_DERIVADAS')
+
+  for (const [, nome, bloco] of listas) {
+    const citadas = [...bloco.matchAll(/'([^']+)'/g)].map(m => m[1])
+    assert.ok(citadas.length, `${nome} nao deveria estar vazia`)
+    assert.deepEqual(citadas.filter(t => !tabelas.includes(t)), [], nome)
+  }
+})
