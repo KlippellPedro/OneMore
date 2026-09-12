@@ -7,7 +7,7 @@
     "dev": "vite",
     "build:site": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --test src/lib/fundir.test.mjs",
+    "test": "node --test src/lib/fundir.test.mjs src/db/marcadores.test.mjs",
     "preview": "vite preview",
     "servidor": "node servidor.js",
     "servidor:local": "node servidor.js --porta=8099"

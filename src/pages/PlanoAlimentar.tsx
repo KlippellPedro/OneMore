@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { db, uid, salvarPerfil, apagarLinha } from '../db'
+import { restricoesDoPerfil, temConflito, conflitos, textoConflito } from '../lib/restricoes'
+import type { Marcador } from '../db/marcadores'
 import { usePerfil, useMapaAlimentos, usePlanos, useDietasSalvas } from '../state/hooks'
 import { macrosDe, somaMacros, paraGramas, ZERO } from '../lib/nutricao'
 import { gerarPlano, paraPlanoRefeicao } from '../lib/gerarPlano'
@@ -17,6 +19,7 @@ import type { Alimento, ItemRefeicao, PlanoRefeicao, DietaSalva } from '../db/ty
 export default function PlanoAlimentar() {
   const { toast } = useUI()
   const perfil = usePerfil()
+  const evitar = restricoesDoPerfil(perfil)
   const planos = usePlanos()
   const dietas = useDietasSalvas()
   const mapa = useMapaAlimentos()
@@ -66,7 +69,15 @@ export default function PlanoAlimentar() {
 
   /** Monta o cardapio inteiro em cima das metas atuais. */
   async function gerarAutomatico() {
-    const plano = gerarPlano(perfil, mapa)
+    /**
+     * O gerador ja descarta slot cujo alimento nao esta no mapa, entao basta
+     * entregar um mapa sem o que a pessoa evita - ele redistribui o resto
+     * sozinho. Zero mudanca no gerador.
+     */
+    const disponivel = evitar.length
+      ? new Map([...mapa].filter(([id]) => !temConflito(id, evitar)))
+      : mapa
+    const plano = gerarPlano(perfil, disponivel)
     await db.planos.clear()
     await db.planos.bulkPut(paraPlanoRefeicao(plano))
     setGerar(false)
@@ -303,6 +314,7 @@ export default function PlanoAlimentar() {
                           {nq(item.qtd)} {item.medida}
                           {item.medida !== 'g' && item.medida !== 'ml' ? ` (${n0(item.gramas)} g)` : ''}
                         </p>
+                        <AvisoRestricao alimentoId={item.alimentoId} evitar={evitar} />
                       </div>
                       <span className="text-[13px] font-bold tabular-nums shrink-0">{n0(mm.kcal)}</span>
                     </button>
@@ -556,5 +568,17 @@ function Alvo({ nome, atual, meta, cor }: { nome: string; atual: number; meta: n
       </p>
       <Barra valor={clamp(atual / meta, 0, 1.15)} cor={cor} altura={4} />
     </div>
+  )
+}
+
+/** Selo discreto quando um item do plano bate numa restricao do perfil. */
+function AvisoRestricao({ alimentoId, evitar }: { alimentoId: string; evitar: Marcador[] }) {
+  const bate = conflitos(alimentoId, evitar)
+  if (!bate.length) return null
+  return (
+    <p className="text-[10.5px] font-semibold text-warn mt-1 flex items-center gap-1">
+      <Icone nome="alerta" tamanho={11} />
+      {textoConflito(bate)}
+    </p>
   )
 }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { db, uid, apagarLinha } from '../db'
-import { useAlimentos } from '../state/hooks'
+import { restricoesDoPerfil, conflitos, textoConflito } from '../lib/restricoes'
+import { useAlimentos, usePerfil } from '../state/hooks'
 import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
 import { normalizar } from '../components/SeletorExercicio'
 import { Cabecalho } from '../components/Cabecalho'
@@ -12,6 +13,7 @@ import type { Alimento, Medida } from '../db/types'
 
 export default function Alimentos() {
   const todos = useAlimentos()
+  const evitar = restricoesDoPerfil(usePerfil())
   const { toast } = useUI()
   const [busca, setBusca] = useState('')
   const [cat, setCat] = useState('todos')
@@ -64,6 +66,15 @@ export default function Alimentos() {
                   <p className="text-[11px] text-muted truncate">
                     {n0(a.kcal)} kcal - P {n1(a.prot)} C {n1(a.carb)} G {n1(a.gord)}
                   </p>
+                  {(() => {
+                    const bate = conflitos(a.id, evitar)
+                    if (!bate.length) return null
+                    return (
+                      <p className="text-[10.5px] font-semibold text-warn mt-0.5 truncate">
+                        {textoConflito(bate)}
+                      </p>
+                    )
+                  })()}
                 </div>
               </button>
               <BotaoFavorito ativo={a.favorito} className="toque w-10 h-10 rounded-xl"

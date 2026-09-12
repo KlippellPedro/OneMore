@@ -24,6 +24,14 @@ const L: Linha[] = [
   ['Panqueca de aveia', 'Carboidratos', 190, 9.0, 22.0, 6.0, 3.0, 'unidade:70'],
   ['Torrada integral', 'Carboidratos', 380, 11.0, 70.0, 6.0, 6.0, 'unidade:8'],
 
+  ['Polvilho doce', 'Carboidratos', 351, 0.3, 86.4, 0.2, 0.5, 'colher de sopa:12'],
+  ['Farinha de mandioca', 'Carboidratos', 361, 1.6, 87.9, 0.3, 6.4, 'colher de sopa:15'],
+  ['Inhame cozido', 'Carboidratos', 97, 2.1, 23.2, 0.1, 1.7, 'pedaco medio:80'],
+  ['Quinoa cozida', 'Carboidratos', 120, 4.4, 21.3, 1.9, 2.8, 'colher de sopa:25|escumadeira:80'],
+  ['Milho de pipoca (estourada)', 'Carboidratos', 387, 12.9, 77.9, 4.5, 14.5, 'xicara:8'],
+  ['Batata baroa cozida', 'Carboidratos', 80, 1.0, 18.9, 0.2, 1.9, 'pedaco medio:70'],
+  ['Cara cozido', 'Carboidratos', 108, 2.3, 25.8, 0.1, 1.5, 'pedaco medio:80'],
+
   /* ------------------------- PROTEINAS ------------------------- */
   ['Peito de frango grelhado', 'Proteinas', 165, 31.0, 0.0, 3.6, 0, 'file medio:120|file grande:180'],
   ['Coxa de frango sem pele cozida', 'Proteinas', 170, 26.0, 0.0, 7.0, 0, 'unidade:70'],
@@ -49,6 +57,14 @@ const L: Linha[] = [
   ['Bacon frito', 'Proteinas', 541, 37.0, 0.0, 43.0, 0, 'fatia:10'],
   ['Hamburguer bovino', 'Proteinas', 250, 18.0, 5.0, 18.0, 0, 'unidade:80'],
 
+  ['File de merluza grelhado', 'Proteinas', 110, 23.0, 0.0, 1.6, 0, 'file medio:120'],
+  ['Peito de frango desfiado', 'Proteinas', 163, 30.0, 0.0, 4.0, 0, 'colher de sopa:25|xicara:120'],
+  ['Coracao de frango grelhado', 'Proteinas', 153, 26.4, 0.0, 4.7, 0, 'unidade:12'],
+  ['Figado bovino grelhado', 'Proteinas', 180, 27.0, 3.6, 5.9, 0, 'bife medio:100'],
+  ['Musculo bovino cozido', 'Proteinas', 190, 30.0, 0.0, 7.0, 0, 'pedaco medio:100'],
+  ['Ovo de codorna cozido', 'Proteinas', 158, 13.1, 0.4, 11.1, 0, 'unidade:10'],
+  ['Carne seca dessalgada cozida', 'Proteinas', 211, 31.0, 0.0, 9.0, 0, 'pedaco medio:80'],
+
   /* ------------------------- LEGUMINOSAS ------------------------- */
   ['Feijao carioca cozido', 'Leguminosas', 76, 4.8, 13.6, 0.5, 8.5, 'concha media:80|colher de sopa:25'],
   ['Feijao preto cozido', 'Leguminosas', 77, 4.5, 14.0, 0.5, 8.4, 'concha media:80|colher de sopa:25'],
@@ -57,6 +73,9 @@ const L: Linha[] = [
   ['Soja cozida', 'Leguminosas', 172, 18.2, 8.4, 9.0, 6.0, 'colher de sopa:25'],
   ['Tofu', 'Leguminosas', 76, 8.1, 1.9, 4.8, 0.3, 'fatia:40|porcao:100'],
   ['Ervilha cozida', 'Leguminosas', 81, 5.4, 14.5, 0.4, 5.1, 'colher de sopa:20'],
+
+  ['Feijao fradinho cozido', 'Leguminosas', 78, 5.1, 13.5, 0.5, 6.5, 'concha media:80'],
+  ['Proteina de soja texturizada (hidratada)', 'Leguminosas', 96, 15.0, 6.0, 1.0, 4.0, 'colher de sopa:20|xicara:90'],
 
   /* ------------------------- LATICINIOS ------------------------- */
   ['Leite integral', 'Laticinios', 61, 3.2, 4.7, 3.3, 0, 'copo (200 ml):200|xicara:240', 'ml'],
@@ -72,6 +91,11 @@ const L: Linha[] = [
   ['Ricota', 'Laticinios', 140, 12.6, 3.8, 8.1, 0, 'fatia:30'],
   ['Creme de leite', 'Laticinios', 200, 2.5, 4.0, 20.0, 0, 'colher de sopa:15|caixinha:200'],
   ['Manteiga', 'Laticinios', 717, 0.9, 0.1, 81.0, 0, 'colher de cha:5|ponta de faca:3'],
+
+  ['Leite sem lactose integral', 'Laticinios', 61, 3.2, 4.7, 3.3, 0, 'copo (200 ml):200', 'ml'],
+  ['Iogurte sem lactose', 'Laticinios', 51, 4.1, 5.5, 1.5, 0, 'pote:170'],
+  ['Queijo coalho', 'Laticinios', 300, 24.0, 2.0, 22.0, 0, 'espeto:60|fatia:30'],
+  ['Kefir de leite', 'Laticinios', 55, 3.3, 4.5, 2.5, 0, 'copo (200 ml):200', 'ml'],
 
   /* ------------------------- FRUTAS ------------------------- */
   ['Banana prata', 'Frutas', 98, 1.3, 26.0, 0.1, 2.0, 'unidade media:70|unidade grande:100'],
@@ -90,6 +114,13 @@ const L: Linha[] = [
   ['Kiwi', 'Frutas', 51, 1.3, 11.5, 0.6, 2.7, 'unidade:75'],
   ['Acai polpa (sem acucar)', 'Frutas', 58, 0.8, 6.2, 3.9, 2.6, 'polpa:100'],
 
+  ['Goiaba', 'Frutas', 54, 1.1, 13.0, 0.4, 6.2, 'unidade media:130'],
+  ['Tangerina', 'Frutas', 58, 0.8, 13.4, 0.2, 1.7, 'unidade media:130'],
+  ['Maracuja (polpa)', 'Frutas', 68, 2.0, 12.3, 2.1, 1.1, 'unidade media:60'],
+  ['Ameixa fresca', 'Frutas', 53, 0.8, 13.9, 0.3, 1.9, 'unidade media:65'],
+  ['Tamara seca', 'Frutas', 282, 2.5, 75.0, 0.4, 8.0, 'unidade:8'],
+  ['Banana passa', 'Frutas', 318, 3.0, 80.0, 0.6, 7.0, 'unidade:20'],
+
   /* ------------------------- VERDURAS E LEGUMES ------------------------- */
   ['Alface', 'Verduras e legumes', 15, 1.4, 2.4, 0.2, 2.3, 'folha:10|prato:60'],
   ['Tomate', 'Verduras e legumes', 15, 1.1, 3.1, 0.2, 1.2, 'unidade media:90|fatia:15'],
@@ -107,6 +138,13 @@ const L: Linha[] = [
   ['Berinjela cozida', 'Verduras e legumes', 19, 0.7, 4.5, 0.1, 2.9, 'colher de sopa:25'],
   ['Milho verde cozido', 'Verduras e legumes', 98, 3.2, 18.8, 1.0, 3.9, 'colher de sopa:20|espiga:90'],
 
+  ['Abobora cozida', 'Verduras e legumes', 48, 1.0, 12.0, 0.1, 2.5, 'colher de sopa:30|prato:120'],
+  ['Quiabo cozido', 'Verduras e legumes', 30, 1.9, 6.4, 0.3, 3.2, 'colher de sopa:25'],
+  ['Rucula', 'Verduras e legumes', 25, 2.6, 3.7, 0.7, 1.6, 'prato:40'],
+  ['Couve-flor cozida', 'Verduras e legumes', 19, 1.2, 3.9, 0.3, 2.1, 'prato:80'],
+  ['Pimentao', 'Verduras e legumes', 21, 1.1, 4.9, 0.2, 2.6, 'unidade media:100'],
+  ['Cogumelo (champignon)', 'Verduras e legumes', 22, 3.1, 3.3, 0.3, 1.0, 'colher de sopa:20'],
+
   /* ------------------------- GORDURAS E OLEAGINOSAS ------------------------- */
   ['Azeite de oliva', 'Gorduras', 884, 0.0, 0.0, 100.0, 0, 'colher de sopa:13|fio:5', 'ml'],
   ['Oleo de soja', 'Gorduras', 884, 0.0, 0.0, 100.0, 0, 'colher de sopa:13', 'ml'],
@@ -119,6 +157,11 @@ const L: Linha[] = [
   ['Chia', 'Gorduras', 486, 16.5, 42.1, 30.7, 34.4, 'colher de sopa:12'],
   ['Linhaca', 'Gorduras', 495, 14.1, 43.3, 32.3, 33.5, 'colher de sopa:12'],
   ['Coco ralado', 'Gorduras', 406, 3.4, 9.4, 42.0, 5.4, 'colher de sopa:8'],
+
+  ['Oleo de coco', 'Gorduras', 892, 0.0, 0.0, 99.9, 0, 'colher de sopa:13'],
+  ['Semente de girassol', 'Gorduras', 584, 20.8, 20.0, 51.5, 8.6, 'punhado:30'],
+  ['Gergelim', 'Gorduras', 573, 17.7, 23.4, 49.7, 11.8, 'colher de sopa:9'],
+  ['Pasta de castanha de caju', 'Gorduras', 587, 18.0, 27.0, 46.0, 3.3, 'colher de sopa:15'],
 
   /* ------------------------- SUPLEMENTOS ------------------------- */
   ['Whey protein concentrado', 'Suplementos', 400, 80.0, 8.0, 6.0, 0, 'scoop (30 g):30|dose (2 scoops):60'],

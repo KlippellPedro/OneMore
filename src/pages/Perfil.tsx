@@ -9,6 +9,8 @@ import {
   sincronizar, ultimoSync, type Backup,
 } from '../lib/sync'
 import { rodarSeed } from '../db/seed'
+import { restricoesDoPerfil } from '../lib/restricoes'
+import { MARCADORES, PRESETS, type Marcador } from '../db/marcadores'
 import { Titulo } from '../components/Cabecalho'
 import { SheetMetas } from '../components/SheetMetas'
 import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
@@ -441,7 +443,83 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
           </Card>
         </>
       )}
+
+      <Restricoes perfil={perfil} />
     </Sheet>
+  )
+}
+
+/**
+ * O que evitar. Mesma ideia do diabetes: o app nao diagnostica nem bloqueia -
+ * ele marca no catalogo, avisa no plano, some das sugestoes de substituicao e
+ * nao usa no cardapio gerado.
+ */
+function Restricoes({ perfil }: { perfil: TPerfil }) {
+  const { toast } = useUI()
+  const atuais = restricoesDoPerfil(perfil)
+
+  async function alternar(m: Marcador) {
+    const novas = atuais.includes(m) ? atuais.filter(x => x !== m) : [...atuais, m]
+    await salvarPerfil({ restricoes: novas })
+  }
+
+  async function aplicarPreset(ids: Marcador[], nome: string) {
+    const jaTem = ids.every(m => atuais.includes(m))
+    const novas = jaTem
+      ? atuais.filter(m => !ids.includes(m))
+      : [...new Set([...atuais, ...ids])]
+    await salvarPerfil({ restricoes: novas })
+    toast(jaTem ? `${nome} desligado` : `${nome} ligado`, 'ok')
+  }
+
+  return (
+    <>
+      <h3 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-2 mt-7 px-1">
+        O que voce evita
+      </h3>
+      <p className="text-[12.5px] text-muted leading-relaxed mb-3 px-1">
+        Marque o que nao pode ou nao quer comer. O app passa a avisar quando
+        aparecer no seu plano, marca no catalogo, para de sugerir na substituicao
+        e nao usa no cardapio gerado. Nada fica bloqueado - a escolha continua sua.
+      </p>
+
+      <div className="flex gap-1.5 mb-3 px-1">
+        {PRESETS.map(p => (
+          <Chip key={p.id}
+            ativo={p.marcadores.every(m => atuais.includes(m as Marcador))}
+            onClick={() => aplicarPreset(p.marcadores as Marcador[], p.nome)}>
+            {p.nome}
+          </Chip>
+        ))}
+      </div>
+
+      <div className="space-y-2">
+        {(Object.keys(MARCADORES) as Marcador[]).map(m => {
+          const info = MARCADORES[m]
+          const ligado = atuais.includes(m)
+          return (
+            <Card key={m} className="p-3.5" onClick={() => alternar(m)}>
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13.5px] font-bold leading-tight">{info.rotulo}</p>
+                  <p className="text-[11.5px] text-muted leading-relaxed mt-1">{info.descricao}</p>
+                </div>
+                <span className={`w-10 h-6 shrink-0 rounded-full relative transition-colors mt-0.5 ${
+                  ligado ? 'bg-accent' : 'bg-surface-2'}`}>
+                  <span className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${
+                    ligado ? 'left-5' : 'left-1'}`} />
+                </span>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+
+      <p className="text-[11px] text-muted leading-relaxed mt-3 px-1">
+        Alergia grave e coisa seria: o catalogo cobre o que e obvio pelo alimento,
+        mas nao substitui ler o rotulo do que voce compra.
+      </p>
+    </>
   )
 }
 

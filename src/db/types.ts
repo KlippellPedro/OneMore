@@ -229,6 +229,11 @@ export interface Perfil {
   metaTreinosSemana: number
   /** Liga os recursos de glicemia e destaque de carboidrato. */
   diabetesTipo1?: boolean
+  /**
+   * O que evitar: intolerancia, alergia ou escolha. Os valores sao os
+   * marcadores de db/marcadores.ts. O app avisa e filtra - nao diagnostica.
+   */
+  restricoes?: string[]
   lembretes?: ConfigLembretes
   xp: number
   streak: number

@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
-import { useAlimentos } from '../state/hooks'
+import { useAlimentos, usePerfil } from '../state/hooks'
 import {
   equivalentes, noMacro, ROTULO_CHAVE, UNIDADE_CHAVE, type Substituto,
 } from '../lib/substituicoes'
 import { Sheet, Chip, Card } from './ui'
 import { n0, n1, nq } from '../lib/format'
 import type { Alimento } from '../db/types'
+import { semConflito, restricoesDoPerfil } from '../lib/restricoes'
 
 /** O que esta na mesa e vai ser trocado. */
 export interface AlvoTroca {
@@ -30,11 +31,17 @@ export function SheetSubstituir({ alvo, fechar, onEscolher, onManter, manterText
   acaoTexto?: string
 }) {
   const todos = useAlimentos()
+  const perfil = usePerfil()
   const [ampliar, setAmpliar] = useState(false)
 
   const eq = useMemo(
-    () => (alvo ? equivalentes(alvo.alimento, alvo.gramas, todos, { priorizarCarbo, ampliar }) : null),
-    [alvo, todos, ampliar, priorizarCarbo],
+    () => {
+      if (!alvo) return null
+      // nao adianta oferecer queijo pra quem marcou intolerancia a lactose
+      const pool = semConflito(todos, restricoesDoPerfil(perfil))
+      return equivalentes(alvo.alimento, alvo.gramas, pool, { priorizarCarbo, ampliar })
+    },
+    [alvo, todos, perfil, ampliar, priorizarCarbo],
   )
 
   if (!alvo || !eq) return null
