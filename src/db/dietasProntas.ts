@@ -28,6 +28,59 @@ const i = (alimentoId: string, qtd: number, medida: string, gramas: number): Ite
 
 export const DIETAS_PRONTAS: DietaPronta[] = [
   {
+    id: 'dieta-hibrido',
+    nome: 'Dieta do Hibrido',
+    apelido: 'Metodo Hibrido - Edicao 01',
+    resumo: '~2.800 kcal em 3 refeicoes grandes, com comida barata de mercado.',
+    porque:
+      'A aposta e praticidade: tres refeicoes, nenhum alimento caro e nada que precise '
+      + 'de preparo complicado. Arroz, cuscuz, pao, ovo, sobrecoxa e macarrao seguram '
+      + 'cerca de 155 g de proteina e 285 g de carboidrato sem voce cozinhar seis vezes '
+      + 'por dia. Se comer mais vezes te atrapalha mais do que ajuda, esse formato ganha '
+      + 'do plano de 7 refeicoes no unico criterio que decide dieta: o que voce consegue '
+      + 'repetir por meses. A regra fixa do metodo e encaixar uma fruta em cada refeicao.',
+    cuidado:
+      'Aplicar isso com diabetes tipo 1 exige conversa com o endocrinologista ANTES. '
+      + 'A janta sozinha tem ~136 g de carboidrato e ~84 g de gordura: e bolus grande e '
+      + 'absorcao lenta pela gordura, ou seja, risco de hipo cedo e de subir tarde, de '
+      + 'madrugada. Se voce for testar, quebre a janta em duas (jantar e ceia) e meca '
+      + 'antes de dormir e na madrugada nos primeiros dias. Fora isso: 3 refeicoes deixam '
+      + 'cerca de 250 kcal a menos que o seu plano atual e cortam boa parte das verduras, '
+      + 'frutas e laticinios - a fruta por refeicao nao e enfeite, e o que fecha a conta.',
+    refeicoes: [
+      {
+        nome: 'Cafe da manha', horario: '07:00',
+        nota: 'Opcao 2: 3 paes frances + 3 fatias de queijo + 3 ovos. Encaixe uma fruta.',
+        itens: [
+          i('al_cuscuz-de-milho-cozido', 2, 'prato', 300),
+          i('al_ovo-de-galinha-cozido', 3, 'unidade', 150),
+        ],
+      },
+      {
+        nome: 'Almoco', horario: '12:30',
+        nota:
+          'Opcao 2: 200 g de macarrao + 120 g de sobrecoxa. Opcao 3: 120 g de goma de '
+          + 'tapioca + 120 g de sobrecoxa + salada. A salada e a vontade - o alface e o '
+          + 'tomate aqui sao so o minimo pra conta nao ficar zerada.',
+        itens: [
+          i('al_arroz-branco-cozido', 250, 'g', 250),
+          i('al_sobrecoxa-assada-sem-pele', 120, 'g', 120),
+          i('al_alface', 1, 'prato', 60),
+          i('al_tomate', 1, 'unidade media', 90),
+        ],
+      },
+      {
+        nome: 'Janta', horario: '20:00',
+        nota: 'Opcao 2: repetir o almoco - e a versao mais leve e mais facil de dosar insulina.',
+        itens: [
+          i('al_pao-frances', 4, 'unidade', 200),
+          i('al_hamburguer-bovino', 4, 'unidade', 320),
+          i('al_queijo-mussarela', 4, 'fatia', 80),
+        ],
+      },
+    ],
+  },
+  {
     id: 'dieta-t1d-bulking',
     nome: 'Ganho de massa com diabetes tipo 1',
     apelido: 'T1D + bulking',

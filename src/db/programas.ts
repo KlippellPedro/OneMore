@@ -36,11 +36,121 @@ const C = {
   push: '#8b6dd6', pull: '#4f9aad', legs: '#4caf87',
   upper: '#bd7095', lower: '#c9a049', full: '#7b81be',
   casa: '#9b7fc7', extra: '#c25f70',
+  anterior: '#c96a4a', posterior: '#5a8cbf',
 }
+
+/**
+ * Aquecimento do Metodo Hibrido: antes da primeira serie valendo de cada
+ * agrupamento, 3 series subindo a carga. Marque essas como aquecimento (A)
+ * na sessao pra elas nao entrarem no volume nem virarem recorde.
+ */
+const AQUECER = 'Aquecimento antes: 50% x9, 75% x5, 90% x2. Marque como serie A.'
 
 /* ================================================================== */
 
 export const PROGRAMAS: Programa[] = [
+  /* ------------------------------------------------------------------ */
+  {
+    id: 'hibrido-5',
+    nome: 'Metodo Hibrido',
+    apelido: 'Treino do Hibrido - Edicao 01',
+    nivel: 'intermediario',
+    dias: 5,
+    foco: 'Forca e hipertrofia',
+    resumo: 'Cinco dias, 2 series por exercicio, a base toda entre 5 e 9 repeticoes.',
+    porque:
+      'E o oposto de um treino de volume: pouca serie, mas cada uma perto da falha e com '
+      + 'carga que cabe em 5 a 9 repeticoes. Duas series bem feitas nessa faixa dao o '
+      + 'estimulo de forca e hipertrofia sem encher a semana de trabalho pra recuperar. '
+      + 'Os cinco dias batem cada grupo duas vezes - push/pull/legs na primeira metade, '
+      + 'anterior/posterior na segunda - que e a frequencia com mais evidencia a favor. '
+      + 'Antes da primeira serie de cada agrupamento entram 3 series de aquecimento '
+      + 'subindo a carga (50% x9, 75% x5, 90% x2), pra chegar na serie valendo ja pronto. '
+      + 'Os exercicios marcados como "Extra" na observacao nao existem na edicao original '
+      + 'e foram somados pra tapar buracos que a conta de volume denunciou. Panturrilha: '
+      + 'em pe no Legs e sentada no Anterior - em pe pega o gastrocnemio, sentada pega o '
+      + 'soleo, sao dois musculos e nao dois nomes. Antebraco: punho no Pull e punho '
+      + 'inverso no Posterior, pra nao treinar so o flexor num programa cheio de rosca. '
+      + 'Face pull no Pull e no Posterior, que era o unico grupo com zero serie na semana. '
+      + 'E no Push, que era o dia mais curto: um desenvolvimento, porque o dia de empurrar '
+      + 'nao tinha nenhum, e o triceps testa, porque o triceps levava 2 series por semana '
+      + 'contra 6 do biceps - sendo que ele e dois tercos do braco. Os extras pequenos vao '
+      + 'de 8 a 20 repeticoes: musculo pequeno e tendao curto respondem a tempo sob tensao, '
+      + 'nao a carga maxima.',
+    cuidado:
+      'Duas series so funcionam se forem levadas perto da falha - se voce parar com 3 '
+      + 'repeticoes na reserva, o volume vira baixo demais e voce nao cresce. E mesmo com '
+      + 'os extras a semana continua puxando mais do que empurrando (12 series de costas '
+      + 'contra 8 de peito, 6 de biceps contra 4 de triceps): se o seu objetivo e peito e '
+      + 'braco, troque o pull around por mais uma serie de empurrar.',
+    sugestaoDias: [1, 2, 3, 5, 6],
+    treinos: [
+      {
+        nome: 'Push (peito, ombro, triceps)', cor: C.push,
+        descricao: 'Empurrar. A elevacao lateral vem primeiro de proposito: o ombro chega descansado.',
+        itens: [
+          it('ex_elevacao-lateral-com-halteres', 2, '5-9', 120, 'No metodo e com caneleira no punho'),
+          it('ex_supino-inclinado-no-smith', 2, '5-9', 150, AQUECER),
+          it('ex_desenvolvimento-com-halteres', 2, '5-9', 150, 'Extra: o Push original nao tinha desenvolvimento nenhum'),
+          it('ex_voador-peck-deck', 2, '5-9', 120),
+          it('ex_triceps-testa-com-barra-w', 2, '8-12', 90, 'Extra: cotovelo acima da cabeca - e o unico jeito de pegar a cabeca longa'),
+          it('ex_triceps-pulley-com-barra', 2, '5-9', 120, AQUECER),
+        ],
+      },
+      {
+        nome: 'Pull (costas, biceps)', cor: C.pull,
+        descricao: 'Puxar. Toda repeticao comeca pela escapula, nao pelo braco.',
+        itens: [
+          it('ex_remada-curvada-com-barra', 2, '5-9', 150, AQUECER),
+          it('ex_puxada-com-triangulo', 2, '5-9', 150),
+          it('ex_pulldown-com-bracos-estendidos', 2, '5-9', 120),
+          it('ex_rosca-direta-com-barra', 2, '5-9', 120, AQUECER),
+          it('ex_face-pull-no-cabo', 2, '15-20', 60, 'Extra: saude do ombro. Carga leve, puxa na altura do rosto.'),
+          it('ex_rosca-de-punho', 2, '12-20', 60, 'Extra: so o punho se move, antebraco apoiado'),
+        ],
+      },
+      {
+        nome: 'Legs (pernas e core)', cor: C.legs,
+        descricao: 'Posterior e gluteo antes do agachamento: o joelho entra no Smith ja aquecido.',
+        itens: [
+          it('ex_cadeira-flexora-sentada', 2, '5-9', 120, AQUECER),
+          it('ex_elevacao-pelvica-hip-thrust', 2, '5-9', 150),
+          it('ex_agachamento-no-smith', 2, '5-9', 180),
+          it('ex_cadeira-extensora', 2, '5-9', 120),
+          it('ex_panturrilha-em-pe-na-maquina', 2, '10-15', 60, 'Extra: 2s alongando embaixo, sem quicar'),
+          it('ex_abdominal-na-polia-ajoelhado', 2, '5-9', 90),
+        ],
+      },
+      {
+        nome: 'Anterior (ombro, peito, quadriceps)', cor: C.anterior,
+        descricao: 'Segunda passada na cadeia da frente, com exercicios diferentes dos do Push e do Legs.',
+        itens: [
+          it('ex_elevacao-lateral-no-cabo', 2, '5-9', 120, 'Em Y: uma polia em cada mao, cruzadas na frente'),
+          it('ex_desenvolvimento-no-smith', 2, '5-9', 150, AQUECER),
+          it('ex_crossover-polia-alta', 2, '5-9', 120),
+          it('ex_supino-reto-com-halteres', 2, '5-9', 150),
+          it('ex_agachamento-bulgaro', 2, '5-9', 120, 'Cada perna'),
+          it('ex_cadeira-extensora', 2, '5-9', 120),
+          it('ex_panturrilha-sentado', 2, '10-15', 60, 'Extra: joelho dobrado pega o soleo, o outro musculo'),
+        ],
+      },
+      {
+        nome: 'Posterior (costas, biceps, isquiotibiais)', cor: C.posterior,
+        descricao: 'Segunda passada na cadeia de tras, fechando a semana.',
+        itens: [
+          it('ex_remada-na-maquina', 2, '5-9', 150, AQUECER),
+          it('ex_remada-baixa-no-cabo', 2, '5-9', 150),
+          it('ex_rosca-martelo', 2, '5-9', 120),
+          it('ex_pull-around-na-polia', 2, '5-9', 120, 'Cada lado'),
+          it('ex_rosca-scott', 2, '5-9', 120),
+          it('ex_mesa-flexora', 2, '5-9', 120),
+          it('ex_face-pull-no-cabo', 2, '15-20', 60, 'Extra: segunda dose de deltoide posterior na semana'),
+          it('ex_rosca-de-punho-inversa', 2, '12-20', 60, 'Extra: carga leve. Equilibra o punho contra tanta rosca.'),
+        ],
+      },
+    ],
+  },
+
   /* ------------------------------------------------------------------ */
   {
     id: 'ppl-ul-5',
