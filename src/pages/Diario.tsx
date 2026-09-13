@@ -145,7 +145,7 @@ export default function Diario() {
         {/* -------- historico por dia -------- */}
         <div className="flex items-center justify-between mb-2 px-1 mt-5">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">Histórico por dia</h2>
-          <Link to={`/diário/imprimir?dias=${periodo || 90}`} className="toque text-[12px] font-semibold text-accent">
+          <Link to={`/diario/imprimir?dias=${periodo || 90}`} className="toque text-[12px] font-semibold text-accent">
             Exportar PDF ›
           </Link>
         </div>

@@ -70,7 +70,7 @@ export default function Exercicios() {
             <div className="space-y-1.5">
               {itens.map(e => (
                 <div key={e.id} className="flex items-center gap-2">
-                  <Link to={`/exercícios/${e.id}`}
+                  <Link to={`/exercicios/${e.id}`}
                     className="flex-1 min-w-0 flex items-center gap-3 p-3 rounded-xl bg-surface border border-line/60 active:bg-surface-2">
                     <span className="w-1 h-9 rounded-full shrink-0" style={{ background: corGrupo(e.grupo) }} />
                     {/* sem animar: sao 126 na lista, animando todas trava a rolagem */}

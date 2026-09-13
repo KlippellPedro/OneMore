@@ -47,7 +47,7 @@ function BarraSessao() {
   const loc = useLocation()
   if (!sessao || loc.pathname.startsWith('/sessao') || loc.pathname.includes('/imprimir')) return null
   return (
-    <Link to={`/sessão/${sessao.id}`}
+    <Link to={`/sessao/${sessao.id}`}
       className="fixed left-3 right-3 bottom-[72px] z-40 flex items-center gap-3 px-4 h-12 rounded-2xl grad-accent glow-accent text-white shadow-xl anim-up safe-b">
       <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
       <span className="text-[13px] font-bold flex-1 truncate">Treino em andamento - {sessao.nome}</span>

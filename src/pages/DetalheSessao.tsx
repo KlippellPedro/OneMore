@@ -79,11 +79,11 @@ export default function DetalheSessao() {
                   <div className="flex items-start gap-3 mb-2.5">
                     <span className="w-1 self-stretch rounded-full shrink-0 min-h-[40px]"
                       style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
-                    <Link to={`/exercícios/${exId}`} className="shrink-0">
+                    <Link to={`/exercicios/${exId}`} className="shrink-0">
                       <ImagemExercicio exercicioId={exId} tamanho="mini" animar={false} />
                     </Link>
                     <div className="flex-1 min-w-0">
-                      <Link to={`/exercícios/${exId}`} className="text-[14px] font-bold leading-tight block truncate">
+                      <Link to={`/exercicios/${exId}`} className="text-[14px] font-bold leading-tight block truncate">
                         {ex?.nome ?? 'Exercício removido'}
                       </Link>
                       <p className="text-[11.5px] text-muted mt-0.5">

@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import io from 'node:fs'
+import { join } from 'node:path'
 
 const fonte = io.readFileSync(new URL('./index.ts', import.meta.url), 'utf8')
 const icones = io.readFileSync(new URL('../components/Icone.tsx', import.meta.url), 'utf8')
@@ -49,6 +50,45 @@ test('nenhum import tem acento no caminho', () => {
  * mudos por inteiro, sem nada aparecer na tela. Nem typecheck nem lint pegam:
  * o acesso e por string. Este teste pega.
  */
+/**
+ * Isto ja quebrou o app: toda navegacao pra treino em andamento, ficha de
+ * exercicio, historico e PDF do diario usava `/sessão`, `/exercícios`,
+ * `/histórico`, `/diário` com acento - a rota declarada e SEM acento
+ * (`/sessao/:id` etc.), e react-router compara texto exato. O app inteiro
+ * abria a sessao, mas ao navegar pra ela caia sempre no catch-all e voltava
+ * pra Home, sem erro nenhum na tela. Mesma familia de bug dos testes acima -
+ * so que em string de rota, nao de indice - e nem typecheck nem lint pegam
+ * porque o acesso e por comparacao de texto em tempo de execucao.
+ */
+test('toda navegacao dinamica (to=/nav com template) bate com uma <Route> declarada', () => {
+  const app = io.readFileSync(new URL('../App.tsx', import.meta.url), 'utf8')
+  const raizes = new Set(
+    [...app.matchAll(/<Route path="\/([a-z0-9]+)/g)].map(m => m[1]),
+  )
+  assert.ok(raizes.size >= 5, 'deveria achar as raizes das rotas declaradas')
+
+  const RAIZ = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')
+  function fontes(dir, saida = []) {
+    for (const nome of io.readdirSync(dir)) {
+      const caminho = join(dir, nome)
+      if (io.statSync(caminho).isDirectory()) { fontes(caminho, saida); continue }
+      if (/\.tsx?$/.test(nome)) saida.push(caminho)
+    }
+    return saida
+  }
+
+  const problemas = []
+  // `to=` sem letra antes (nao pode ser o "to" escondido dentro de "texto=")
+  for (const arquivo of fontes(RAIZ)) {
+    const txt = io.readFileSync(arquivo, 'utf8')
+    for (const m of txt.matchAll(/(?<![a-zA-Z])(?:to=\{|nav\()`(\/[^`]*)`/g)) {
+      const raiz = m[1].split('${')[0].split('?')[0].split('/').filter(Boolean)[0]
+      if (raiz && !raizes.has(raiz)) problemas.push(`${arquivo.slice(RAIZ.length)}: ${m[1]}`)
+    }
+  }
+  assert.deepEqual(problemas, [])
+})
+
 test('toda tabela citada no sync existe no banco', () => {
   const sync = io.readFileSync(new URL('../lib/sync.ts', import.meta.url), 'utf8')
   const tabelas = [...fonte.matchAll(/^ {2}(\w+)!: Table/gm)].map(m => m[1])

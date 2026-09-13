@@ -101,7 +101,7 @@ export default function DetalheExercicio() {
                 className="absolute inset-0 w-full h-full"
                 src={`https://www.youtube.com/embed/${yt}`}
                 title={ex.nome}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-média; gyroscope; picture-in-picture"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen />
             </div>
           </div>

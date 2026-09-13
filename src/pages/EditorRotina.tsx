@@ -270,7 +270,7 @@ export default function EditorRotina() {
         {rotina.itens.length > 0 && (
           <Btn variant="primary" size="lg" className="w-full mt-3" onClick={async () => {
             const sid = await iniciarSessao(rotina)
-            nav(`/sessão/${sid}`)
+            nav(`/sessao/${sid}`)
           }}>
             Começar esse treino agora
           </Btn>

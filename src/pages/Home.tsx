@@ -89,11 +89,11 @@ export default function Home() {
   const saudacao = hora < 6 ? 'Boa madrugada' : hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite'
 
   async function comecar() {
-    if (sessaoAtiva) return nav(`/sessão/${sessaoAtiva.id}`)
+    if (sessaoAtiva) return nav(`/sessao/${sessaoAtiva.id}`)
     if (!sugerida) return nav('/treinos')
     vibrar(20)
     const id = await iniciarSessao(sugerida)
-    nav(`/sessão/${id}`)
+    nav(`/sessao/${id}`)
   }
 
   async function beber(ml: number) {
@@ -161,7 +161,7 @@ export default function Home() {
         <Link to="/treinos" className="toque text-[12px] font-semibold text-accent">Ver todos</Link>
       }>
         {sessaoAtiva ? (
-          <Card className="p-4" onClick={() => nav(`/sessão/${sessaoAtiva.id}`)}>
+          <Card className="p-4" onClick={() => nav(`/sessao/${sessaoAtiva.id}`)}>
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse shrink-0" />
               <div className="flex-1 min-w-0">
@@ -331,7 +331,7 @@ export default function Home() {
           <div className="space-y-2">
             {recentes.map(s => (
               <Card key={s.id} className="p-3.5 flex items-center gap-3"
-                onClick={() => nav(`/histórico/${s.id}`)}>
+                onClick={() => nav(`/historico/${s.id}`)}>
                 <div className="flex-1 min-w-0">
                   <p className="text-[13.5px] font-semibold truncate">{s.nome}</p>
                   <p className="text-[11.5px] text-muted">

@@ -47,7 +47,7 @@ export default function Treinos() {
   async function comecar(r: Rotina) {
     if (!r.itens.length) return toast('Esse treino está vazio', 'erro', 'Adicione exercícios primeiro')
     vibrar(20)
-    nav(`/sessão/${await iniciarSessao(r)}`)
+    nav(`/sessao/${await iniciarSessao(r)}`)
   }
 
   async function duplicar(r: Rotina) {
@@ -72,7 +72,7 @@ export default function Treinos() {
 
       <div className="px-4">
         {sessaoAtiva && (
-          <Card className="p-4 mb-4 border-accent/40" onClick={() => nav(`/sessão/${sessaoAtiva.id}`)}>
+          <Card className="p-4 mb-4 border-accent/40" onClick={() => nav(`/sessao/${sessaoAtiva.id}`)}>
             <div className="flex items-center gap-3">
               <span className="w-2.5 h-2.5 rounded-full bg-accent animate-pulse" />
               <p className="flex-1 text-[14px] font-bold truncate">{sessaoAtiva.nome}</p>
@@ -204,7 +204,7 @@ export default function Treinos() {
         )}
 
         <Card className="p-4 mt-3" onClick={async () => {
-          nav(`/sessão/${await iniciarSessao(undefined, 'Treino livre')}`)
+          nav(`/sessao/${await iniciarSessao(undefined, 'Treino livre')}`)
         }}>
           <p className="text-[14px] font-semibold">Treino livre</p>
           <p className="text-[12px] text-muted mt-0.5">Sem rotina. Vai adicionando os exercícios na hora.</p>
