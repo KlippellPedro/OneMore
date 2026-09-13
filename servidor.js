@@ -17,6 +17,7 @@ import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { conectarComRetentativa } from './servidor/banco.js'
 import { tratarApi } from './servidor/api.js'
+import { CABECALHOS_SEGURANCA } from './servidor/seguranca.js'
 
 // "site" e nao "dist" de proposito - veja build.outDir no vite.config.ts
 const RAIZ = join(fileURLToPath(new URL('.', import.meta.url)), 'site')
@@ -81,10 +82,11 @@ const servidor = createServer(async (req, res) => {
     res.writeHead(200, {
       'Content-Type': TIPOS[extname(alvo)] ?? 'application/octet-stream',
       'Cache-Control': cacheDe(alvo.replace(/\\/g, '/')),
+      ...CABECALHOS_SEGURANCA,
     })
     res.end(corpo)
   } catch (e) {
-    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' })
+    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA })
     res.end('Erro ao servir: ' + e.message)
   }
 })
