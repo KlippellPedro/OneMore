@@ -1,4 +1,4 @@
-import { db, uid, hoje, getPerfil, apagarLinha, apagarLinhas } from '../db'
+import { db, uid, hoje, getPerfil, salvarPerfil, apagarLinha, apagarLinhas } from '../db'
 import { calcularMelhores, dobrarSessao, porExercicio } from '../db/melhores'
 import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia } from '../db/types'
 import type { Programa } from '../db/programas'
@@ -335,7 +335,7 @@ export async function registrarCorpo(
     const ultimos = await db.corpo.orderBy('data').toArray()
     const maisRecente = ultimos.filter(r => r.peso).pop()
     if (maisRecente?.data === data && perfil.pesoKg !== dados.peso) {
-      await db.perfil.update('me', { pesoKg: dados.peso, atualizadoEm: Date.now() })
+      await salvarPerfil({ pesoKg: dados.peso })
     }
   }
 

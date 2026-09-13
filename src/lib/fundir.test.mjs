@@ -1,6 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { fundirTabela, fundirLapides, lapidesDe, assinatura, mudouTabela } from './fundir.ts'
+import {
+  fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela,
+  linhaValida, sanitizarDados,
+} from './fundir.ts'
 
 const ids = a => a.map(x => x.id).sort()
 
@@ -131,4 +134,105 @@ test('mudouTabela: troca de linha com mesma contagem e mesmo carimbo = true', ()
   const local = [{ id: 'a', atualizadoEm: 50 }]
   const fundido = [{ id: 'b', atualizadoEm: 50 }]
   assert.equal(mudouTabela(local, fundido), true)
+})
+
+/* ---------- fundirPerfil: fusao campo a campo do perfil (linha unica) ---------- */
+
+test('fundirPerfil: campos editados em aparelhos diferentes sobrevivem os dois', () => {
+  // exatamente o cenario que a fusao por linha inteira perderia: ligar
+  // diabetes num aparelho e marcar restricao no outro, entre duas sincronizacoes
+  const local = [{
+    id: 'me', diabetesTipo1: true, restricoes: [], atualizadoEm: 100,
+    camposEm: { diabetesTipo1: 100 },
+  }]
+  const nuvem = [{
+    id: 'me', diabetesTipo1: false, restricoes: ['lactose'], atualizadoEm: 300,
+    camposEm: { restricoes: 300 },
+  }]
+  const [r] = fundirPerfil(local, nuvem)
+  assert.equal(r.diabetesTipo1, true, 'diabetes ligado no aparelho local nao pode sumir')
+  assert.deepEqual(r.restricoes, ['lactose'], 'restricao marcada na nuvem tem que entrar')
+})
+
+test('fundirPerfil: campo mais recente vence quando os dois tem carimbo', () => {
+  const local = [{ id: 'me', nome: 'Antigo', atualizadoEm: 100, camposEm: { nome: 100 } }]
+  const nuvem = [{ id: 'me', nome: 'Novo', atualizadoEm: 300, camposEm: { nome: 300 } }]
+  const [r] = fundirPerfil(local, nuvem)
+  assert.equal(r.nome, 'Novo')
+})
+
+test('fundirPerfil: empate de carimbo do campo fica com o deste aparelho', () => {
+  const local = [{ id: 'me', nome: 'Local', atualizadoEm: 100, camposEm: { nome: 100 } }]
+  const nuvem = [{ id: 'me', nome: 'Nuvem', atualizadoEm: 100, camposEm: { nome: 100 } }]
+  const [r] = fundirPerfil(local, nuvem)
+  assert.equal(r.nome, 'Local')
+})
+
+test('fundirPerfil: campo sem carimbo dos dois lados cai pro atualizadoEm da linha inteira', () => {
+  // registro de antes desta mudanca, sem camposEm nenhum - tem que continuar
+  // funcionando do jeito antigo, nao quebrar
+  const local = [{ id: 'me', nome: 'Local', xp: 10, atualizadoEm: 100 }]
+  const nuvem = [{ id: 'me', nome: 'Nuvem', xp: 20, atualizadoEm: 300 }]
+  const [r] = fundirPerfil(local, nuvem)
+  assert.equal(r.nome, 'Nuvem')
+  assert.equal(r.xp, 20)
+})
+
+test('fundirPerfil: so existe de um lado - entra como esta, sem quebrar', () => {
+  const local = [{ id: 'me', nome: 'Só aqui', atualizadoEm: 100 }]
+  assert.deepEqual(fundirPerfil(local, []), local)
+  assert.deepEqual(fundirPerfil([], local), local)
+  assert.deepEqual(fundirPerfil([], []), [])
+})
+
+test('fundirPerfil: nada mudou -> devolve a MESMA referencia local (mudouTabela ve como sem novidade)', () => {
+  const local = [{ id: 'me', nome: 'Igual', atualizadoEm: 100, camposEm: { nome: 100 } }]
+  const nuvem = [{ id: 'me', nome: 'Igual', atualizadoEm: 100, camposEm: { nome: 100 } }]
+  const fundido = fundirPerfil(local, nuvem)
+  assert.equal(fundido[0], local[0], 'deveria ser o mesmo objeto, nao uma copia')
+  assert.equal(mudouTabela(local, fundido), false)
+})
+
+test('fundirPerfil: campo vindo da nuvem conta como mudanca local (mudouTabela)', () => {
+  const local = [{ id: 'me', nome: 'A', atualizadoEm: 100, camposEm: { nome: 100 } }]
+  const nuvem = [{ id: 'me', nome: 'B', atualizadoEm: 300, camposEm: { nome: 300 } }]
+  const fundido = fundirPerfil(local, nuvem)
+  assert.equal(mudouTabela(local, fundido), true)
+})
+
+/* ---------- linhaValida / sanitizarDados: backup de fora nao e confiavel ---------- */
+
+test('linhaValida: aceita objeto com id de texto nao vazio', () => {
+  assert.ok(linhaValida({ id: 'a' }))
+  assert.ok(linhaValida({ id: 'a', qualquerCoisa: 123, aninhado: { x: 1 } }))
+})
+
+test('linhaValida: rejeita o que um backup estranho poderia trazer', () => {
+  assert.ok(!linhaValida(null))
+  assert.ok(!linhaValida(undefined))
+  assert.ok(!linhaValida('string solta'))
+  assert.ok(!linhaValida(42))
+  assert.ok(!linhaValida([1, 2, 3]))
+  assert.ok(!linhaValida({}))
+  assert.ok(!linhaValida({ id: '' }))
+  assert.ok(!linhaValida({ id: 123 }))
+  assert.ok(!linhaValida({ id: null }))
+  assert.ok(!linhaValida({ nome: 'sem id nenhum' }))
+})
+
+test('sanitizarDados: filtra linha invalida sem tocar na valida', () => {
+  const saida = sanitizarDados({
+    sessoes: [{ id: 's1', nome: 'ok' }, { id: '' }, null, 'lixo', { semId: true }],
+  })
+  assert.deepEqual(saida.sessoes, [{ id: 's1', nome: 'ok' }])
+})
+
+test('sanitizarDados: tabela que nao e array vira lista vazia, sem quebrar', () => {
+  const saida = sanitizarDados({ rotinas: 'nao deveria ser string', dieta: null, perfil: undefined })
+  assert.deepEqual(saida, { rotinas: [], dieta: [], perfil: [] })
+})
+
+test('sanitizarDados: tabela vazia ou ja limpa continua igual', () => {
+  const entrada = { xp: [{ id: 'e1' }, { id: 'e2' }], agua: [] }
+  assert.deepEqual(sanitizarDados(entrada), entrada)
 })

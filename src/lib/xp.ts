@@ -289,3 +289,67 @@ export async function checarConquistas(perfil?: Perfil): Promise<Conquista[]> {
 
   return novas
 }
+
+/* ------------------------------------------------------------------ */
+/* RECONSTRUCAO A PARTIR DO LEDGER                                     */
+/* ------------------------------------------------------------------ */
+
+/** Tamanho da sequencia de dias consecutivos que termina no ULTIMO dia da lista (ja ordenada). */
+function sequenciaFinal(dias: string[]): number {
+  if (!dias.length) return 0
+  let n = 1
+  for (let i = dias.length - 1; i > 0; i--) {
+    if (diffDias(dias[i - 1], dias[i]) === 1) n++
+    else break
+  }
+  return n
+}
+
+/** Maior sequencia de dias consecutivos em QUALQUER ponto da lista (ja ordenada). */
+function maiorSequenciaDeDias(dias: string[]): number {
+  if (!dias.length) return 0
+  let maior = 1
+  let atual = 1
+  for (let i = 1; i < dias.length; i++) {
+    atual = diffDias(dias[i - 1], dias[i]) === 1 ? atual + 1 : 1
+    maior = Math.max(maior, atual)
+  }
+  return maior
+}
+
+/**
+ * Recalcula xp, streak, melhorStreak e conquistas a partir do que REALMENTE
+ * aconteceu - o ledger `db.xp` - em vez de confiar no snapshot guardado em
+ * `perfil`.
+ *
+ * `db.xp` funde certo, registro por registro: dois aparelhos que deram XP em
+ * paralelo terminam com os eventos dos dois (ver fundirTabela). Mas o TOTAL
+ * que a tela mostra e um contador incremental gravado direto em `perfil.xp` -
+ * e `perfil` e uma linha unica, fundida CAMPO A CAMPO (ver fundirPerfil): o
+ * valor de `xp` que sobrevive e o de UM dos aparelhos, nunca a soma dos dois.
+ * Sem isto, o nivel exibido fica preso no que um dos aparelhos tinha no
+ * momento da fusao, mesmo com o ledger completo do lado - e uma conquista
+ * desbloqueada so num deles pode sumir do array (mesmo motivo).
+ *
+ * Precisa rodar depois de qualquer importacao que toque `xp`, `sessoes` ou
+ * `corpo` - as sessoes e o peso registrado tambem entram nas estatisticas de
+ * conquista (coletarStats). Ver reconstruirMelhores em db/melhores.ts, que
+ * resolve o mesmo tipo de problema pros recordes por exercicio.
+ */
+export async function reconstruirGamificacao(): Promise<void> {
+  const eventos = await db.xp.toArray()
+  const xp = eventos.reduce((t, e) => t + e.xp, 0)
+
+  const dias = [...new Set(eventos.map(e => e.data))].sort()
+  await salvarPerfil({
+    xp,
+    streak: sequenciaFinal(dias),
+    melhorStreak: maiorSequenciaDeDias(dias),
+    ultimoDiaAtivo: dias.length ? dias[dias.length - 1] : undefined,
+  })
+
+  // pode ter conquista que bateu a meta mas ficou de fora do array na fusao
+  // (o campo `conquistas` tambem e por campo inteiro) - checarConquistas so
+  // ADICIONA o que falta e nunca remove, entao rodar de novo aqui e seguro
+  await checarConquistas()
+}

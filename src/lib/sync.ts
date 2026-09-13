@@ -3,10 +3,11 @@ import {
 } from '../db'
 import { resetarCacheSeed } from '../db/seed'
 import { reconstruirMelhores } from './acoes'
+import { reconstruirGamificacao } from './xp'
 import { regerarAgenda } from './lembretes'
 import {
-  fundirTabela, fundirLapides, lapidesDe, assinatura, mudouTabela,
-  type LinhaSync, type Lapide,
+  fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela, sanitizarDados,
+  type LinhaSync, type Lapide, type ComCamposEm,
 } from './fundir'
 
 /* ------------------------------------------------------------------ */
@@ -78,18 +79,35 @@ export async function importar(backup: Backup, apenas?: readonly string[]): Prom
   if (backup?.app !== 'onemore' || !backup.dados) {
     throw new Error('Esse arquivo não e um backup do OneMore.')
   }
+  /**
+   * Este backup pode vir de um arquivo escolhido a mao ("Restaurar backup") -
+   * sem garantia nenhuma de formato. Filtra linha invalida ANTES de gravar,
+   * senao bulkPut aceita qualquer coisa (o IndexedDB nao tem schema pra
+   * reclamar) e o erro só aparece depois, renderizando um campo que a linha
+   * nao tem. Ver linhaValida/sanitizarDados em lib/fundir.ts.
+   */
+  const dados = sanitizarDados(backup.dados)
   const alvo = apenas ?? TABELAS
   const mexeu = (t: string) => (alvo as readonly string[]).includes(t)
   let registros = 0
   let tabelas = 0
   for (const t of alvo) {
-    const linhas = backup.dados[t]
+    const linhas = dados[t]
     if (!Array.isArray(linhas)) continue
     const tabela = (db as unknown as Record<string, {
       clear(): Promise<void>; bulkPut(v: unknown[]): Promise<unknown>
     }>)[t]
-    await tabela.clear()
-    if (linhas.length) await tabela.bulkPut(linhas)
+    /**
+     * clear + bulkPut na MESMA transacao: como duas chamadas separadas, uma
+     * leitura no meio do caminho (ex.: getPerfil rodando enquanto o `perfil`
+     * esta sendo reimportado) via a tabela vazia bem entre as duas e podia se
+     * "curar" com um valor padrao - que o bulkPut seguinte apagaria de volta,
+     * perdendo o que estava justamente chegando da sincronizacao.
+     */
+    await db.transaction('rw', db.table(t), async () => {
+      await tabela.clear()
+      if (linhas.length) await tabela.bulkPut(linhas)
+    })
     registros += linhas.length
     tabelas++
   }
@@ -100,6 +118,15 @@ export async function importar(backup: Backup, apenas?: readonly string[]): Prom
 
   // o backup traz sessoes novas: os recordes derivados precisam ser refeitos
   if (mexeu('sessoes')) await reconstruirMelhores()
+
+  /**
+   * xp/streak/melhorStreak/conquistas sao um snapshot em `perfil`, e `perfil`
+   * funde campo a campo (fundirPerfil) - o valor de `xp` que sobrevive e o de
+   * UM aparelho, nao a soma dos dois. `sessoes` e `corpo` tambem entram nas
+   * estatisticas de conquista (coletarStats), entao mudanca neles pode
+   * desbloquear algo mesmo sem nenhum evento de xp novo ter chegado.
+   */
+  if (mexeu('xp') || mexeu('sessoes') || mexeu('corpo')) await reconstruirGamificacao()
 
   /**
    * Reconstruir a agenda AQUI e obrigatorio, nao um detalhe. O rodizio so
@@ -195,7 +222,18 @@ export const sair = () => chamar('/sessao', { method: 'DELETE' })
  * linha e decidida pelo proprio carimbo de tempo, e so some de verdade o que
  * tem lapide (ver lib/fundir.ts).
  */
-export function fundirBackups(local: Backup, nuvem: Backup): Backup {
+export function fundirBackups(localBruto: Backup, nuvemBruto: Backup): Backup {
+  /**
+   * `nuvem` pode ter sido gravada por outra versao do app (ou, em tese, por um
+   * payload de conta comprometida) - filtra linha invalida ANTES de fundir,
+   * senao ela entra no resultado como se fosse valida e acaba publicada de
+   * volta pra nuvem e gravada neste aparelho. `local` sai do proprio banco
+   * deste aparelho, mas sanitiza igual: barato, e cobre um IndexedDB que
+   * tenha ficado com lixo de antes desta checagem existir.
+   */
+  const local = { ...localBruto, dados: sanitizarDados(localBruto.dados) }
+  const nuvem = { ...nuvemBruto, dados: sanitizarDados(nuvemBruto.dados) }
+
   const lapides = fundirLapides(
     (local.dados.apagados ?? []) as Lapide[],
     (nuvem.dados.apagados ?? []) as Lapide[],
@@ -204,11 +242,16 @@ export function fundirBackups(local: Backup, nuvem: Backup): Backup {
   const dados: Record<string, unknown[]> = {}
   for (const t of TABELAS) {
     if (t === 'apagados') continue
-    dados[t] = fundirTabela(
-      (local.dados[t] ?? []) as LinhaSync[],
-      (nuvem.dados[t] ?? []) as LinhaSync[],
-      lapidesDe(lapides, t),
-    )
+    // perfil e uma linha SO que junta saude, metas, lembretes e gamificacao -
+    // fundir por linha inteira faria editar uma coisa aqui apagar outra
+    // editada no outro aparelho. fundirPerfil funde campo a campo. Ver lib/fundir.ts.
+    dados[t] = t === 'perfil'
+      ? fundirPerfil(local.dados[t] as ComCamposEm[], nuvem.dados[t] as ComCamposEm[])
+      : fundirTabela(
+          (local.dados[t] ?? []) as LinhaSync[],
+          (nuvem.dados[t] ?? []) as LinhaSync[],
+          lapidesDe(lapides, t),
+        )
   }
   dados.apagados = lapides
 

@@ -57,6 +57,73 @@ export function fundirTabela<T extends LinhaSync>(
   return [...saida.values()]
 }
 
+/** Registro com carimbo por campo - o formato que `salvarPerfil` grava em `perfil`. */
+export interface ComCamposEm {
+  id?: string
+  atualizadoEm?: number
+  camposEm?: Record<string, number>
+  [chave: string]: unknown
+}
+
+/**
+ * Funde `perfil` CAMPO A CAMPO, usando o carimbo de cada campo em `camposEm`
+ * - nao o `atualizadoEm` da linha inteira.
+ *
+ * `fundirTabela` decide por linha inteira, e isso e certo pra sessoes, dieta,
+ * rotinas: cada linha e uma coisa so, editada de um jeito so. `perfil` e
+ * diferente - e uma linha UNICA que junta dados pessoais, saude, metas,
+ * lembretes e gamificacao, e cada pedaco e editado numa tela diferente, num
+ * momento diferente. Decidindo por linha inteira, marcar uma restricao
+ * alimentar num aparelho enquanto liga um lembrete no outro faz um apagar o
+ * outro por completo na proxima sincronizacao - sem precisar de corrida de
+ * tempo nenhuma, so do uso normal em dois aparelhos.
+ *
+ * Campo sem carimbo dos dois lados (registro gravado antes desta mudanca, ou
+ * tocado direto sem passar por `salvarPerfil`) cai pro criterio antigo -
+ * `atualizadoEm` da linha inteira - como rede de seguranca de compatibilidade.
+ *
+ * Recebe e devolve no formato de tabela (array de 0 ou 1 linha) pra encaixar
+ * no mesmo formato de `fundirBackups` - `perfil` e so mais uma tabela ali,
+ * só que com no maximo uma linha.
+ */
+export function fundirPerfil<T extends ComCamposEm>(local: T[] = [], nuvem: T[] = []): T[] {
+  const [l] = local
+  const [n] = nuvem
+  if (!l) return n ? [n] : []
+  if (!n) return [l]
+
+  const camposLocal = l.camposEm ?? {}
+  const camposNuvem = n.camposEm ?? {}
+  const chaves = new Set([...Object.keys(l), ...Object.keys(n)])
+  chaves.delete('camposEm')
+  chaves.delete('atualizadoEm')
+
+  const saida: Record<string, unknown> = {}
+  const camposEm: Record<string, number> = { ...camposLocal }
+
+  for (const chave of chaves) {
+    const tLocal = camposLocal[chave]
+    const tNuvem = camposNuvem[chave]
+    const semCarimboDosDois = tLocal == null && tNuvem == null
+    const localVence = semCarimboDosDois
+      ? (l.atualizadoEm ?? 0) >= (n.atualizadoEm ?? 0)
+      : (tLocal ?? -1) >= (tNuvem ?? -1)
+
+    saida[chave] = localVence ? l[chave] : n[chave]
+    if (!localVence && tNuvem != null) camposEm[chave] = tNuvem
+  }
+
+  // nada mudou de fato em relacao ao que ja estava aqui: devolve a MESMA
+  // referencia de `l`, pra `mudouTabela` ver que nao ha nada novo pra gravar
+  const igualAoLocal = [...chaves].every(c => JSON.stringify(saida[c]) === JSON.stringify(l[c]))
+  if (igualAoLocal) return [l]
+
+  saida.id = l.id
+  saida.atualizadoEm = Math.max(l.atualizadoEm ?? 0, n.atualizadoEm ?? 0)
+  saida.camposEm = camposEm
+  return [saida as T]
+}
+
 /** Une as lapides dos dois lados, ficando com a mais recente de cada. */
 export function fundirLapides(local: Lapide[] = [], nuvem: Lapide[] = []): Lapide[] {
   const saida = new Map<string, Lapide>()
@@ -111,4 +178,33 @@ export function assinatura(dados: Record<string, unknown[]>): string {
     partes.push(`${tabela}:${linhas.length}:${max}`)
   }
   return partes.join('|')
+}
+
+/**
+ * Uma linha valida so precisa ter `id` de texto nao vazio - e o unico requisito
+ * que toda tabela sincronizada compartilha (cada `interface` em db/types.ts
+ * comeca com `id: string`) e o que `bulkPut` usa como chave primaria.
+ *
+ * Sem checar isto, um backup de versao futura/antiga do app, ou um arquivo
+ * editado a mao antes de "Restaurar backup", e aceito e fundido/gravado do
+ * mesmo jeito que um valido - o IndexedDB nao tem schema pra reclamar, e o
+ * erro só aparece depois, tentando renderizar um campo que a linha nao tem.
+ */
+export const linhaValida = (l: unknown): l is { id: string } =>
+  !!l && typeof l === 'object' && typeof (l as { id?: unknown }).id === 'string'
+  && (l as { id: string }).id.length > 0
+
+/**
+ * Filtra linha invalida de cada tabela, sem mexer na forma do objeto
+ * (tabela -> array de linhas). Chamar em toda porta de entrada de um backup
+ * que nao veio do proprio `exportar()` deste aparelho - a nuvem (pode ter sido
+ * gravada por uma versao diferente do app) e o arquivo de "Restaurar backup"
+ * (escolhido a mao, sem garantia nenhuma do formato).
+ */
+export function sanitizarDados(dados: Record<string, unknown[]>): Record<string, unknown[]> {
+  const saida: Record<string, unknown[]> = {}
+  for (const [tabela, linhas] of Object.entries(dados)) {
+    saida[tabela] = Array.isArray(linhas) ? linhas.filter(linhaValida) : []
+  }
+  return saida
 }

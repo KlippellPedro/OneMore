@@ -1,4 +1,4 @@
-import { db, hoje, isoDia, getPerfil } from '../db'
+import { db, hoje, isoDia, getPerfil, salvarPerfil } from '../db'
 import { n0, n1, mesmoTexto } from './format'
 import type { ConfigLembretes, Lembrete, Perfil, PlanoRefeicao } from '../db/types'
 
@@ -370,7 +370,7 @@ export function iniciarLembretes() {
 export async function salvarConfig(patch: Partial<ConfigLembretes>) {
   const perfil = await getPerfil()
   const nova = { ...config(perfil), ...patch }
-  await db.perfil.put({ ...perfil, lembretes: nova, atualizadoEm: Date.now() })
+  await salvarPerfil({ lembretes: nova })
   await regerarAgenda()
   return nova
 }

@@ -251,6 +251,17 @@ export interface Perfil {
   ultimoDiaAtivo?: string
   conquistas: string[]
   atualizadoEm: number
+  /**
+   * Quando cada campo foi gravado por ultimo, mantido por `salvarPerfil`.
+   * `perfil` e uma linha SO (`id: 'me'`) que junta saude, metas, lembretes e
+   * gamificacao - coisas editadas em telas diferentes, em momentos diferentes.
+   * Sem isso, a fusao decidiria pelo `atualizadoEm` da linha inteira, e marcar
+   * uma restricao aqui enquanto liga um lembrete no outro aparelho faria um
+   * apagar o outro por completo na proxima sincronizacao. Ver fundirPerfil em
+   * lib/fundir.ts. Ausente em registros gravados antes desta mudanca - a fusao
+   * cai pro atualizadoEm da linha inteira nesse caso, como rede de seguranca.
+   */
+  camposEm?: Record<string, number>
 }
 
 /**

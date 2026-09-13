@@ -252,16 +252,40 @@ export const PERFIL_PADRAO: Perfil = {
   atualizadoEm: Date.now(),
 }
 
+/**
+ * Le-e-cria (se faltar) numa unica transacao. Sem isso, ler e gravar sao DUAS
+ * operacoes separadas: uma sincronizacao rodando `importar()` no meio - que
+ * limpa a tabela e repoe em seguida - podia ser pega bem no intervalo entre as
+ * duas, ver a tabela vazia e recriar o perfil padrao por cima do que estava
+ * prestes a chegar da nuvem.
+ */
 export async function getPerfil(): Promise<Perfil> {
-  const p = await db.perfil.get('me')
-  if (p) return p
-  await db.perfil.put(PERFIL_PADRAO)
-  return PERFIL_PADRAO
+  return db.transaction('rw', db.perfil, async () => {
+    const p = await db.perfil.get('me')
+    if (p) return p
+    await db.perfil.put(PERFIL_PADRAO)
+    return PERFIL_PADRAO
+  })
 }
 
+/**
+ * Le, aplica o patch e grava numa unica transacao. Sem isso, duas chamadas
+ * concorrentes (ou uma delas correndo contra a importacao da sincronizacao)
+ * podiam ler o mesmo "atual" e a segunda escrita apagar o que a primeira
+ * acabou de gravar - perda silenciosa de campo, nao so no perfil vindo de
+ * outro aparelho como dentro do proprio aparelho (dois `salvarPerfil` quase
+ * juntos, ex.: ganhar XP de refeicao e de agua na mesma acao).
+ */
 export async function salvarPerfil(patch: Partial<Perfil>) {
-  const atual = await getPerfil()
-  const novo = { ...atual, ...patch, id: 'me' as const, atualizadoEm: Date.now() }
-  await db.perfil.put(novo)
-  return novo
+  return db.transaction('rw', db.perfil, async () => {
+    const atual = await getPerfil()
+    const agora = Date.now()
+    // carimba so os campos que este patch de fato tocou - e o que permite a
+    // fusao decidir campo a campo em vez de por linha inteira. Ver fundirPerfil.
+    const camposEm = { ...atual.camposEm }
+    for (const chave of Object.keys(patch)) camposEm[chave] = agora
+    const novo = { ...atual, ...patch, id: 'me' as const, atualizadoEm: agora, camposEm }
+    await db.perfil.put(novo)
+    return novo
+  })
 }
