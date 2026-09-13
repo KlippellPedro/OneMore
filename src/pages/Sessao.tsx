@@ -110,13 +110,18 @@ export default function Sessao() {
     if (!idsEx) return
     let vivo = true
     ;(async () => {
+      const exIds = idsEx.split(',')
+      // em paralelo, entre exercicios E dentro de cada um: recorde e ultima
+      // carga de um exercicio nao dependem um do outro nem do exercicio
+      // seguinte - buscar em serie so somava tempo de ida-e-volta a toa
+      const pares = await Promise.all(
+        exIds.map(exId => Promise.all([recordeDe(exId), ultimaCarga(exId)])),
+      )
+      if (!vivo) return
       const recs: Record<string, Recorde> = {}
       const ants: Record<string, { carga: number; reps: number } | null> = {}
-      for (const exId of idsEx.split(',')) {
-        recs[exId] = await recordeDe(exId)
-        ants[exId] = await ultimaCarga(exId)
-      }
-      if (vivo) { setRecordes(recs); setAnteriores(ants) }
+      exIds.forEach((exId, i) => { recs[exId] = pares[i][0]; ants[exId] = pares[i][1] })
+      setRecordes(recs); setAnteriores(ants)
     })()
     return () => { vivo = false }
   }, [idsEx, id])
@@ -289,11 +294,11 @@ export default function Sessao() {
               <div className="flex items-start gap-2.5 mb-3">
                 <span className="w-1 self-stretch rounded-full shrink-0"
                   style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
-                <Link to={`/exercícios/${g.exercicioId}`} className="shrink-0">
+                <Link to={`/exercicios/${g.exercicioId}`} className="shrink-0">
                   <ImagemExercicio exercicioId={g.exercicioId} tamanho="mini" />
                 </Link>
                 <div className="flex-1 min-w-0">
-                  <Link to={`/exercícios/${g.exercicioId}`} className="text-[14.5px] font-bold leading-tight block">
+                  <Link to={`/exercicios/${g.exercicioId}`} className="text-[14.5px] font-bold leading-tight block">
                     {ex?.nome ?? 'Exercício'}
                     <span className="text-muted font-normal text-[11px] ml-1.5 whitespace-nowrap">ver execução ›</span>
                   </Link>

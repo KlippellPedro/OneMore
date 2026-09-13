@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, hoje, isoDia, diaMais } from '../db'
@@ -132,7 +132,7 @@ export default function Progresso() {
                   {progressao.slice(0, 8).map(p => {
                     const t = ROTULO_TENDENCIA[p.tendencia]
                     return (
-                      <button key={p.exercicioId} onClick={() => nav(`/exercícios/${p.exercicioId}`)}
+                      <button key={p.exercicioId} onClick={() => nav(`/exercicios/${p.exercicioId}`)}
                         className="w-full flex items-center gap-3 py-2 text-left active:bg-surface-2 rounded-lg px-1">
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-medium truncate">
@@ -182,7 +182,7 @@ export default function Progresso() {
             ) : (
               <div className="space-y-2 pb-4">
                 {sessoes.slice(0, 40).map(s => (
-                  <Card key={s.id} className="p-3.5" onClick={() => nav(`/histórico/${s.id}`)}>
+                  <Card key={s.id} className="p-3.5" onClick={() => nav(`/historico/${s.id}`)}>
                     <div className="flex items-start gap-3">
                       <div className="flex-1 min-w-0">
                         <p className="text-[13.5px] font-semibold truncate">{s.nome}</p>
@@ -322,6 +322,19 @@ function SheetPeso({ aberto, fechar, pesoAtual, onSalvo }: {
   const [f, setF] = useState({
     peso: String(pesoAtual), gorduraPct: '', cintura: '', braco: '', peito: '', coxa: '', quadril: '',
   })
+
+  /**
+   * Reseta ao ABRIR, nao so na primeira montagem: esta sheet fica montada o
+   * tempo todo (o pai renderiza <SheetPeso aberto={...}> incondicional), entao
+   * sem isto o campo digitado e nao salvo numa visita ficava esperando na
+   * proxima vez que a pessoa abrisse a tela - risco real de reenviar uma
+   * medida velha (cintura, por exemplo) pra uma data errada sem perceber.
+   */
+  useEffect(() => {
+    if (!aberto) return
+    setData(hoje())
+    setF({ peso: String(pesoAtual), gorduraPct: '', cintura: '', braco: '', peito: '', coxa: '', quadril: '' })
+  }, [aberto, pesoAtual])
 
   const campo = (k: keyof typeof f, label: string, ph: string) => (
     <Campo label={label}>
