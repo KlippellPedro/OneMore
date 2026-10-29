@@ -570,6 +570,10 @@ export function iniciarSyncAutomatico(aoSincronizar?: (r: ResultadoSync) => void
    */
   const consultar = async () => {
     if (!vivo || rodando || document.visibilityState !== 'visible') return
+    // sem nunca ter sincronizado aqui (sem conta, ou saiu dela) nao ha nuvem
+    // pra consultar: era uma requisicao a cada 10 s, pra sempre, so pra tomar
+    // 401. Entrar na conta sincroniza na hora e a marca passa a existir
+    if (!ultimoSync()) return
     try {
       if (await novidadeNaNuvem()) await executar()
     } catch { /* rede instavel: a proxima consulta tenta de novo */ }

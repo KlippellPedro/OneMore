@@ -41,7 +41,9 @@ export default defineConfig({
       manifest: {
         name: 'OneMore - Treino & Dieta',
         short_name: 'OneMore',
-        description: 'Monte treinos, controle a dieta e suba de nivel.',
+        description: 'Monte treinos, controle a dieta e suba de nível.',
+        lang: 'pt-BR',
+        categories: ['health', 'fitness', 'lifestyle'],
         theme_color: '#0a0714',
         background_color: '#0a0714',
         display: 'standalone',
@@ -55,12 +57,28 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
+        // segurar o dedo no icone do app instalado (Android) mostra estes atalhos.
+        // ?beber=250 e o mesmo caminho do botao da notificacao de agua (Home.tsx)
+        shortcuts: [
+          {
+            name: 'Beber água (+250 ml)', short_name: 'Beber água', url: './#/?beber=250',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Treinos', short_name: 'Treinos', url: './#/treinos',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+          {
+            name: 'Dieta de hoje', short_name: 'Dieta', url: './#/dieta',
+            icons: [{ src: 'icon-192.png', sizes: '192x192', type: 'image/png' }],
+          },
+        ],
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: 'index.html',
         // o sw.js gerado nao sabe nada de lembrete: esse arquivo e quem mostra
-        // a notificacao quando o Android acorda o app com ele fechado
+        // a notificacao com o app fechado - push do servidor ou Periodic Sync
         importScripts: ['lembretes-sw.js'],
       },
     }),

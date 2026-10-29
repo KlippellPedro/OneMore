@@ -70,6 +70,33 @@ function bipe() {
   } catch { /* som bloqueado pelo navegador, tudo bem */ }
 }
 
+/**
+ * Segura a tela ligada durante o treino. Sem isso o celular apagava no meio do
+ * descanso: o cronometro parava de aparecer, o bipe do fim do descanso tocava
+ * com a tela bloqueada (ou nem tocava) e cada serie comecava com desbloquear.
+ *
+ * O navegador solta a trava sozinho quando o app sai da tela, entao ela e
+ * pedida de novo ao voltar. Sem suporte (iPhone antigo), simplesmente nao faz.
+ */
+function useTelaLigada() {
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return
+    let trava: WakeLockSentinel | null = null
+    let vivo = true
+    const pedir = async () => {
+      if (!vivo || document.visibilityState !== 'visible' || (trava && !trava.released)) return
+      try { trava = await navigator.wakeLock.request('screen') } catch { /* bateria fraca, recusado */ }
+    }
+    pedir()
+    document.addEventListener('visibilitychange', pedir)
+    return () => {
+      vivo = false
+      document.removeEventListener('visibilitychange', pedir)
+      trava?.release().catch(() => {})
+    }
+  }, [])
+}
+
 /** O que a troca faz com as series do exercicio - mesma regra de trocarExercicio. */
 function notaTroca(doEx: SerieLog[]) {
   const feitas = doEx.filter(s => s.feito).length
@@ -93,6 +120,7 @@ export default function Sessao() {
   )
 
   const descanso = useDescanso()
+  useTelaLigada()
   const [agora, setAgora] = useState(Date.now())
   const [seletor, setSeletor] = useState(false)
   /** id do exercicio que vai ser trocado por outro, mantendo o lugar na lista. */
@@ -556,7 +584,8 @@ function NumInput({ valor, onChange, passo, feito, inteiro, destaque }: {
           const v = Number(e.target.value || 0)
           onChange(inteiro ? Math.round(v) : v)
         }}
-        className={`flex-1 min-w-0 h-full text-center bg-transparent font-bold text-[15px] outline-none tabular-nums ${
+        // 16px: com 15 o iPhone dava zoom na tela a cada carga digitada (ver inputBase em ui.tsx)
+        className={`flex-1 min-w-0 h-full text-center bg-transparent font-bold text-base outline-none tabular-nums ${
           destaque ? 'text-xp' : feito ? 'text-good' : 'text-txt'
         }`} />
       <button onClick={() => onChange(Number((valor + passo).toFixed(2)))}

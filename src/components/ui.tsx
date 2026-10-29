@@ -98,8 +98,10 @@ export function Campo({ label, hint, children }: { label: string; hint?: string;
   )
 }
 
+// text-base (16px) e o minimo: abaixo disso o Safari do iPhone da zoom na
+// pagina inteira ao tocar no campo - e nao desfaz quando sai dele
 const inputBase =
-  'w-full h-11 px-3.5 rounded-xl bg-bg-soft border border-line text-txt text-sm ' +
+  'w-full h-11 px-3.5 rounded-xl bg-bg-soft border border-line text-txt text-base ' +
   'outline-none focus:border-accent/60 transition-colors placeholder:text-muted/50'
 
 export function Input(props: React.ComponentProps<'input'>) {

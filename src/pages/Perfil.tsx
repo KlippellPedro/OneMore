@@ -15,6 +15,7 @@ import { MARCADORES, PRESETS, type Marcador } from '../db/marcadores'
 import { Titulo } from '../components/Cabecalho'
 import { SheetMetas } from '../components/SheetMetas'
 import { SheetAparencia } from '../components/SheetAparencia'
+import { CardInstalar } from '../components/Instalar'
 import { resumoTema } from '../lib/tema'
 import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
 import { useUI } from '../state/ui'
@@ -91,6 +92,9 @@ export default function Perfil() {
             {n0(xpParaProximo - xpNoNivel)} XP para o nível {nivel + 1}
           </p>
         </Card>
+
+        <CardInstalar className="mb-4"
+          motivo="Abre em tela cheia, funciona offline na academia e recebe os lembretes com o app fechado." />
 
         <Grupo titulo="Você">
           <Linha titulo="Meus dados" sub={`${perfil.sexo === 'M' ? 'Homem' : 'Mulher'} - ${perfil.alturaCm} cm - ${n1(perfil.pesoKg)} kg`}

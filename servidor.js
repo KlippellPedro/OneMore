@@ -15,6 +15,8 @@ import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
 import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { promisify } from 'node:util'
+import { brotliCompress, gzip as gzipCompress, constants as zlib } from 'node:zlib'
 import { conectarComRetentativa } from './servidor/banco.js'
 import { tratarApi } from './servidor/api.js'
 import { CABECALHOS_SEGURANCA } from './servidor/seguranca.js'
@@ -47,9 +49,13 @@ const TIPOS = {
  * O service worker e o index nunca podem ficar presos em cache, senao o app
  * atualizado nunca chega no celular. O resto do build tem hash no nome, entao
  * pode cachear pra sempre.
+ *
+ * lembretes-sw.js entra na lista porque o sw.js o importa: ao atualizar, o
+ * navegador busca o importado pelo cache HTTP - com 1 dia de cache, o
+ * service worker novo subia com os lembretes velhos (sem o push) por ate 24 h.
  */
 function cacheDe(caminho) {
-  if (/(^|\/)(sw|registerSW)\.js$|\.webmanifest$|index\.html$/.test(caminho)) {
+  if (/(^|\/)(sw|registerSW|lembretes-sw)\.js$|\.webmanifest$|index\.html$/.test(caminho)) {
     return 'no-cache'
   }
   return caminho.includes('/assets/')
@@ -71,6 +77,40 @@ async function achar(urlPath) {
   }
 }
 
+/** Texto comprime ~70%: o JS do app cai de ~730 KB pra ~200 KB no 4G da academia. */
+const COMPRIMIVEIS = new Set(['.html', '.js', '.css', '.json', '.webmanifest', '.svg', '.txt'])
+const brotli = promisify(brotliCompress)
+const gzip = promisify(gzipCompress)
+
+/**
+ * Arquivo lido e comprimido UMA vez, guardado em memoria. O site/ so muda num
+ * deploy novo - que reinicia o processo - entao nao ha o que invalidar. Cabe
+ * folgado: o site inteiro, com as versoes comprimidas, da poucos MB.
+ *
+ * Guarda a promessa, nao o resultado: duas requisicoes do mesmo arquivo
+ * chegando juntas na primeira vez comprimem uma vez so.
+ */
+const memoria = new Map()
+
+function carregar(alvo) {
+  let item = memoria.get(alvo)
+  if (!item) {
+    item = (async () => {
+      const corpo = await readFile(alvo)
+      if (!COMPRIMIVEIS.has(extname(alvo)) || corpo.length < 1024) return { corpo }
+      const [br, gz] = await Promise.all([
+        brotli(corpo, { params: { [zlib.BROTLI_PARAM_QUALITY]: 11 } }),
+        gzip(corpo, { level: 9 }),
+      ])
+      return { corpo, br, gz }
+    })()
+    memoria.set(alvo, item)
+    // erro de leitura nao pode ficar guardado pra sempre
+    item.catch(() => memoria.delete(alvo))
+  }
+  return item
+}
+
 const servidor = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://local')
@@ -78,10 +118,17 @@ const servidor = createServer(async (req, res) => {
     if (await tratarApi(req, res, url.pathname)) return
     // o app usa rotas em #/, entao qualquer caminho desconhecido e o index mesmo
     const alvo = (await achar(url.pathname)) ?? join(RAIZ, 'index.html')
-    const corpo = await readFile(alvo)
+    const item = await carregar(alvo)
+    const aceita = String(req.headers['accept-encoding'] ?? '')
+    const [codificacao, corpo] = item.br && /\bbr\b/.test(aceita) ? ['br', item.br]
+      : item.gz && /\bgzip\b/.test(aceita) ? ['gzip', item.gz]
+        : [null, item.corpo]
     res.writeHead(200, {
       'Content-Type': TIPOS[extname(alvo)] ?? 'application/octet-stream',
       'Cache-Control': cacheDe(alvo.replace(/\\/g, '/')),
+      // proxy/CDN no caminho: a versao comprimida so serve pra quem pediu ela
+      Vary: 'Accept-Encoding',
+      ...(codificacao ? { 'Content-Encoding': codificacao } : {}),
       ...CABECALHOS_SEGURANCA,
     })
     res.end(corpo)

@@ -20,4 +20,11 @@ export const CABECALHOS_SEGURANCA = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
   'Referrer-Policy': 'strict-origin-when-cross-origin',
+  /*
+   * Strict-Transport-Security: o navegador passa a recusar http:// pro site
+   * por 180 dias - quem digita o endereco sem https, ou cai num link velho,
+   * nao manda o cookie de sessao em texto puro nem por um request. So em
+   * producao: no localhost (http) isso travaria o desenvolvimento.
+   */
+  ...(process.env.PRODUCAO === '1' ? { 'Strict-Transport-Security': 'max-age=15552000' } : {}),
 }

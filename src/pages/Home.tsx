@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, hoje, isoDia } from '../db'
 import {
@@ -102,6 +102,26 @@ export default function Home() {
     if (g) celebrar(g)
     else toast(`+${ml} ml`, 'ok')
   }
+
+  /**
+   * O "+250 ml" da notificacao de agua (e o atalho do icone do app) abre aqui
+   * com ?beber=250. Registra uma vez e limpa o parametro - senao voltar pra
+   * Home registraria de novo. O ref segura o StrictMode, que roda efeito duas
+   * vezes em desenvolvimento.
+   */
+  const [params, setParams] = useSearchParams()
+  const pedido = Number(params.get('beber')) || 0
+  const atendido = useRef(false)
+  const atenderPedido = useEffectEvent((ml: number) => {
+    setParams({}, { replace: true })
+    if (ml > 0 && ml <= 1000) beber(ml)
+  })
+  useEffect(() => {
+    if (!pedido) { atendido.current = false; return }
+    if (atendido.current) return
+    atendido.current = true
+    atenderPedido(pedido)
+  }, [pedido])
 
   return (
     <div className="px-4 pt-4 safe-t">
