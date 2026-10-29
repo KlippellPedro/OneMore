@@ -8,6 +8,7 @@ import { Cabecalho } from '../components/Cabecalho'
 import { Btn, Input, Chip, Sheet, Campo, Select, Textarea } from '../components/ui'
 import { BotaoFavorito } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
+import { SelectFamilia } from '../components/Variacoes'
 import { CREDITO_IMAGENS } from '../db/imagensExercicios'
 import { useUI } from '../state/ui'
 import type { GrupoMuscular, Equipamento } from '../db/types'
@@ -122,6 +123,7 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
   const [nome, setNome] = useState('')
   const [grupo, setGrupo] = useState<GrupoMuscular>('peito')
   const [equip, setEquip] = useState<Equipamento>('barra')
+  const [familia, setFamilia] = useState<string | undefined>()
   const [exec, setExec] = useState('')
   const [video, setVideo] = useState('')
 
@@ -129,7 +131,7 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
     if (!nome.trim()) return toast('Da um nome pro exercício', 'erro')
     await db.exercicios.put({
       id: 'usr_' + uid(),
-      nome: nome.trim(), grupo, equipamento: equip,
+      nome: nome.trim(), grupo, equipamento: equip, familia,
       execucao: exec.split('\n').map(s => s.trim()).filter(Boolean),
       erros: [],
       videoUrl: video.trim() || undefined,
@@ -137,7 +139,7 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
       atualizadoEm: Date.now(),
     })
     onCriado(nome.trim())
-    setNome(''); setExec(''); setVideo('')
+    setNome(''); setExec(''); setVideo(''); setFamilia(undefined)
     fechar()
   }
 
@@ -153,6 +155,9 @@ function NovoExercicio({ aberto, fechar, onCriado }: {
         <Select value={equip} onChange={e => setEquip(e.target.value as Equipamento)}>
           {EQUIPAMENTOS.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
         </Select>
+      </Campo>
+      <Campo label="Movimento" hint="Opcional. Faz ele aparecer como variação dos outros do mesmo movimento, e vice-versa.">
+        <SelectFamilia valor={familia} onChange={setFamilia} />
       </Campo>
       <Campo label="Execução" hint="Uma etapa por linha.">
         <Textarea rows={4} value={exec} onChange={e => setExec(e.target.value)}

@@ -13,6 +13,11 @@ const ICONES: Record<string, ReactNode> = {
   alerta: <><path d="M12 3.2 2.3 20.3h19.4z" /><path d="M12 9.5v4.3M12 17.1h.01" /></>,
   'chevron-cima': <path d="M6 14.5 12 8.5l6 6" />,
   'chevron-baixo': <path d="M6 9.5 12 15.5l6-6" />,
+  // duas setas opostas: "isto no lugar daquilo"
+  trocar: <>
+    <path d="M4.5 8.5h14M15 4.8l3.7 3.7-3.7 3.7" />
+    <path d="M19.5 15.5h-14M9 11.8l-3.7 3.7L9 19.2" />
+  </>,
   arrastar: <>
     <circle cx="9" cy="6" r="1.3" /><circle cx="15" cy="6" r="1.3" />
     <circle cx="9" cy="12" r="1.3" /><circle cx="15" cy="12" r="1.3" />

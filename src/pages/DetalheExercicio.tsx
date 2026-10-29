@@ -11,6 +11,7 @@ import { useUI } from '../state/ui'
 import { youtubeId, dataNumerica, n0, peso, pl } from '../lib/format'
 import { Icone, BotaoFavorito } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
+import { CardVariacoes } from '../components/Variacoes'
 import { imagemExercicio } from '../db/imagensExercicios'
 
 export default function DetalheExercicio() {
@@ -159,6 +160,8 @@ export default function DetalheExercicio() {
             </ul>
           </Card>
         )}
+
+        <CardVariacoes ex={ex} />
 
         {/* -------- evolucao -------- */}
         {historico.length > 0 && (

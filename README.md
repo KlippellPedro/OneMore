@@ -64,11 +64,18 @@ Instalado, ele abre em tela cheia, sem barra de navegador, e funciona sem intern
   Cada um explica **por que funciona** e **pra quem não serve**. Escolher aplica as
   rotinas prontas, com exercícios, séries e descanso já definidos
 - **Minha semana**: cada dia da semana recebe uma rotina (ou descanso), com um toque
-- **126 exercícios** no catálogo, em português, com passo a passo de execução e os
-  erros mais comuns de cada um
-- **Ilustração de execução em todos os 126**: dois quadros (início e fim do movimento)
+- **172 exercícios** no catálogo, em português, com passo a passo de execução e os
+  erros mais comuns de cada um — barra, halter, máquina, Smith, cabo e peso corporal
+- **Ilustração de execução em 158 deles**: dois quadros (início e fim do movimento)
   que alternam sozinhos, em SVG — 5,7 KB em média, funciona offline. Aparece grande na
   página do exercício e em miniatura no player, do lado de cada série
+- **Variações**: cada exercício sabe quais outros fazem o mesmo movimento em outro
+  aparelho (supino com halter → na máquina, no Smith, com barra, flexão). Aparecem na
+  página do exercício, e exercício criado por você entra escolhendo o movimento dele
+- **Trocar no meio do treino**: aparelho ocupado? O botão de troca do lado de cada
+  exercício mostra primeiro as variações do mesmo movimento, com a última carga que
+  você usou em cada uma, depois os outros do mesmo músculo. As séries já feitas ficam
+  registradas no exercício original; só as que faltam mudam
 - Campo de **link de vídeo** por exercício — cola um YouTube e ele toca dentro do app
 - Monta rotinas (Treino A/B/C…) com séries, repetições alvo, carga alvo e descanso
 - **Player de treino**: marca série por série, cronômetro de descanso automático
@@ -264,6 +271,7 @@ src/
     index.ts            Dexie (IndexedDB) + helpers de data
     seedExercicios.ts   catálogo de exercícios
     imagensExercicios.ts  exercício -> arquivo da ilustração em public/exercicios/
+    variacoes.ts        famílias de variação (mesmo movimento, outro aparelho)
     seedAlimentos.ts    catálogo de alimentos
     programas.ts        biblioteca de programas de treino
     seed.ts             popula na 1ª execução, atualiza sem apagar o que é seu
@@ -308,5 +316,8 @@ O crédito aparece no rodapé de **Perfil → Exercícios** — a licença exige
 
 ### Adicionar exercícios ou alimentos ao catálogo
 Edita `seedExercicios.ts` / `seedAlimentos.ts` e sobe o `VERSAO_SEED` em `seed.ts`.
+Exercício novo também entra numa família em `db/variacoes.ts` — o `variacoes.test.mjs`
+falha se ficar de fora (ou se o id não bater com o nome) — e, se houver desenho do
+mesmo movimento, no mapa de `imagensExercicios.ts`.
 O seed preserva o que você personalizou (vídeo, favorito) e nunca toca no que você criou.
 Pra itens pontuais, dá pra criar direto pelo app.

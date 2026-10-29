@@ -1,6 +1,6 @@
 export type GrupoMuscular =
   | 'peito' | 'costas' | 'ombro' | 'biceps' | 'triceps' | 'antebraco'
-  | 'quadriceps' | 'posterior' | 'gluteo' | 'panturrilha'
+  | 'quadriceps' | 'posterior' | 'gluteo' | 'adutores' | 'panturrilha'
   | 'abdomen' | 'lombar' | 'cardio' | 'corpo-inteiro'
 
 export type Equipamento =
@@ -23,6 +23,11 @@ export interface Exercicio {
   imagemUrl?: string
   /** true = criado pelo usuario (nunca sobrescrito pelo seed). */
   custom?: boolean
+  /**
+   * Familia de variacao (ver db/variacoes.ts) de um exercicio criado pelo
+   * usuario. Os do catalogo nao precisam: a familia deles esta no mapa.
+   */
+  familia?: string
   favorito?: boolean
   atualizadoEm: number
 }

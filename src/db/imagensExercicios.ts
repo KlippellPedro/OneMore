@@ -24,7 +24,18 @@ const SLUGS: Record<string, string> = {
   'ex_flexao-com-pes-elevados': 'decline-push-up',
   'ex_mergulho-nas-paralelas': 'chest-dip',
   'ex_pullover-com-halter': 'straight-arm-pulldown',
+  'ex_supino-reto-no-smith': 'bench-press',
+  'ex_supino-inclinado-na-maquina': 'machine-chest-press',
+  'ex_supino-declinado-com-halteres': 'decline-bench-press',
+  'ex_crossover-polia-media': 'cable-fly',
+  'ex_flexao-inclinada-maos-no-banco': 'push-up',
+  'ex_mergulho-assistido-na-maquina': 'chest-dip',
   // costas
+  'ex_barra-fixa-assistida-na-maquina': 'pull-up',
+  'ex_puxada-articulada-na-maquina': 'lat-pulldown',
+  'ex_remada-curvada-com-halteres': 'barbell-row',
+  'ex_remada-unilateral-no-cabo': 'seated-row',
+  'ex_encolhimento-com-barra': 'dumbbell-shrug',
   'ex_barra-fixa-pronada': 'pull-up',
   'ex_barra-fixa-supinada': 'chin-up',
   'ex_encolhimento-com-halteres': 'dumbbell-shrug',
@@ -55,6 +66,11 @@ const SLUGS: Record<string, string> = {
   'ex_voador-inverso-na-maquina': 'reverse-pec-deck',
   'ex_face-pull-no-cabo': 'face-pull',
   'ex_remada-alta': 'upright-row',
+  'ex_elevacao-lateral-na-maquina': 'lateral-raise',
+  'ex_elevacao-lateral-com-elastico': 'lateral-raise',
+  'ex_elevacao-frontal-no-cabo': 'front-raise',
+  'ex_crucifixo-inverso-no-cabo': 'reverse-pec-deck',
+  'ex_remada-alta-no-cabo': 'upright-row',
   // biceps
   'ex_rosca-direta-com-barra': 'ez-bar-curl',
   'ex_rosca-direta-com-barra-w': 'ez-bar-curl',
@@ -65,6 +81,8 @@ const SLUGS: Record<string, string> = {
   'ex_rosca-scott': 'preacher-curl',
   'ex_rosca-no-cabo': 'cable-curl',
   'ex_rosca-inversa': 'reverse-curl',
+  'ex_rosca-scott-na-maquina': 'preacher-curl',
+  'ex_rosca-martelo-na-corda': 'hammer-curl',
   // triceps
   'ex_triceps-pulley-com-barra': 'tricep-pushdown',
   'ex_triceps-pulley-com-corda': 'rope-tricep-pushdown',
@@ -75,6 +93,9 @@ const SLUGS: Record<string, string> = {
   'ex_supino-fechado': 'close-grip-bench-press',
   'ex_mergulho-no-banco': 'bench-dip',
   'ex_flexao-diamante': 'diamond-push-up',
+  'ex_triceps-frances-na-polia': 'dumbbell-overhead-tricep-extension',
+  'ex_triceps-coice-na-polia': 'tricep-kickback',
+  'ex_triceps-testa-com-halteres': 'skull-crusher',
   // antebraco
   'ex_rosca-de-punho': 'wrist-curl',
   'ex_rosca-de-punho-inversa': 'wrist-extension',
@@ -93,6 +114,9 @@ const SLUGS: Record<string, string> = {
   'ex_afundo-com-halteres': 'reverse-lunge',
   'ex_afundo-sem-peso': 'forward-lunge',
   'ex_passada-walking-lunge': 'walking-lunge',
+  'ex_leg-press-horizontal': 'leg-press',
+  'ex_afundo-no-smith': 'reverse-lunge',
+  'ex_afundo-reverso-com-halteres': 'reverse-lunge',
   // posterior
   'ex_stiff-com-barra': 'romanian-deadlift',
   'ex_terra-romeno-com-halteres': 'dumbbell-romanian-deadlift',
@@ -108,12 +132,17 @@ const SLUGS: Record<string, string> = {
   'ex_coice-na-polia': 'cable-kickback',
   'ex_step-up-no-banco': 'step-up',
   'ex_agachamento-sumo-com-halter': 'dumbbell-sumo-squat',
+  'ex_elevacao-pelvica-na-maquina': 'hip-thrust',
+  'ex_elevacao-pelvica-no-smith': 'hip-thrust',
+  'ex_coice-na-maquina': 'cable-kickback',
+  'ex_abducao-no-cabo': 'banded-standing-hip-abduction',
   // panturrilha
   'ex_panturrilha-em-pe-na-maquina': 'standing-calf-raise',
   'ex_panturrilha-sentado': 'seated-calf-raise',
   'ex_panturrilha-no-leg-press': 'leg-press-calf-raise',
   'ex_panturrilha-em-pe-sem-peso': 'calf-raise',
   'ex_panturrilha-unilateral-com-halter': 'single-leg-calf-raise',
+  'ex_panturrilha-no-smith': 'standing-calf-raise',
   // abdomen
   'ex_abdominal-supra-crunch': 'crunch',
   'ex_abdominal-bicicleta': 'bicycle-crunch',
@@ -159,7 +188,10 @@ const SLUGS: Record<string, string> = {
  */
 export function imagemExercicio(exercicioId: string, quadro: 1 | 2 = 1): string | null {
   const slug = SLUGS[exercicioId]
-  return slug ? `${import.meta.env.BASE_URL}exercícios/${slug}-${quadro}.svg` : null
+  // "exercicios" SEM acento: e o nome da pasta em public/. Uma troca em massa
+  // de acento ja deixou isto como "exercícios" - todo desenho dava 404 e sumia
+  // calado (ImagemExercicio esconde o que falha). O esquema.test.mjs confere.
+  return slug ? `${import.meta.env.BASE_URL}exercicios/${slug}-${quadro}.svg` : null
 }
 
 /** Quantos exercicios do catalogo tem ilustracao. */

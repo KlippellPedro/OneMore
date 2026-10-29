@@ -103,3 +103,24 @@ test('toda tabela citada no sync existe no banco', () => {
     assert.deepEqual(citadas.filter(t => !tabelas.includes(t)), [], nome)
   }
 })
+
+/**
+ * Mesma familia de bug das rotas: a troca em massa de acento transformou o
+ * caminho das ilustracoes em `exercícios/`, e a pasta em public/ e
+ * `exercicios/`. Todo desenho dava 404 e ImagemExercicio, que esconde o que
+ * falha, sumia com eles sem erro nenhum na tela - o app ficou sem ilustracao
+ * nenhuma e ninguem percebeu. Confere a pasta do caminho e cada arquivo.
+ */
+test('toda ilustracao do mapa existe em public/, no caminho que o app pede', () => {
+  const mapa = io.readFileSync(new URL('./imagensExercicios.ts', import.meta.url), 'utf8')
+  const pasta = mapa.match(/BASE_URL\}([^/`$]+)\/\$\{slug\}/)?.[1]
+  assert.ok(pasta, 'deveria achar a pasta no template do caminho')
+  const publico = new URL('../../public/', import.meta.url)
+  assert.ok(io.existsSync(new URL(`${pasta}/`, publico)), `public/${pasta}/ nao existe`)
+
+  const slugs = [...new Set([...mapa.matchAll(/^ {2}'ex_[^']+': '([^']+)',/gm)].map(m => m[1]))]
+  assert.ok(slugs.length > 50, 'deveria achar os slugs do mapa')
+  const faltando = slugs.flatMap(s => [1, 2].map(q => `${s}-${q}.svg`))
+    .filter(arq => !io.existsSync(new URL(`${pasta}/${arq}`, publico)))
+  assert.deepEqual(faltando, [])
+})
