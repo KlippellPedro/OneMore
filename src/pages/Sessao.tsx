@@ -155,6 +155,8 @@ export default function Sessao() {
   })
 
   const feitas = sessao.series.filter(s => s.feito).length
+  // o que concluirSessao aceita como treino: aquecimento sozinho nao fecha nada
+  const deTrabalho = sessao.series.filter(s => s.feito && !s.aquecimento).length
   const totalSeries = sessao.series.length
   const volume = volumeSessao(sessao)
 
@@ -426,11 +428,25 @@ export default function Sessao() {
           toast(nome ? `${nome} saiu do treino` : 'Exercício removido', 'ok')
         }} />
 
-      <Confirmar aberto={confirmarFim} titulo="Finalizar treino?"
-        texto={feitas < totalSeries
-          ? `Você fez ${feitas} de ${totalSeries} séries. As não marcadas não contam.`
-          : `${feitas} séries concluidas. Mandou bem.`}
-        onSim={finalizar} onNao={() => setConfirmarFim(false)} />
+      {deTrabalho > 0 ? (
+        <Confirmar aberto={confirmarFim} titulo="Finalizar treino?"
+          texto={feitas < totalSeries
+            ? `Você fez ${feitas} de ${totalSeries} séries. As não marcadas não contam.`
+            : `${feitas} séries concluidas. Mandou bem.`}
+          onSim={finalizar} onNao={() => setConfirmarFim(false)} />
+      ) : (
+        <Confirmar aberto={confirmarFim} perigo titulo="Descartar treino?"
+          texto={feitas > 0
+            ? 'Só séries de aquecimento foram marcadas, e elas não contam como treino. Nada vai ser salvo.'
+            : 'Nenhuma série foi marcada, então não há treino pra salvar.'}
+          onNao={() => setConfirmarFim(false)}
+          onSim={async () => {
+            setConfirmarFim(false)
+            descanso.parar()
+            await descartarSessao(id)
+            nav('/')
+          }} />
+      )}
 
       <Confirmar aberto={confirmarSair} titulo="Sair do treino?"
         texto={feitas > 0

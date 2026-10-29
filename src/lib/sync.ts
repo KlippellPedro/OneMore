@@ -1,7 +1,11 @@
 import {
   db, normalizarFlags, limparLapidesVelhas, escutarEscrita, semAvisarEscrita,
+  apagarLinhas, hoje, PERFIL_PADRAO, type TabelaSync,
 } from '../db'
 import { resetarCacheSeed } from '../db/seed'
+import { EXERCICIOS_SEED } from '../db/seedExercicios'
+import { ALIMENTOS_SEED } from '../db/seedAlimentos'
+import type { Perfil } from '../db/types'
 import { reconstruirMelhores } from './acoes'
 import { reconstruirGamificacao } from './xp'
 import { regerarAgenda } from './lembretes'
@@ -56,7 +60,8 @@ export async function baixarBackup() {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `onemore-backup-${new Date().toISOString().slice(0, 10)}.json`
+  // hoje() e nao toISOString(): o UTC poe a data de amanha no backup feito depois das 21h
+  a.download = `onemore-backup-${hoje()}.json`
   a.click()
   setTimeout(() => URL.revokeObjectURL(url), 2000)
 }
@@ -142,8 +147,66 @@ export async function importar(backup: Backup, apenas?: readonly string[]): Prom
   return { tabelas, registros }
 }
 
+/**
+ * Limpa ESTE aparelho - lapides inclusive. So serve pra quem nao sincroniza:
+ * com conta, a proxima fusao junta o aparelho vazio com a nuvem cheia e traz
+ * tudo de volta. Quem tem conta passa por apagarTudoNaConta.
+ */
 export async function apagarTudo() {
   for (const t of [...TABELAS, ...TABELAS_DERIVADAS]) await limpar(t)
+  localStorage.removeItem('onemore:seed')
+  resetarCacheSeed()
+}
+
+/** O que a pessoa criou e pode levar lapide inteiro. Catalogo fica de fora - ver abaixo. */
+const CRIADAS_PELA_PESSOA: TabelaSync[] = [
+  'rotinas', 'sessoes', 'planos', 'dietas', 'dieta', 'corpo', 'xp', 'agua', 'glicemia',
+]
+
+/**
+ * "Apagar tudo" de quem tem conta. Em vez de limpar, apaga do jeito que a
+ * fusao entende - e por isso apaga tambem na nuvem e nos outros aparelhos,
+ * na proxima sincronizacao de cada um:
+ *
+ * - lapide pra cada linha do que a pessoa criou;
+ * - catalogo (exercicios e alimentos): so o que a pessoa criou leva lapide.
+ *   O que veio do seed volta em toda abertura do app, com carimbo 0, e uma
+ *   lapide o mataria na fusao pra sempre. Ele volta limpo, com carimbo novo -
+ *   e o que vence o favorito e o video que o outro aparelho ainda tem;
+ * - perfil: zera com carimbo novo em TODO campo, inclusive os que o padrao
+ *   nao tem (restricoes, lembretes, saude). Campo sem carimbo novo voltaria
+ *   do outro aparelho, um por um, na fusao campo a campo (fundirPerfil).
+ *
+ * As gravacoes avisam a sincronizacao como qualquer outra. Quem chama roda o
+ * seed depois, igual ao apagarTudo, pra montar o setup inicial de novo.
+ */
+export async function apagarTudoNaConta() {
+  const agora = Date.now()
+
+  for (const t of CRIADAS_PELA_PESSOA) {
+    await apagarLinhas(t, (await db.table(t).toCollection().primaryKeys()) as string[])
+  }
+
+  await apagarLinhas('exercicios',
+    (await db.exercicios.toArray()).filter(e => e.custom).map(e => e.id))
+  await apagarLinhas('alimentos',
+    (await db.alimentos.toArray()).filter(a => a.custom).map(a => a.id))
+  await db.exercicios.bulkPut(EXERCICIOS_SEED.map(s => ({ ...s, atualizadoEm: agora })))
+  await db.alimentos.bulkPut(ALIMENTOS_SEED.map(s => ({ ...s, atualizadoEm: agora })))
+
+  const antes = await db.perfil.get('me')
+  const campos = new Set([...Object.keys(antes ?? {}), ...Object.keys(PERFIL_PADRAO)])
+  for (const c of ['id', 'atualizadoEm', 'camposEm']) campos.delete(c)
+  const zerado: Record<string, unknown> = {}
+  const camposEm: Record<string, number> = {}
+  for (const c of campos) {
+    // undefined pro que o padrao nao tem - com carimbo, e isso que a fusao leva
+    zerado[c] = (PERFIL_PADRAO as unknown as Record<string, unknown>)[c]
+    camposEm[c] = agora
+  }
+  await db.perfil.put({ ...zerado, id: 'me', atualizadoEm: agora, camposEm } as unknown as Perfil)
+
+  for (const t of TABELAS_DERIVADAS) await limpar(t)
   localStorage.removeItem('onemore:seed')
   resetarCacheSeed()
 }
@@ -206,7 +269,15 @@ export const redefinirSenha = (email: string, codigo: string, senha: string) =>
 export const entrar = (email: string, senha: string) =>
   chamar<Usuario>('/sessao', { method: 'POST', body: JSON.stringify({ email, senha }) })
 
-export const sair = () => chamar('/sessao', { method: 'DELETE' })
+/**
+ * Sai e esquece as marcas de sincronizacao deste aparelho. "Ja sincronizou
+ * aqui" e o que o Apagar tudo usa, sem internet, pra saber se o aparelho esta
+ * ligado a uma conta - quem saiu nao esta mais.
+ */
+export async function sair() {
+  await chamar('/sessao', { method: 'DELETE' })
+  for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA]) localStorage.removeItem(chave)
+}
 
 /* ------------------------------------------------------------------ */
 /* SINCRONIZACAO POR FUSAO                                             */

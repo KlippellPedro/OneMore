@@ -177,6 +177,18 @@ export interface EventoXP {
   motivo: string
   xp: number
   data: string            // YYYY-MM-DD
+  /**
+   * Treino que gerou o evento (tipo 'treino' e 'pr'). E o que deixa apagar um
+   * treino levando junto o XP dele. Eventos de antes disso nao tem - ver
+   * apagarSessao em lib/acoes.ts.
+   */
+  sessaoId?: string
+  /**
+   * Ids das conquistas pagas neste evento (tipo 'conquista'). O ledger e o que
+   * sobrevive inteiro a fusao entre aparelhos, entao e ele quem diz o que ja
+   * foi pago - ver reconstruirGamificacao em lib/xp.ts.
+   */
+  conquistas?: string[]
 }
 
 /* ------------------------------------------------------------------ */

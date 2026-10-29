@@ -75,3 +75,19 @@ test('varios exercicios: ordena por quem tem mais sessoes', () => {
   assert.equal(r[0].sessoes, 3)
   assert.equal(r[1].exercicioId, 'rosca')
 })
+
+test('ultimaData usa o dia LOCAL: treino das 23h fica no proprio dia', () => {
+  const noite = new Date(2026, 0, 5, 23, 30).getTime()
+  const s = [{ id: 'n', nome: 'T', inicio: noite, concluida: 1, series: [serie('supino', 60)], atualizadoEm: 0 }]
+  assert.equal(calcularProgressao(s)[0].ultimaData, '2026-01-05')
+})
+
+test('dois treinos no mesmo dia: o atual e o de mais tarde, nao o primeiro da lista', () => {
+  const manha = new Date(2026, 0, 5, 7).getTime()
+  const tarde = new Date(2026, 0, 5, 19).getTime()
+  const s = [
+    { id: 'b', nome: 'T', inicio: tarde, concluida: 1, series: [serie('supino', 70)], atualizadoEm: 0 },
+    { id: 'a', nome: 'T', inicio: manha, concluida: 1, series: [serie('supino', 60)], atualizadoEm: 0 },
+  ]
+  assert.equal(calcularProgressao(s)[0].atual, 70)
+})

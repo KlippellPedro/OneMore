@@ -4,7 +4,7 @@ import { salvarPerfil } from '../db'
 import { usePerfil, useNivel } from '../state/hooks'
 import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
-  baixarBackup, importar, apagarTudo,
+  baixarBackup, importar, apagarTudo, apagarTudoNaConta,
   entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao,
   sincronizar, ultimoSync, ultimaFalhaSync, type Backup,
 } from '../lib/sync'
@@ -35,8 +35,20 @@ export default function Perfil() {
   const { nivel, rank, progresso, xpNoNivel, xpParaProximo } = useNivel()
 
   const [aberto, setAberto] = useState<null | 'dados' | 'metas' | 'nuvem' | 'saude'>(null)
-  const [apagar, setApagar] = useState(false)
+  /** 'conta' = o aparelho sincroniza, entao apaga em todos; 'local' = so aqui. */
+  const [apagar, setApagar] = useState<null | 'conta' | 'local'>(null)
   const arquivo = useRef<HTMLInputElement>(null)
+
+  /**
+   * Com conta, limpar so este aparelho nao apaga nada: a proxima sincronizacao
+   * traz tudo de volta da nuvem. Sem internet nao da pra perguntar ao servidor
+   * - ai quem ja sincronizou aqui conta como ligado a uma conta (sair() apaga
+   * essa marca).
+   */
+  async function pedirApagar() {
+    const temConta = await usuarioAtual().then(u => !!u, () => ultimoSync() != null)
+    setApagar(temConta ? 'conta' : 'local')
+  }
 
   async function importarArquivo(f: File) {
     try {
@@ -116,8 +128,8 @@ export default function Perfil() {
             onClick={async () => { await baixarBackup(); toast('Backup gerado', 'ok') }} />
           <Linha titulo="Restaurar backup" sub="Substitui tudo pelo conteudo do arquivo"
             onClick={() => arquivo.current?.click()} />
-          <Linha titulo="Apagar tudo" sub="Zera treinos, dieta e XP deste aparelho" perigo
-            onClick={() => setApagar(true)} />
+          <Linha titulo="Apagar tudo" sub="Zera treinos, dieta e XP - com conta, em todos os aparelhos" perigo
+            onClick={pedirApagar} />
         </Grupo>
 
         <input ref={arquivo} type="file" accept="application/json,.json" className="hidden"
@@ -133,12 +145,16 @@ export default function Perfil() {
       <SheetNuvem aberto={aberto === 'nuvem'} fechar={() => setAberto(null)} />
       <SheetSaude aberto={aberto === 'saude'} fechar={() => setAberto(null)} perfil={perfil} />
 
-      <Confirmar aberto={apagar} perigo titulo="Apagar tudo mesmo?"
-        texto="Treinos, dieta, medidas, XP e conquistas somem deste aparelho. Baixe um backup antes se tiver dúvida."
-        onNao={() => setApagar(false)}
+      <Confirmar aberto={apagar != null} perigo titulo="Apagar tudo mesmo?"
+        texto={apagar === 'conta'
+          ? 'Este aparelho sincroniza com uma conta: treinos, dieta, medidas, XP e conquistas somem daqui, da nuvem e dos outros aparelhos dela. Pra limpar só este aparelho, saia da conta antes. Baixe um backup se tiver dúvida.'
+          : 'Treinos, dieta, medidas, XP e conquistas somem deste aparelho. Baixe um backup antes se tiver dúvida.'}
+        onNao={() => setApagar(null)}
         onSim={async () => {
-          await apagarTudo(); await rodarSeed()
-          setApagar(false); toast('Tudo apagado', 'ok')
+          if (apagar === 'conta') await apagarTudoNaConta()
+          else await apagarTudo()
+          await rodarSeed()
+          setApagar(null); toast('Tudo apagado', 'ok')
           setTimeout(() => location.reload(), 700)
         }} />
     </div>

@@ -1,8 +1,8 @@
 import { db, uid, hoje, getPerfil, salvarPerfil, apagarLinha, apagarLinhas } from '../db'
 import { calcularMelhores, dobrarSessao, porExercicio } from '../db/melhores'
-import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia } from '../db/types'
+import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia, EventoXP } from '../db/types'
 import type { Programa } from '../db/programas'
-import { darXP, XP, type GanhoXP } from './xp'
+import { darXP, reconstruirGamificacao, XP, type GanhoXP } from './xp'
 import { macrosDe, totalDoDia, diaBatido, paraGramas } from './nutricao'
 
 /* ------------------------------------------------------------------ */
@@ -123,6 +123,10 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
   if (!s || s.concluida) return null
 
   const feitas = s.series.filter(g => g.feito && !g.aquecimento)
+  // sem nenhuma serie de trabalho nao ha treino: fechar assim dava os 60 XP de
+  // treino, contava pra conquista e cumpria a missao do dia sem nada feito -
+  // abrir e finalizar em seguida virava fabrica de XP. A tela oferece descartar.
+  if (!feitas.length) return null
   const volume = feitas.reduce((t, g) => t + g.reps * g.carga, 0)
 
   // recordes: compara com o historico ANTES de marcar essa sessao como concluida
@@ -157,7 +161,7 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
 
   for (const pr of prs) {
     await db.xp.put({
-      id: uid(), ts: fim, tipo: 'pr', xp: 0, data: hoje(),
+      id: uid(), ts: fim, tipo: 'pr', xp: 0, data: hoje(), sessaoId: id,
       motivo: pr.tipo === 'carga'
         ? `Recorde: ${pr.valor} kg`
         : `Melhor série: ${pr.carga} kg x ${pr.reps}`,
@@ -167,7 +171,7 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
   const motivo = prs.length
     ? `${feitas.length} séries - ${prs.length} recorde${prs.length > 1 ? 's' : ''}!`
     : `${feitas.length} séries concluidas`
-  const ganho = await darXP('treino', motivo, baseXP)
+  const ganho = await darXP('treino', motivo, baseXP, id)
   await db.sessoes.update(id, { xpGanho: ganho.xp, atualizadoEm: Date.now() })
 
   return { series: feitas.length, volume, duracaoMs: fim - s.inicio, prs, ganho }
@@ -175,6 +179,46 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
 
 export async function descartarSessao(id: string) {
   await apagarLinha('sessoes', id)
+}
+
+/**
+ * O evento de XP saiu deste treino? Desde que os eventos guardam `sessaoId`,
+ * pela referencia. Os de antes so tem o instante: os de recorde sao gravados
+ * com ts = fim do treino, e o de treino logo em seguida, no darXP - nenhum
+ * outro evento 'treino'/'pr' cai a segundos do fim de um treino.
+ */
+function eventoDoTreino(e: EventoXP, s: Sessao) {
+  if (e.sessaoId) return e.sessaoId === s.id
+  if (e.tipo !== 'treino' && e.tipo !== 'pr') return false
+  return s.fim != null && e.ts >= s.fim && e.ts - s.fim < 10_000
+}
+
+/**
+ * Apaga um treino ja concluido - um treino registrado por engano, ou com tanto
+ * numero errado que nao vale corrigir. O XP dele sai junto: senao apagar e
+ * refazer o mesmo treino viraria fabrica de XP. Conquista ja desbloqueada fica.
+ */
+export async function apagarSessao(id: string) {
+  const s = await db.sessoes.get(id)
+  if (!s) return
+  const eventos = (await db.xp.toArray()).filter(e => eventoDoTreino(e, s)).map(e => e.id)
+  await apagarLinha('sessoes', id)
+  await apagarLinhas('xp', eventos)
+  // recorde, ultima carga, XP total e streak sao derivados: refaz a partir do
+  // que sobrou, senao o recorde de um treino que nao existe mais continuava valendo
+  await reconstruirMelhores()
+  await reconstruirGamificacao()
+}
+
+/**
+ * Grava as series corrigidas de um treino ja concluido. Sem isto, um 1000 kg
+ * digitado no lugar de 100 virava recorde pra sempre - e o recorde e a
+ * referencia de todo PR seguinte daquele exercicio. O XP fica como foi
+ * ganho: ele paga as series feitas, e corrigir o numero nao muda quantas foram.
+ */
+export async function corrigirSessao(id: string, series: SerieLog[]) {
+  await db.sessoes.update(id, { series, atualizadoEm: Date.now() })
+  await reconstruirMelhores()
 }
 
 export interface RefsExercicio { rotinas: number; sessoesAbertas: number }

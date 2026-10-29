@@ -24,8 +24,8 @@ const RAIZ = join(fileURLToPath(new URL('.', import.meta.url)), 'site')
 /**
  * 8080 e o que a Discloud espera de um TYPE=site. `--porta` existe so pro
  * desenvolvimento em maquina onde a 8080 ja esta ocupada - e argumento, e nao
- * PORT no .env, porque o .env sobe junto com o app e um PORT errado la
- * derrubaria o site em producao.
+ * PORT no .env, pra ninguem copiar o PORT pras Variaveis da Discloud: um
+ * valor errado la derrubaria o site em producao.
  */
 const argPorta = process.argv.find(a => a.startsWith('--porta='))
 const PORTA = process.env.PORT || argPorta?.split('=')[1] || 8080

@@ -34,24 +34,30 @@ const JANELA = 3
 
 export function calcularProgressao(sessoes: Sessao[]): Progressao[] {
   // melhor carga por exercicio por sessao, em ordem de tempo
-  const porEx = new Map<string, { dia: string; carga: number }[]>()
+  const porEx = new Map<string, { inicio: number; dia: string; carga: number }[]>()
 
   for (const s of sessoes) {
     if (!s.concluida) continue
-    const dia = new Date(s.inicio).toISOString().slice(0, 10)
+    // dia LOCAL - toISOString() e UTC e poe o treino das 21h em diante no dia
+    // seguinte no Brasil. E a regra do isoDia (db/index.ts), escrita aqui porque
+    // importar de ../db levaria o Dexie junto pros testes deste arquivo
+    const d = new Date(s.inicio)
+    const p = (n: number) => String(n).padStart(2, '0')
+    const dia = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`
     const melhorNaSessao = new Map<string, number>()
     for (const g of s.series) {
       if (!g.feito || g.aquecimento || !g.carga) continue
       melhorNaSessao.set(g.exercicioId, Math.max(melhorNaSessao.get(g.exercicioId) ?? 0, g.carga))
     }
     for (const [exId, carga] of melhorNaSessao) {
-      ;(porEx.get(exId) ?? porEx.set(exId, []).get(exId)!).push({ dia, carga })
+      ;(porEx.get(exId) ?? porEx.set(exId, []).get(exId)!).push({ inicio: s.inicio, dia, carga })
     }
   }
 
   const saida: Progressao[] = []
   for (const [exercicioId, pontos] of porEx) {
-    pontos.sort((a, b) => a.dia.localeCompare(b.dia))
+    // pelo instante e nao pelo dia: dois treinos no mesmo dia tambem tem ordem
+    pontos.sort((a, b) => a.inicio - b.inicio)
     const cargas = pontos.map(p => p.carga)
     const recorde = Math.max(...cargas)
     const atual = cargas[cargas.length - 1]

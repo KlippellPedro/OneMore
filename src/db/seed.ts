@@ -47,8 +47,13 @@ async function executarSeed() {
   await db.exercicios.bulkPut(EXERCICIOS_SEED.map(s => {
     const atual = mapaEx.get(s.id)
     if (!atual) return s
-    // preserva o que e do usuario
-    return { ...s, videoUrl: atual.videoUrl, imagemUrl: atual.imagemUrl, favorito: atual.favorito }
+    // preserva o que e do usuario - o carimbo inclusive: com o 0 do seed, o
+    // favorito ou o video marcado aqui perdia a fusao pro outro aparelho, e o
+    // Apagar tudo da conta (ver apagarTudoNaConta) nao sobrevivia a reabertura
+    return {
+      ...s, videoUrl: atual.videoUrl, imagemUrl: atual.imagemUrl, favorito: atual.favorito,
+      atualizadoEm: atual.atualizadoEm ?? s.atualizadoEm,
+    }
   }))
 
   const alAtuais = await db.alimentos.toArray()
@@ -56,7 +61,7 @@ async function executarSeed() {
   await db.alimentos.bulkPut(ALIMENTOS_SEED.map(s => {
     const atual = mapaAl.get(s.id)
     if (!atual) return s
-    return { ...s, favorito: atual.favorito }
+    return { ...s, favorito: atual.favorito, atualizadoEm: atual.atualizadoEm ?? s.atualizadoEm }
   }))
 
   if (jaRodou) return

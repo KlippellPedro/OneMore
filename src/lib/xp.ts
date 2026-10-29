@@ -1,5 +1,6 @@
 import { db, uid, hoje, isoDia, diffDias, getPerfil, salvarPerfil } from '../db'
 import type { Perfil } from '../db/types'
+import { conquistasDoLedger } from './fundir'
 
 /* ------------------------------------------------------------------ */
 /* CURVA DE NIVEL                                                      */
@@ -120,6 +121,8 @@ export async function darXP(
   tipo: string,
   motivo: string,
   base: number,
+  /** Treino que gerou o XP - ver EventoXP.sessaoId. */
+  sessaoId?: string,
 ): Promise<GanhoXP> {
   const perfil = await getPerfil()
   const hj = hoje()
@@ -137,7 +140,7 @@ export async function darXP(
   const antes = calcNivel(perfil.xp)
   const depois = calcNivel(perfil.xp + xp)
 
-  await db.xp.put({ id: uid(), ts: Date.now(), tipo, motivo, xp, data: hj })
+  await db.xp.put({ id: uid(), ts: Date.now(), tipo, motivo, xp, data: hj, ...(sessaoId ? { sessaoId } : {}) })
   const novo = await salvarPerfil({
     xp: perfil.xp + xp,
     streak,
@@ -226,20 +229,29 @@ export const CONQUISTAS: Conquista[] = [
   c('n50', 'Elite', 'Alcance o nível 50', 'coroa', 0, s => s.nivel, 50),
 ]
 
+/** Nome -> id, pra ler os eventos de conquista de antes de o id ir junto. */
+const ID_POR_NOME = new Map(CONQUISTAS.map(q => [q.nome, q.id]))
+
 export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {
   const p = perfil ?? await getPerfil()
   const sessoes = await db.sessoes.where('concluida').equals(1).toArray()
 
+  let treinos = 0
   let series = 0
   let volume = 0
   const exSet = new Set<string>()
   for (const s of sessoes) {
+    let valeu = false
     for (const g of s.series) {
       if (!g.feito || g.aquecimento) continue
+      valeu = true
       series++
       volume += g.reps * g.carga
       exSet.add(g.exercicioId)
     }
+    // treino fechado sem nenhuma serie de trabalho (de antes de concluirSessao
+    // barrar isso) nao conta pra "Conclua N treinos"
+    if (valeu) treinos++
   }
 
   const prs = await db.xp.filter(e => e.tipo === 'pr').count()
@@ -247,7 +259,7 @@ export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {
   const pesos = await db.corpo.filter(r => r.peso != null).count()
 
   return {
-    treinos: sessoes.length,
+    treinos,
     series,
     volumeTotal: volume,
     streak: p.streak,
@@ -264,24 +276,38 @@ export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {
 export async function checarConquistas(perfil?: Perfil): Promise<Conquista[]> {
   const p = perfil ?? await getPerfil()
   const stats = await coletarStats(p)
+  /**
+   * O que o ledger diz que ja foi pago. `perfil.conquistas` funde por campo
+   * inteiro, e uma conquista paga no outro aparelho pode ter sumido do array
+   * na fusao - continua batida nas estatisticas, entao sem isto seria paga DE
+   * NOVO, com outro evento de bonus. Ver conquistasDoLedger em lib/fundir.ts.
+   */
+  const pagas = new Set(conquistasDoLedger(
+    await db.xp.where('tipo').equals('conquista').toArray(), ID_POR_NOME,
+  ))
   const novas: Conquista[] = []
+  const devolvidas: string[] = []
   let bonus = 0
 
   for (const q of CONQUISTAS) {
     if (p.conquistas.includes(q.id)) continue
+    // ja paga: volta pra lista sem bonus e sem festa
+    if (pagas.has(q.id)) { devolvidas.push(q.id); continue }
     if (q.atual(stats) >= q.alvo) {
       novas.push(q)
       bonus += q.xp
     }
   }
 
-  if (novas.length) {
+  if (novas.length || devolvidas.length) {
     // XP de conquista entra direto, sem multiplicador e sem recursao.
-    const ids = [...p.conquistas, ...novas.map(n => n.id)]
+    const ids = [...p.conquistas, ...devolvidas, ...novas.map(n => n.id)]
     if (bonus > 0) {
       await db.xp.put({
         id: uid(), ts: Date.now(), tipo: 'conquista',
         motivo: novas.map(n => n.nome).join(', '), xp: bonus, data: isoDia(new Date()),
+        // os ids viajam no evento: e o que o `pagas` ali em cima le
+        conquistas: novas.map(n => n.id),
       })
     }
     await salvarPerfil({ conquistas: ids, xp: p.xp + bonus })
@@ -348,8 +374,9 @@ export async function reconstruirGamificacao(): Promise<void> {
     ultimoDiaAtivo: dias.length ? dias[dias.length - 1] : undefined,
   })
 
-  // pode ter conquista que bateu a meta mas ficou de fora do array na fusao
-  // (o campo `conquistas` tambem e por campo inteiro) - checarConquistas so
-  // ADICIONA o que falta e nunca remove, entao rodar de novo aqui e seguro
+  // conquista que ficou de fora do array na fusao (o campo `conquistas` e por
+  // campo inteiro): checarConquistas devolve as ja pagas sem pagar de novo e
+  // desbloqueia o que bateu a meta agora. So ADICIONA e nunca remove, entao
+  // rodar de novo aqui e seguro
   await checarConquistas()
 }

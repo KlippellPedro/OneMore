@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela,
-  linhaValida, sanitizarDados,
+  linhaValida, sanitizarDados, conquistasDoLedger,
 } from './fundir.ts'
 
 const ids = a => a.map(x => x.id).sort()
@@ -235,4 +235,40 @@ test('sanitizarDados: tabela que nao e array vira lista vazia, sem quebrar', () 
 test('sanitizarDados: tabela vazia ou ja limpa continua igual', () => {
   const entrada = { xp: [{ id: 'e1' }, { id: 'e2' }], agua: [] }
   assert.deepEqual(sanitizarDados(entrada), entrada)
+})
+
+const NOMES = new Map([['Primeiro Ferro', 't1'], ['Semana Cheia', 'st7'], ['Constante', 't10']])
+
+test('conquistasDoLedger: le os ids gravados no evento', () => {
+  const r = conquistasDoLedger([
+    { tipo: 'conquista', motivo: 'Primeiro Ferro, Semana Cheia', conquistas: ['t1', 'st7'] },
+  ], NOMES)
+  assert.deepEqual(r.sort(), ['st7', 't1'])
+})
+
+test('conquistasDoLedger: evento antigo, sem ids, cai pros nomes do motivo', () => {
+  const r = conquistasDoLedger([
+    { tipo: 'conquista', motivo: 'Primeiro Ferro, Constante' },
+    // nome que nao existe mais nao vira id inventado
+    { tipo: 'conquista', motivo: 'Conquista Que Saiu' },
+  ], NOMES)
+  assert.deepEqual(r.sort(), ['t1', 't10'])
+})
+
+test('conquistasDoLedger: ignora evento que nao e de conquista', () => {
+  const r = conquistasDoLedger([
+    { tipo: 'treino', motivo: 'Primeiro Ferro' },
+    { tipo: 'pr', motivo: 'Recorde: 100 kg' },
+  ], NOMES)
+  assert.deepEqual(r, [])
+})
+
+test('conquistasDoLedger: cada aparelho pagou uma - a fusao do ledger guarda as duas', () => {
+  // o cenario do bug: o array `conquistas` do perfil funde por campo inteiro e
+  // fica com so uma delas, mas o ledger fundido tem o evento dos dois lados
+  const ledger = fundirTabela(
+    [{ id: 'a', ts: 1, tipo: 'conquista', motivo: 'Primeiro Ferro', conquistas: ['t1'] }],
+    [{ id: 'b', ts: 2, tipo: 'conquista', motivo: 'Semana Cheia', conquistas: ['st7'] }],
+  )
+  assert.deepEqual(conquistasDoLedger(ledger, NOMES).sort(), ['st7', 't1'])
 })

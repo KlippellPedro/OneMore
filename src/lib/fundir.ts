@@ -124,6 +124,46 @@ export function fundirPerfil<T extends ComCamposEm>(local: T[] = [], nuvem: T[] 
   return [saida as T]
 }
 
+/** O pedaco de EventoXP que interessa pra saber quais conquistas ja foram pagas. */
+export interface EventoConquista {
+  tipo: string
+  motivo: string
+  conquistas?: string[]
+}
+
+/**
+ * Quais conquistas o ledger diz que ja foram PAGAS.
+ *
+ * `perfil.conquistas` funde por campo inteiro (fundirPerfil): se cada aparelho
+ * desbloqueia uma conquista diferente antes de sincronizar, a lista de um
+ * apaga a do outro. A conquista que sumiu continua batida nas estatisticas,
+ * entao checarConquistas desbloqueava de novo - e gravava OUTRO evento de
+ * bonus. O ledger (`db.xp`) funde registro a registro e nao perde nenhum
+ * evento, entao e ele quem responde.
+ *
+ * Evento gravado antes de levar os ids so tem os nomes no `motivo` (juntados
+ * com ", " em checarConquistas) - `idPorNome` traduz. Nome que nao bate com
+ * nenhuma conquista atual fica de fora; quem chama une com o que o perfil ja
+ * tinha, entao isso nunca tira conquista de ninguem.
+ */
+export function conquistasDoLedger(
+  eventos: EventoConquista[], idPorNome: Map<string, string>,
+): string[] {
+  const ids = new Set<string>()
+  for (const e of eventos) {
+    if (e.tipo !== 'conquista') continue
+    if (e.conquistas) {
+      for (const id of e.conquistas) ids.add(id)
+      continue
+    }
+    for (const nome of e.motivo.split(', ')) {
+      const id = idPorNome.get(nome)
+      if (id) ids.add(id)
+    }
+  }
+  return [...ids]
+}
+
 /** Une as lapides dos dois lados, ficando com a mais recente de cada. */
 export function fundirLapides(local: Lapide[] = [], nuvem: Lapide[] = []): Lapide[] {
   const saida = new Map<string, Lapide>()
