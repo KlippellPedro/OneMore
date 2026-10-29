@@ -9,6 +9,7 @@ import type { Perfil } from '../db/types'
 import { reconstruirMelhores } from './acoes'
 import { reconstruirGamificacao } from './xp'
 import { regerarAgenda } from './lembretes'
+import { desligarPush } from './push'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela, sanitizarDados,
   type LinhaSync, type Lapide, type ComCamposEm,
@@ -275,6 +276,9 @@ export const entrar = (email: string, senha: string) =>
  * ligado a uma conta - quem saiu nao esta mais.
  */
 export async function sair() {
+  // ANTES de encerrar a sessao: apagar a inscricao exige estar logado. Quem
+  // saiu nao pode continuar recebendo os lembretes da conta neste aparelho
+  await desligarPush().catch(() => {})
   await chamar('/sessao', { method: 'DELETE' })
   for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA]) localStorage.removeItem(chave)
 }

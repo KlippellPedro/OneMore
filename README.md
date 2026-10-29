@@ -49,10 +49,13 @@ O terminal mostra um endereço tipo `http://192.168.0.10:5173` — abre esse no 
 
 O app é um PWA. Depois de publicado (ou rodando com `--host`):
 
-- **Android/Chrome**: menu ⋮ → *Instalar app* / *Adicionar à tela inicial*
-- **iPhone/Safari**: botão compartilhar → *Adicionar à Tela de Início*
+- **Android/Chrome**: botão **Instalar** no Perfil (ou menu ⋮ → *Instalar app*)
+- **iPhone/Safari**: botão compartilhar → *Adicionar à Tela de Início* — o Perfil mostra
+  o passo a passo
 
-Instalado, ele abre em tela cheia, sem barra de navegador, e funciona sem internet.
+Instalado, ele abre em tela cheia, sem barra de navegador, funciona sem internet e
+recebe os lembretes com ele fechado (no iPhone, só instalado). No Android, segurar o
+dedo no ícone mostra atalhos: **Beber água (+250 ml)**, **Treinos** e **Dieta de hoje**.
 
 ---
 
@@ -79,7 +82,8 @@ Instalado, ele abre em tela cheia, sem barra de navegador, e funciona sem intern
 - Campo de **link de vídeo** por exercício — cola um YouTube e ele toca dentro do app
 - Monta rotinas (Treino A/B/C…) com séries, repetições alvo, carga alvo e descanso
 - **Player de treino**: marca série por série, cronômetro de descanso automático
-  com bipe e vibração, carga da última vez já preenchida
+  com bipe e vibração, carga da última vez já preenchida. A tela fica acesa enquanto
+  o treino está aberto — o celular não apaga no meio do descanso
 - Detecta **recorde pessoal** na hora e avisa
 - Séries de aquecimento não contam volume nem recorde
 - Treino livre, sem rotina, adicionando exercício na hora
@@ -117,10 +121,19 @@ Aviso que não faz mais sentido não sai: se você já bateu a meta de água, j�
 aquela refeição, já treinou no dia ou já mediu a glicemia por perto do horário, ele
 fica quieto.
 
-Com o app **aberto**, o disparo é no minuto certo. Com o app **fechado**, quem acorda
-o OneMore é o Android (Periodic Background Sync, só com o app instalado na tela de
-início) — então pode atrasar. Aviso na hora exata com o app fechado exige um servidor
-de push; o agendamento já está pronto pra plugar um.
+Com o app **aberto**, o disparo é no minuto certo. Com o app **fechado**:
+
+- **Com conta**: o servidor manda cada aviso na hora (Web Push) — no Android e no
+  iPhone (iOS 16.4+, com o app instalado na Tela de Início). O aparelho manda a agenda
+  dos próximos 3 dias pro servidor, de novo a cada mudança que importa (bebeu água,
+  comeu, treinou, mudou o plano), e o servidor só entrega no horário. Na chegada, o
+  service worker ainda confere se o aviso continua valendo
+- **Sem conta**: quem acorda o app é o Android (Periodic Background Sync, só com o app
+  instalado) — pode atrasar bastante, e no iPhone não existe
+
+O aviso de água tem o botão **+250 ml**, que abre o app já registrando. O **Testar** da
+tela de lembretes manda o aviso pelo servidor, então prova o caminho inteiro até o
+celular.
 
 ### Diabetes tipo 1
 O app é usado por quem conta carboidrato pra dosar insulina, então o carboidrato
@@ -276,6 +289,16 @@ Discloud não é exposto à internet e só aceita conexão de apps do mesmo clus
 As tabelas são criadas sozinhas na primeira subida (`create table if not exists`),
 então não há passo manual de migração.
 
+O push dos lembretes também não tem passo manual: as chaves VAPID são geradas na
+primeira subida e ficam guardadas no banco (tabela `config`) — trocar de chave
+invalidaria a inscrição de todo celular, por isso elas não mudam a cada reinício. Se
+quiser fixar as suas, ponha `VAPID_PUBLICA` e `VAPID_PRIVADA` nas Variáveis (gere com
+`npx web-push generate-vapid-keys`). `VAPID_CONTATO` (um `mailto:` seu) é opcional; o
+serviço de push da Apple exige um contato, e sem a variável vai um genérico.
+
+O servidor comprime o site (brotli/gzip) e guarda os arquivos em memória: o JS do app
+chega no celular com ~180 KB em vez de ~730 KB.
+
 ---
 
 ## Como o código está organizado
@@ -298,6 +321,9 @@ src/
     gerarPlano.ts       monta o cardápio a partir das metas
     nutricao.ts         macros, TMB, sugestão de metas
     sync.ts             backup JSON + cliente da API de conta/nuvem
+    lembretes.ts        agenda de lembretes, disparo com o app aberto, agenda do push
+    push.ts             inscrição deste aparelho no Web Push do servidor
+    instalar.ts         botão "Instalar o app" (Android) e detecção de iPhone
     tema.ts             paleta de cor do tema, calculada de uma cor só (OKLCH)
     format.ts           formatação pt-BR
   components/           UI compartilhada, gráficos SVG, seletores

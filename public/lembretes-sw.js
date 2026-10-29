@@ -69,6 +69,29 @@ function diaDe(ts) {
 
 const umDecimal = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
+/** "Almoço" e "Almoco" sao a mesma refeicao - mesma regra do mesmoTexto do app. */
+const semAcento = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+/**
+ * Como o aviso aparece. TEM que bater com opcoesNotificacao em lib/lembretes.ts:
+ * o mesmo aviso sai daqui (app fechado) ou de la (app aberto).
+ */
+function opcoes(tipo, corpo, rota, ts) {
+  return {
+    body: corpo,
+    icon: 'icon-192.png',
+    // silhueta branca: o Android pinta o selo da barra de status inteiro de branco
+    badge: 'badge-96.png',
+    tag: tipo,
+    // sem renotify, o aviso que substitui outro do mesmo tipo chega mudo
+    renotify: true,
+    timestamp: ts,
+    lang: 'pt-BR',
+    data: { rota },
+    actions: tipo === 'agua' ? [{ action: 'beber', title: '+250 ml' }] : [],
+  }
+}
+
 /** Mesma regra do app (lib/lembretes.ts): nao cobra o que ja foi feito. */
 async function avaliar(bd, l) {
   if (l.tipo === 'agua') {
@@ -79,14 +102,14 @@ async function avaliar(bd, l) {
     if (ml > 0) {
       const falta = meta - ml
       const quanto = falta >= 1000 ? `${umDecimal(falta / 1000)} L` : `${Math.round(falta)} ml`
-      return `Voce bebeu ${umDecimal(ml / 1000)} L - faltam ${quanto}`
+      return `Você bebeu ${umDecimal(ml / 1000)} L - faltam ${quanto}`
     }
     return l.corpo
   }
 
   if (l.tipo === 'refeicao') {
     const doDia = (await ler(bd, 'dieta')).filter(r => r.data === l.data)
-    return doDia.some(r => r.refeicao === l.ref) ? null : l.corpo
+    return doDia.some(r => semAcento(r.refeicao) === semAcento(l.ref)) ? null : l.corpo
   }
 
   if (l.tipo === 'treino') {
@@ -126,13 +149,7 @@ async function checarLembretes() {
     }
     if (corpo) {
       try {
-        await self.registration.showNotification(l.titulo, {
-          body: corpo,
-          icon: 'icon-192.png',
-          badge: 'icon-192.png',
-          tag: l.tipo,
-          data: { rota: l.rota },
-        })
+        await self.registration.showNotification(l.titulo, opcoes(l.tipo, corpo, l.rota, l.ts))
       } catch {
         // permissao revogada no meio do caminho: para por aqui e deixa os
         // proximos pendentes, em vez de marcar como avisado sem ter avisado
@@ -154,18 +171,88 @@ self.addEventListener('message', event => {
   }
 })
 
+/* ------------------------------------------------------------------ */
+/* PUSH DO SERVIDOR                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * O navegador exige que todo push mostre uma notificacao (o iPhone chega a
+ * cancelar a inscricao de quem nao mostra). Quando o aviso nao vale mais, isto
+ * cumpre a regra sem incomodar: mostra mudo e fecha na mesma hora.
+ */
+async function cumprirSemMostrar() {
+  await self.registration.showNotification('OneMore', { tag: 'onemore-silencioso', silent: true })
+  const abertas = await self.registration.getNotifications({ tag: 'onemore-silencioso' })
+  for (const n of abertas) n.close()
+}
+
+/**
+ * Chegou um aviso do servidor (servidor/push.js), na hora em que ele vence.
+ * A agenda local diz se o app ja avisou e se ainda vale - o servidor so sabe
+ * o que o aparelho mandou da ultima vez.
+ */
+async function entregarPush(aviso) {
+  if (aviso.tipo === 'teste') {
+    return self.registration.showNotification(aviso.titulo, opcoes('teste', aviso.corpo, aviso.rota, Date.now()))
+  }
+
+  // app aberto na tela: o rodizio de la avisa no mesmo minuto - nao duplica
+  const janelas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  if (janelas.some(c => c.visibilityState === 'visible')) return
+
+  let bd = null
+  let l = null
+  try {
+    bd = await abrirBanco()
+    if (temLoja(bd, 'lembretes')) l = await lerUm(bd, 'lembretes', aviso.id)
+  } catch { /* sem banco: confia no que o servidor mandou */ }
+
+  // o app ja mostrou esse (estava aberto quando venceu)
+  if (l && l.disparadoEm) return cumprirSemMostrar()
+
+  let corpo = aviso.corpo
+  if (bd && l) {
+    try { corpo = await avaliar(bd, l) } catch { corpo = aviso.corpo }
+  }
+  if (corpo === null) {
+    // ja bebeu, ja comeu, ja treinou
+    await marcarDisparado(bd, l)
+    return cumprirSemMostrar()
+  }
+
+  await self.registration.showNotification(aviso.titulo, opcoes(aviso.tipo, corpo, aviso.rota, aviso.ts))
+  if (bd && l) await marcarDisparado(bd, l)
+}
+
+self.addEventListener('push', event => {
+  let aviso = null
+  try { aviso = event.data ? event.data.json() : null } catch { aviso = null }
+  if (!aviso || !aviso.titulo) return
+  event.waitUntil(entregarPush(aviso))
+})
+
+/* ------------------------------------------------------------------ */
+/* TOQUE NA NOTIFICACAO                                                */
+/* ------------------------------------------------------------------ */
+
 self.addEventListener('notificationclick', event => {
   event.notification.close()
-  const rota = (event.notification.data && event.notification.data.rota) || '#/'
+  // o botao "+250 ml" abre o app ja registrando a agua (ver Home.tsx) - a conta
+  // do XP e da meta mora no app, nao aqui
+  const rota = event.action === 'beber'
+    ? '#/?beber=250'
+    : (event.notification.data && event.notification.data.rota) || '#/'
+  const url = new URL(rota, self.registration.scope).href
   event.waitUntil((async () => {
     const abertas = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     for (const c of abertas) {
-      if ('focus' in c) {
-        await c.focus()
-        if ('navigate' in c) await c.navigate(new URL(rota, self.registration.scope).href)
-        return
-      }
+      if (!('focus' in c)) continue
+      await c.focus()
+      try {
+        if ('navigate' in c) { await c.navigate(url); return }
+      } catch { /* aba que o service worker nao controla: abre outra */ }
+      break
     }
-    await self.clients.openWindow(new URL(rota, self.registration.scope).href)
+    await self.clients.openWindow(url)
   })())
 })

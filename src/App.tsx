@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react
 import { rodarSeed } from './db/seed'
 import { usuarioAtual, iniciarSyncAutomatico } from './lib/sync'
 import { secaoDe } from './lib/secoes'
-import { iniciarLembretes } from './lib/lembretes'
+import { iniciarLembretes, publicarAgenda } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
 import { AplicarTema } from './components/AplicarTema'
 import { Icone } from './components/Icone'
@@ -162,7 +162,15 @@ export default function App() {
   // So roda depois da porta de entrada: antes disso nao ha sessao pra usar.
   useEffect(() => {
     if (!pronto || entrada !== 'ok') return
-    return iniciarSyncAutomatico()
+    // a primeira sincronizacao que da certo prova que ha conta: e a deixa pra
+    // ligar o push e mandar a agenda (lembrete com o app fechado), sem esperar
+    // o giro de 15 min dos lembretes
+    let publicou = false
+    return iniciarSyncAutomatico(() => {
+      if (publicou) return
+      publicou = true
+      publicarAgenda()
+    })
   }, [pronto, entrada])
 
   if (erro) {

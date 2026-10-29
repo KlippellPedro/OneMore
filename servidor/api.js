@@ -13,9 +13,18 @@
  *   POST   /api/senha        troca a senha usando o codigo (sem estar logado)
  *   GET    /api/dados    baixa o backup da conta (204 se ainda nao enviou nada)
  *   PUT    /api/dados    sobe o backup da conta
+ *   GET    /api/push/chave      chave VAPID publica, pro navegador se inscrever
+ *   POST   /api/push/inscricao  este aparelho aceita push (logado)
+ *   DELETE /api/push/inscricao  este aparelho nao quer mais (logado)
+ *   PUT    /api/push/agenda     os proximos lembretes deste aparelho (logado)
+ *   POST   /api/push/teste      manda um aviso agora, pra conferir (logado)
  */
 import { consultar, configurado, pronto } from './banco.js'
 import { CABECALHOS_SEGURANCA } from './seguranca.js'
+import {
+  chaveVapid, validarInscricao, validarAgenda, salvarInscricao, apagarInscricao,
+  salvarAgenda, enviarTeste,
+} from './push.js'
 import {
   COOKIE, hashSenha, conferirSenha, criarSessao, usuarioDaSessao, encerrarSessao,
   criarUsuario, acharPorEmail, normalizarEmail, emailValido,
@@ -38,6 +47,8 @@ const SENHA_MINIMA = 8
 export const SENHA_MAXIMA = 128
 /** Sobra generosa: o codigo de verdade tem 12 caracteres uteis (ver gerarCodigo em auth.js). */
 export const CODIGO_MAXIMO = 32
+/** Agenda de push: ate 200 avisos de ~300 bytes cada. */
+const LIMITE_CORPO_AGENDA = 128 * 1024
 
 /* ------------------------------------------------------------------ */
 /* HELPERS                                                             */
@@ -351,7 +362,62 @@ async function putDados(req, res) {
   responder(res, 200, { atualizadoEm: rows[0].atualizado_em })
 }
 
+/* ------------------------------------------------------------------ */
+/* PUSH (ver servidor/push.js)                                         */
+/* ------------------------------------------------------------------ */
+
+async function getChavePush(req, res) {
+  const chave = chaveVapid()
+  if (!chave) return erro(res, 503, 'O push ainda nao esta pronto.')
+  responder(res, 200, { chave })
+}
+
+async function postInscricao(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const insc = validarInscricao(await lerCorpo(req, LIMITE_CORPO_CONTA))
+  if (!insc) return erro(res, 400, 'Inscricao de push invalida.')
+  await salvarInscricao(u.id, insc)
+  responder(res, 200, { ok: true })
+}
+
+async function deleteInscricao(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { endpoint } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  if (typeof endpoint === 'string') await apagarInscricao(u.id, endpoint)
+  responder(res, 200, { ok: true })
+}
+
+async function putAgenda(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const corpo = await lerCorpo(req, LIMITE_CORPO_AGENDA)
+  if (typeof corpo.endpoint !== 'string') return erro(res, 400, 'Falta o endpoint.')
+  const itens = validarAgenda(corpo.itens)
+  // 404 e nao 403: o aparelho cuja inscricao sumiu (expirou, outra conta) se reinscreve
+  if (!(await salvarAgenda(u.id, corpo.endpoint, itens))) return erro(res, 404, 'Inscricao nao encontrada.')
+  responder(res, 200, { avisos: itens.length })
+}
+
+async function postTestePush(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { endpoint } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  try {
+    if (!(await enviarTeste(u.id, String(endpoint ?? '')))) return erro(res, 404, 'Inscricao nao encontrada.')
+  } catch (e) {
+    return erro(res, 502, `O servico de push recusou (${e?.statusCode ?? 'sem resposta'}).`)
+  }
+  responder(res, 200, { ok: true })
+}
+
 const ROTAS = {
+  'GET /api/push/chave': getChavePush,
+  'POST /api/push/inscricao': postInscricao,
+  'DELETE /api/push/inscricao': deleteInscricao,
+  'PUT /api/push/agenda': putAgenda,
+  'POST /api/push/teste': postTestePush,
   'POST /api/conta': postConta,
   'POST /api/sessao': postSessao,
   'DELETE /api/sessao': deleteSessao,

@@ -4,9 +4,12 @@ import { db, hoje, isoDia } from '../db'
 import { usePerfil, usePlanos } from '../state/hooks'
 import {
   config, permissao, pedirPermissao, instalado,
-  registrarSyncPeriodico, syncPeriodicoAtivo, salvarConfig, regerarAgenda, testar,
+  registrarSyncPeriodico, syncPeriodicoAtivo, salvarConfig, regerarAgenda, testar, publicarAgenda,
 } from '../lib/lembretes'
+import { temPush, temConta, ligarPush, testarPush } from '../lib/push'
+import { ehIOS } from '../lib/instalar'
 import { Cabecalho } from '../components/Cabecalho'
+import { CardInstalar } from '../components/Instalar'
 import { Icone } from '../components/Icone'
 import { Card, Btn, Chip, Switch, Input } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
@@ -27,6 +30,9 @@ const ANTECEDENCIAS = [
   { min: 30, rotulo: '30 min antes' },
 ]
 
+/** Como o aviso chega com o app fechado, neste aparelho. */
+type EstadoPush = 'verificando' | 'ligado' | 'sem-conta' | 'sem-suporte' | 'erro'
+
 export default function Lembretes() {
   const { toast } = useUI()
   const perfil = usePerfil()
@@ -34,7 +40,35 @@ export default function Lembretes() {
 
   const [estado, setEstado] = useState(permissao())
   const [fechadoOk, setFechadoOk] = useState(false)
+  const [push, setPush] = useState<EstadoPush>('verificando')
   const c = config(perfil)
+
+  /**
+   * Liga o push (ou confirma que esta ligado) e manda a agenda. Roda ao abrir
+   * a tela: e aqui que a pessoa vem conferir se os avisos vao chegar, entao o
+   * estado mostrado tem que ser o de agora, nao o de quando ligou.
+   */
+  async function conferirPush() {
+    if (!temPush()) return setPush('sem-suporte')
+    if (!temConta()) return setPush('sem-conta')
+    try {
+      setPush((await ligarPush()) ? 'ligado' : 'sem-suporte')
+      await publicarAgenda()
+    } catch (e) {
+      setPush((e as { status?: number }).status === 401 ? 'sem-conta' : 'erro')
+    }
+  }
+
+  async function testarAgora() {
+    if (push !== 'ligado') return testar()
+    try {
+      await testarPush()
+      toast('Pedido enviado', 'ok', 'O aviso vem pelo servidor, em alguns segundos')
+    } catch (e) {
+      toast('O servidor não conseguiu avisar', 'erro', (e as Error).message)
+      await testar()
+    }
+  }
 
   const agenda = useLiveQuery(async () => {
     const todos = await db.lembretes.toArray()
@@ -43,6 +77,9 @@ export default function Lembretes() {
 
   useEffect(() => {
     syncPeriodicoAtivo().then(setFechadoOk)
+    if (estado === 'granted') conferirPush()
+    // conferirPush so muda estado local; rodar de novo a cada render seria rede a toa
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado])
 
   async function mudar(patch: Partial<ConfigLembretes>) {
@@ -56,6 +93,7 @@ export default function Lembretes() {
     if (r === 'granted') {
       await salvarConfig({ ativo: true })
       setFechadoOk(await registrarSyncPeriodico())
+      // o push e ligado pelo efeito de `estado`, que muda logo acima
       toast('Notificações ligadas', 'ok')
     } else if (r === 'denied') {
       toast('O celular bloqueou as notificacoes', 'erro')
@@ -72,12 +110,17 @@ export default function Lembretes() {
           : 'Avisos de água, refeição e treino'} />
 
       <div className="px-4 pt-4">
+        <CardInstalar className="mb-4"
+          motivo="Instalado, ele abre em tela cheia e recebe os lembretes mesmo com o app fechado." />
+
         {/* -------- permissao -------- */}
         {estado === 'indisponivel' ? (
           <Card className="p-4 mb-4 border-warn/30">
-            <p className="text-[13px] font-bold mb-1">Esse navegador não manda notificacao</p>
+            <p className="text-[13px] font-bold mb-1">Esse navegador não manda notificação</p>
             <p className="text-[12px] text-muted leading-relaxed">
-              Abra o OneMore no Chrome do Android pra usar os lembretes.
+              {ehIOS()
+                ? 'No iPhone, as notificações só existem com o app instalado na Tela de Início (iOS 16.4 ou mais novo). Instale pelo passo a passo acima e abra pelo ícone.'
+                : 'Abra o OneMore no Chrome do Android pra usar os lembretes.'}
             </p>
           </Card>
         ) : !podeUsar ? (
@@ -110,10 +153,16 @@ export default function Lembretes() {
               <div className="flex-1 min-w-0">
                 <p className="text-[13.5px] font-bold">Notificações liberadas</p>
                 <p className="text-[11.5px] text-muted">
-                  Com o app fechado: {fechadoOk ? 'ligado' : 'só com o app instalado'}
+                  Com o app fechado: {{
+                    verificando: 'conferindo...',
+                    ligado: 'na hora certa, pelo servidor',
+                    'sem-conta': fechadoOk ? 'quando o Android acordar o app' : 'entre na sua conta',
+                    'sem-suporte': fechadoOk ? 'quando o Android acordar o app' : 'só com o app aberto',
+                    erro: 'servidor fora do ar agora',
+                  }[push]}
                 </p>
               </div>
-              <Btn size="sm" onClick={() => testar()}>Testar</Btn>
+              <Btn size="sm" onClick={testarAgora}>Testar</Btn>
             </div>
           </Card>
         )}
@@ -130,17 +179,24 @@ export default function Lembretes() {
                 no minuto certo.
               </li>
               <li>
-                <span className="text-txt font-semibold">Com o app fechado</span>, quem decide a
-                hora de acordar o OneMore e o Android - o aviso pode atrasar. Pra isso funcionar,
-                o app precisa estar <span className="text-txt font-semibold">instalado na tela de
-                início</span> (menu do Chrome {'>'} Instalar aplicativo).
+                <span className="text-txt font-semibold">Com o app fechado e com conta</span>, o
+                servidor manda cada aviso na hora - no Android e no iPhone (iOS 16.4+, com o app
+                instalado na Tela de Início).
+                {push === 'sem-conta' && (
+                  <span className="text-warn"> Entre na sua conta em Perfil pra ligar isso.</span>
+                )}
+              </li>
+              <li>
+                <span className="text-txt font-semibold">Sem conta</span>, só o Android acorda o
+                app, e quem decide a hora é ele - o aviso pode atrasar bastante. Precisa estar
+                instalado.
                 {!instalado() && (
                   <span className="text-warn"> Agora ele está aberto pelo navegador.</span>
                 )}
               </li>
               <li>
-                Aviso na hora exata com o app fechado só com um servidor de push - da pra fazer
-                num segundo passo.
+                Não chegou? Confira se o modo economia de bateria ou o Não perturbe estão
+                ligados, e se o navegador pode notificar nas configurações do celular.
               </li>
             </ul>
           </Card>

@@ -83,6 +83,35 @@ create table if not exists dados (
   payload       jsonb not null,
   atualizado_em timestamptz not null default now()
 );
+
+-- chave/valor do proprio servidor. Hoje: as chaves VAPID do push, geradas na
+-- primeira subida (ver servidor/push.js)
+create table if not exists config (
+  chave text primary key,
+  valor text not null
+);
+
+-- um aparelho que aceitou receber push. O endpoint e a URL do servico de push
+-- do navegador - unica por aparelho, por isso e a chave
+create table if not exists push_inscricoes (
+  endpoint    text primary key,
+  usuario_id  uuid not null references usuarios(id) on delete cascade,
+  p256dh      text not null,
+  auth        text not null,
+  criado_em   timestamptz not null default now()
+);
+create index if not exists push_inscricoes_usuario on push_inscricoes (usuario_id);
+
+-- a agenda de lembretes que o aparelho mandou; o servidor so entrega na hora
+create table if not exists push_avisos (
+  endpoint    text not null references push_inscricoes(endpoint) on delete cascade,
+  id          text not null,
+  ts          timestamptz not null,
+  payload     jsonb not null,
+  enviado_em  timestamptz,
+  primary key (endpoint, id)
+);
+create index if not exists push_avisos_pendentes on push_avisos (ts) where enviado_em is null;
 `
 
 /**

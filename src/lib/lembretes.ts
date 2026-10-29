@@ -1,5 +1,6 @@
-import { db, hoje, isoDia, getPerfil, salvarPerfil } from '../db'
+import { db, hoje, isoDia, getPerfil, salvarPerfil, escutarEscrita } from '../db'
 import { n0, n1, mesmoTexto } from './format'
+import { temPush, temConta, inscricaoAtual, ligarPush, enviarAgenda, type AvisoPush } from './push'
 import type { ConfigLembretes, Lembrete, Perfil, PlanoRefeicao } from '../db/types'
 
 /**
@@ -9,8 +10,9 @@ import type { ConfigLembretes, Lembrete, Perfil, PlanoRefeicao } from '../db/typ
  * proximas horas. Quem dispara e um dos dois:
  *
  * - com o app aberto, o rodizio daqui (`iniciarLembretes`), a cada minuto;
- * - com o app fechado, o service worker (`public/lembretes-sw.js`), quando o
- *   Android o acorda pelo Periodic Background Sync.
+ * - com o app fechado, o service worker (`public/lembretes-sw.js`), acordado
+ *   pelo push do servidor na hora certa (com conta - ver publicarAgenda e
+ *   lib/push.ts) ou, sem conta, pelo Periodic Background Sync do Android.
  *
  * Por isso a agenda guarda titulo e corpo prontos: o service worker nao sabe
  * calcular nada, so confere se a coisa ja foi feita e mostra o aviso.
@@ -40,10 +42,7 @@ export const config = (p: Perfil): ConfigLembretes => ({
 export const temNotificacao = () =>
   typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator
 
-/** true quando o app esta rodando instalado (fora da aba do navegador). */
-export const instalado = () =>
-  window.matchMedia('(display-mode: standalone)').matches ||
-  (window.navigator as { standalone?: boolean }).standalone === true
+export { instalado } from './instalar'
 
 export function permissao(): NotificationPermission | 'indisponivel' {
   if (!temNotificacao()) return 'indisponivel'
@@ -232,6 +231,8 @@ export async function regerarAgenda(dias = 3): Promise<number> {
 
   await db.lembretes.clear()
   if (novos.length) await db.lembretes.bulkPut(novos)
+  // o servidor entrega com o app fechado: ele precisa da mesma agenda
+  publicarAgenda()
   return novos.length
 }
 
@@ -293,15 +294,33 @@ export async function aindaVale(l: Lembrete): Promise<{ vale: boolean; corpo: st
   return { vale: true, corpo: l.corpo }
 }
 
-async function mostrar(l: Lembrete, corpo: string) {
-  const reg = await navigator.serviceWorker.ready
-  await reg.showNotification(l.titulo, {
+/**
+ * Como o aviso aparece no celular. O service worker (public/lembretes-sw.js)
+ * monta igual - quem mostra depende de o app estar aberto ou nao, e o aviso
+ * tem que ser o mesmo nos dois casos.
+ */
+export function opcoesNotificacao(tipo: string, corpo: string, rota: string, ts: number): NotificationOptions {
+  return {
     body: corpo,
     icon: 'icon-192.png',
-    badge: 'icon-192.png',
-    tag: l.tipo,
-    data: { rota: l.rota },
-  })
+    // o Android pinta o selo da barra de status de branco: com o icone colorido
+    // ele virava um quadrado branco. badge-96.png e so a silhueta do halter
+    badge: 'badge-96.png',
+    // um aviso por tipo: o de agua das 14h substitui o das 12h em vez de empilhar...
+    tag: tipo,
+    // ...e renotify faz o substituto vibrar e tocar - sem ele, a troca e muda
+    renotify: true,
+    timestamp: ts,
+    lang: 'pt-BR',
+    data: { rota },
+    // so Android/desktop mostram botao; no iPhone e ignorado e o toque abre o app
+    actions: tipo === 'agua' ? [{ action: 'beber', title: '+250 ml' }] : [],
+  } as NotificationOptions
+}
+
+async function mostrar(l: Lembrete, corpo: string) {
+  const reg = await navigator.serviceWorker.ready
+  await reg.showNotification(l.titulo, opcoesNotificacao(l.tipo, corpo, l.rota, l.ts))
   await db.lembretes.update(l.id, { disparadoEm: Date.now() })
 }
 
@@ -328,14 +347,60 @@ export async function dispararPendentes(): Promise<number> {
 /** Notificacao de teste, pra conferir que o celular deixa passar. */
 export async function testar() {
   const reg = await navigator.serviceWorker.ready
-  await reg.showNotification('Deu certo', {
-    body: `Os lembretes do OneMore vao chegar assim. Agora são ${hhmm(Date.now())}.`,
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
-    tag: 'teste',
-    data: { rota: '#/lembretes' },
-  })
+  const agora = Date.now()
+  await reg.showNotification('Deu certo', opcoesNotificacao(
+    'teste', `Os lembretes do OneMore vão chegar assim. Agora são ${hhmm(agora)}.`, '#/lembretes', agora,
+  ))
 }
+
+/* ------------------------------------------------------------------ */
+/* PUSH (app fechado, na hora certa)                                   */
+/* ------------------------------------------------------------------ */
+
+let publicando: Promise<void> | null = null
+let republicar = false
+
+/**
+ * Manda pro servidor a agenda deste aparelho (ver lib/push.ts). So o que
+ * ainda vale AGORA: bateu a meta de agua, os avisos de agua de hoje saem da
+ * lista; o servidor nem manda. Como roda de novo a cada mudanca no que decide
+ * isso (ver iniciarLembretes), o servidor fica em dia enquanto o app esta
+ * aberto - e o service worker ainda confere na chegada.
+ *
+ * Chamada sobreposta vira UMA rodada a mais no fim, nao duas em paralelo.
+ */
+export function publicarAgenda(): Promise<void> {
+  if (publicando) { republicar = true; return publicando }
+  publicando = (async () => {
+    try {
+      do {
+        republicar = false
+        await publicarAgora()
+      } while (republicar)
+    } catch { /* sem rede ou sem conta: o proximo giro tenta de novo */ } finally {
+      publicando = null
+    }
+  })()
+  return publicando
+}
+
+async function publicarAgora() {
+  if (!temPush() || !temConta() || permissao() !== 'granted') return
+  // primeira vez neste aparelho (ou depois de entrar na conta): inscreve
+  if (!(await inscricaoAtual()) && !(await ligarPush())) return
+
+  const agora = Date.now()
+  const itens: AvisoPush[] = []
+  for (const l of await db.lembretes.toArray()) {
+    if (l.disparadoEm || l.ts <= agora) continue
+    const { vale, corpo } = await aindaVale(l)
+    if (vale) itens.push({ id: l.id, ts: l.ts, tipo: l.tipo, titulo: l.titulo, corpo, rota: l.rota })
+  }
+  await enviarAgenda(itens)
+}
+
+/** Tabelas que mudam QUANDO um aviso toca ou SE ele ainda vale. */
+const MEXEM_NA_AGENDA = new Set(['agua', 'dieta', 'sessoes', 'glicemia', 'planos', 'perfil'])
 
 /**
  * Liga o rodizio enquanto o app estiver aberto. Retorna a funcao de desligar.
@@ -343,6 +408,7 @@ export async function testar() {
 export function iniciarLembretes() {
   let parado = false
   let giros = 0
+  let refazer: ReturnType<typeof setTimeout> | null = null
 
   const rodar = async () => {
     if (parado || permissao() !== 'granted') return
@@ -359,9 +425,19 @@ export function iniciarLembretes() {
   const aoVoltar = () => { if (document.visibilityState === 'visible') rodar() }
   document.addEventListener('visibilitychange', aoVoltar)
 
+  // bebeu agua, comeu, treinou, mudou o plano: refaz a agenda (e a do servidor)
+  // uns segundos depois, juntando a rajada de gravacoes de uma acao so
+  const desligarEscuta = escutarEscrita(tabela => {
+    if (!MEXEM_NA_AGENDA.has(tabela) || permissao() !== 'granted') return
+    if (refazer) clearTimeout(refazer)
+    refazer = setTimeout(() => { regerarAgenda().catch(() => {}) }, 5000)
+  })
+
   return () => {
     parado = true
     clearInterval(t)
+    if (refazer) clearTimeout(refazer)
+    desligarEscuta()
     document.removeEventListener('visibilitychange', aoVoltar)
   }
 }

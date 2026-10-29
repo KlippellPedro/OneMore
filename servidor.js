@@ -17,7 +17,8 @@ import { extname, join, normalize } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { brotliCompress, gzip as gzipCompress, constants as zlib } from 'node:zlib'
-import { conectarComRetentativa } from './servidor/banco.js'
+import { conectarComRetentativa, configurado } from './servidor/banco.js'
+import { iniciarPush, iniciarEntregas } from './servidor/push.js'
 import { tratarApi } from './servidor/api.js'
 import { CABECALHOS_SEGURANCA } from './servidor/seguranca.js'
 
@@ -158,4 +159,11 @@ try {
 servidor.listen(PORTA, '0.0.0.0', () => {
   console.log(`OneMore em http://0.0.0.0:${PORTA} (site + /api)`)
 })
+// o push precisa das tabelas (e das chaves que moram nelas): so depois do banco
 conectarComRetentativa()
+  .then(async () => {
+    if (!configurado) return
+    await iniciarPush()
+    iniciarEntregas()
+  })
+  .catch(e => console.error('[push] nao iniciou - lembrete com o app fechado fica desligado:', e.message))
