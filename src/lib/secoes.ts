@@ -16,6 +16,10 @@
  *
  * A Home nao tem cor propria de proposito: ela mostra um pedaco de cada secao,
  * e cada card usa a cor da secao a que pertence. A variedade sai de graca.
+ *
+ * Treino e Inicio seguem a cor do tema (--color-accent). As outras passam por
+ * --secao-*, definidas no index.css, pra o tema poder pintar tudo de uma cor
+ * so quando a pessoa desliga as secoes coloridas (ver lib/tema.ts).
  */
 export interface Secao {
   id: string
@@ -24,10 +28,10 @@ export interface Secao {
 
 export const SECOES: Record<string, Secao> = {
   treino: { id: 'treino', cor: 'var(--color-accent)' },
-  dieta: { id: 'dieta', cor: 'var(--color-good)' },
-  progresso: { id: 'progresso', cor: 'var(--color-xp)' },
-  diario: { id: 'diario', cor: 'var(--color-bad)' },
-  perfil: { id: 'perfil', cor: 'var(--color-accent-2)' },
+  dieta: { id: 'dieta', cor: 'var(--secao-dieta)' },
+  progresso: { id: 'progresso', cor: 'var(--secao-progresso)' },
+  diario: { id: 'diario', cor: 'var(--secao-diario)' },
+  perfil: { id: 'perfil', cor: 'var(--secao-perfil)' },
   inicio: { id: 'inicio', cor: 'var(--color-accent)' },
 }
 

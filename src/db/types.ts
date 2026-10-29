@@ -1,3 +1,5 @@
+import type { Tema } from '../lib/tema'
+
 export type GrupoMuscular =
   | 'peito' | 'costas' | 'ombro' | 'biceps' | 'triceps' | 'antebraco'
   | 'quadriceps' | 'posterior' | 'gluteo' | 'adutores' | 'panturrilha'
@@ -262,6 +264,8 @@ export interface Perfil {
   /** Limite diario de sodio em mg. Padrao 2000, que e o teto da OMS. */
   metaSodio?: number
   lembretes?: ConfigLembretes
+  /** Cor e fundo do app. Ausente = roxo padrao - ver lib/tema.ts. */
+  tema?: Tema
   xp: number
   streak: number
   melhorStreak: number

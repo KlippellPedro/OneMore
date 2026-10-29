@@ -5,6 +5,7 @@ import { usuarioAtual, iniciarSyncAutomatico } from './lib/sync'
 import { secaoDe } from './lib/secoes'
 import { iniciarLembretes } from './lib/lembretes'
 import { Feedback } from './components/Feedback'
+import { AplicarTema } from './components/AplicarTema'
 import { Icone } from './components/Icone'
 import { useSessaoAtiva, usePerfil, usePerfilCarregado } from './state/hooks'
 import { Link } from 'react-router-dom'
@@ -184,7 +185,7 @@ export default function App() {
     )
   }
 
-  if (entrada === 'mostrar') return <><Entrada pronto={passouDaEntrada} /><Feedback /></>
+  if (entrada === 'mostrar') return <><Entrada pronto={passouDaEntrada} /><Feedback /><AplicarTema /></>
 
   return (
     <HashRouter>
@@ -215,6 +216,7 @@ export default function App() {
       <BarraSessao />
       <TabBar />
       <Feedback />
+      <AplicarTema />
     </HashRouter>
   )
 }

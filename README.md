@@ -160,6 +160,22 @@ antes de começar, porque superávit calórico muda a necessidade de insulina.
 - Evolução de carga por exercício, dentro da página de cada exercício
 - Histórico completo de treinos
 
+### Aparência
+Em **Perfil → Aparência**:
+
+- **Cor do tema**, em três modos:
+  - **Fixa** — uma cor só, das 12 da paleta ou qualquer outra pelo seletor do celular
+  - **Do treino do dia** — o app fica na cor da rotina marcada pra hoje na Minha semana
+    (e na do treino em andamento, se você começar outro). Dia de descanso usa a cor fixa
+  - **Uma por dia** — você escolhe a cor de cada dia da semana
+- **Fundo**: tingido com a cor do tema, cinza neutro ou preto de verdade (tela OLED)
+- **Seções**: cada uma com sua cor (Dieta verde, Progresso dourado…) ou tudo na cor do tema
+
+A paleta inteira sai da cor escolhida (`lib/tema.ts`): fundo, cards, bordas e botões
+mudam juntos, com a mesma luminosidade do roxo original — então o contraste não muda
+de uma cor pra outra, e o roxo padrão continua idêntico. O tema fica no perfil, então
+vai junto pros outros aparelhos da conta.
+
 ---
 
 ## Conta e sincronização
@@ -282,6 +298,7 @@ src/
     gerarPlano.ts       monta o cardápio a partir das metas
     nutricao.ts         macros, TMB, sugestão de metas
     sync.ts             backup JSON + cliente da API de conta/nuvem
+    tema.ts             paleta de cor do tema, calculada de uma cor só (OKLCH)
     format.ts           formatação pt-BR
   components/           UI compartilhada, gráficos SVG, seletores
     Icone.tsx           todos os ícones do app, em SVG de traço (sem emoji)

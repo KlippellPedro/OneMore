@@ -14,6 +14,8 @@ import { restricoesDoPerfil } from '../lib/restricoes'
 import { MARCADORES, PRESETS, type Marcador } from '../db/marcadores'
 import { Titulo } from '../components/Cabecalho'
 import { SheetMetas } from '../components/SheetMetas'
+import { SheetAparencia } from '../components/SheetAparencia'
+import { resumoTema } from '../lib/tema'
 import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, n1, pl } from '../lib/format'
@@ -34,7 +36,7 @@ export default function Perfil() {
   const perfil = usePerfil()
   const { nivel, rank, progresso, xpNoNivel, xpParaProximo } = useNivel()
 
-  const [aberto, setAberto] = useState<null | 'dados' | 'metas' | 'nuvem' | 'saude'>(null)
+  const [aberto, setAberto] = useState<null | 'dados' | 'metas' | 'nuvem' | 'saude' | 'aparencia'>(null)
   /** 'conta' = o aparelho sincroniza, entao apaga em todos; 'local' = so aqui. */
   const [apagar, setApagar] = useState<null | 'conta' | 'local'>(null)
   const arquivo = useRef<HTMLInputElement>(null)
@@ -98,6 +100,10 @@ export default function Perfil() {
             onClick={() => setAberto('metas')} />
         </Grupo>
 
+        <Grupo titulo="App">
+          <Linha titulo="Aparência" sub={resumoTema(perfil.tema)} onClick={() => setAberto('aparencia')} />
+        </Grupo>
+
         <Grupo titulo="Avisos">
           <LinhaLink to="/lembretes" titulo="Lembretes"
             sub={perfil.diabetesTipo1
@@ -144,6 +150,7 @@ export default function Perfil() {
       <SheetMetas aberto={aberto === 'metas'} fechar={() => setAberto(null)} perfil={perfil} />
       <SheetNuvem aberto={aberto === 'nuvem'} fechar={() => setAberto(null)} />
       <SheetSaude aberto={aberto === 'saude'} fechar={() => setAberto(null)} perfil={perfil} />
+      <SheetAparencia aberto={aberto === 'aparencia'} fechar={() => setAberto(null)} perfil={perfil} />
 
       <Confirmar aberto={apagar != null} perigo titulo="Apagar tudo mesmo?"
         texto={apagar === 'conta'
