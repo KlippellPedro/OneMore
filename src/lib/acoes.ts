@@ -1,5 +1,5 @@
 import { db, uid, hoje, getPerfil, salvarPerfil, apagarLinha, apagarLinhas } from '../db'
-import { calcularMelhores, dobrarSessao, porExercicio } from '../db/melhores'
+import { calcularMelhores, dobrarSessao, porExercicio, type SerieAnterior } from '../db/melhores'
 import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia, EventoXP } from '../db/types'
 import type { Programa } from '../db/programas'
 import { darXP, reconstruirGamificacao, XP, type GanhoXP } from './xp'
@@ -20,13 +20,14 @@ export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promis
   const series: SerieLog[] = []
   if (rotina) {
     for (const item of rotina.itens) {
-      const anterior = await ultimaCarga(item.exercicioId)
+      const anteriores = await ultimasSeries(item.exercicioId)
       for (let i = 1; i <= item.series; i++) {
+        const ant = serieAnterior(anteriores, i - 1)
         series.push({
           exercicioId: item.exercicioId,
           serie: i,
-          reps: anterior?.reps ?? 0,
-          carga: anterior?.carga ?? item.cargaAlvo ?? 0,
+          reps: ant?.reps ?? 0,
+          carga: ant?.carga ?? item.cargaAlvo ?? 0,
           feito: false,
         })
       }
@@ -53,6 +54,27 @@ export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promis
 export async function ultimaCarga(exercicioId: string): Promise<{ carga: number; reps: number } | null> {
   const m = await db.melhores.get(exercicioId)
   return m ? { carga: m.ultimaCarga, reps: m.ultimaReps } : null
+}
+
+/**
+ * As series da ultima vez que o exercicio foi treinado, na ordem. Vazio se
+ * nunca foi. Linha antiga (sem `ultimaSeries`) cai na melhor serie, que e o
+ * que existia antes - a v8 do banco refaz a tabela, isso e so rede de seguranca.
+ */
+export async function ultimasSeries(exercicioId: string): Promise<SerieAnterior[]> {
+  const m = await db.melhores.get(exercicioId)
+  if (!m) return []
+  if (m.ultimaSeries?.length) return m.ultimaSeries
+  return [{ carga: m.ultimaCarga, reps: m.ultimaReps }]
+}
+
+/**
+ * O que pre-preencher na serie `indice` (base 0). Se hoje tem mais series do
+ * que da ultima vez, as que sobram repetem a ultima serie feita.
+ */
+export function serieAnterior(anteriores: SerieAnterior[], indice: number): SerieAnterior | null {
+  if (!anteriores.length) return null
+  return anteriores[Math.min(indice, anteriores.length - 1)]
 }
 
 export interface Recorde { carga: number; reps: number; volume: number }

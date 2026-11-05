@@ -22,9 +22,19 @@ export interface MelhorExercicio {
   /** Melhor carga da sessao mais recente - e o que o app pre-preenche. */
   ultimaCarga: number
   ultimaReps: number
+  /**
+   * As series de trabalho da sessao mais recente, UMA A UMA e na ordem em que
+   * foram feitas. E isso que pre-preenche o treino seguinte: `ultimaCarga` e
+   * `ultimaReps` guardam so a melhor serie, e copiar ela pras series todas
+   * apagava o que voce de fato fez (60x10, 60x8, 55x8 virava 60x10 tres vezes).
+   * Ausente em linha gravada antes desse campo existir - a v8 do banco refaz.
+   */
+  ultimaSeries?: SerieAnterior[]
   /** `início` da sessao mais recente que tem esse exercicio. */
   ultimaEm: number
 }
+
+export interface SerieAnterior { carga: number; reps: number }
 
 /** Series que contam: feitas e fora do aquecimento. */
 const valem = (series: SerieLog[]) => series.filter(g => g.feito && !g.aquecimento)
@@ -60,6 +70,9 @@ export function dobrarSessao(
     recordeVolume: Math.max(atual?.recordeVolume ?? 0, volumeDaVez),
     ultimaCarga: ehMaisRecente ? melhorDaVez.carga : atual!.ultimaCarga,
     ultimaReps: ehMaisRecente ? melhorDaVez.reps : atual!.ultimaReps,
+    ultimaSeries: ehMaisRecente
+      ? validas.map(g => ({ carga: g.carga, reps: g.reps }))
+      : atual!.ultimaSeries,
     ultimaEm: ehMaisRecente ? inicio : atual!.ultimaEm,
   }
 }

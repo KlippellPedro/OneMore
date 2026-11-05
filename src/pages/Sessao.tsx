@@ -4,9 +4,10 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
 import { useMapaExercicios } from '../state/hooks'
 import {
-  concluirSessao, descartarSessao, ultimaCarga, recordeDe, volumeSessao,
+  concluirSessao, descartarSessao, ultimasSeries, serieAnterior, recordeDe, volumeSessao,
   renumerarSeries, type ResumoSessao, type Recorde,
 } from '../lib/acoes'
+import type { SerieAnterior } from '../db/melhores'
 import { corGrupo } from '../db/seedExercicios'
 import { Seletor } from '../components/SeletorExercicio'
 import { TrocarExercicio } from '../components/Variacoes'
@@ -134,7 +135,8 @@ export default function Sessao() {
   const [resumo, setResumo] = useState<ResumoSessao | null>(null)
   const [notas, setNotas] = useState(false)
   const [recordes, setRecordes] = useState<Record<string, Recorde>>({})
-  const [anteriores, setAnteriores] = useState<Record<string, { carga: number; reps: number } | null>>({})
+  /** Series da ultima vez de cada exercicio, uma a uma - o que da pra comparar com hoje. */
+  const [anteriores, setAnteriores] = useState<Record<string, SerieAnterior[]>>({})
 
   useEffect(() => {
     const i = setInterval(() => setAgora(Date.now()), 1000)
@@ -155,11 +157,11 @@ export default function Sessao() {
       // carga de um exercicio nao dependem um do outro nem do exercicio
       // seguinte - buscar em serie so somava tempo de ida-e-volta a toa
       const pares = await Promise.all(
-        exIds.map(exId => Promise.all([recordeDe(exId), ultimaCarga(exId)])),
+        exIds.map(exId => Promise.all([recordeDe(exId), ultimasSeries(exId)])),
       )
       if (!vivo) return
       const recs: Record<string, Recorde> = {}
-      const ants: Record<string, { carga: number; reps: number } | null> = {}
+      const ants: Record<string, SerieAnterior[]> = {}
       exIds.forEach((exId, i) => { recs[exId] = pares[i][0]; ants[exId] = pares[i][1] })
       setRecordes(recs); setAnteriores(ants)
     })()
@@ -279,14 +281,15 @@ export default function Sessao() {
    * peso do supino nao serve de palpite pro crucifixo.
    */
   async function trocarExercicio(de: string, para: string) {
-    const ant = await ultimaCarga(para)
+    const ant = await ultimasSeries(para)
     const doEx = sessao!.series.filter(s => s.exercicioId === de)
     const corrigindo = doEx.every(s => s.feito)
     const series = sessao!.series.map(s => {
       if (s.exercicioId !== de) return s
       if (corrigindo) return { ...s, exercicioId: para }
       if (s.feito) return s
-      return { ...s, exercicioId: para, carga: ant?.carga ?? 0, reps: ant?.reps ?? 0 }
+      const a = serieAnterior(ant, s.serie - 1)
+      return { ...s, exercicioId: para, carga: a?.carga ?? 0, reps: a?.reps ?? 0 }
     })
     await salvar(renumerarSeries(series))
     setAnteriores(a => ({ ...a, [para]: ant }))
@@ -356,7 +359,9 @@ export default function Sessao() {
                   </Link>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-muted">
                     {item && <span>alvo {item.series}x{item.repsAlvo}</span>}
-                    {ant && <span>anterior {ant.carga} kg x {ant.reps}</span>}
+                    {ant && ant.length > 0 && (
+                      <span>última vez {ant.map(a => `${a.carga} kg x ${a.reps}`).join(' · ')}</span>
+                    )}
                     {rec.carga > 0 && <span className="text-xp">recorde {rec.carga} kg</span>}
                   </div>
                   {item?.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
@@ -437,10 +442,11 @@ export default function Sessao() {
       <Seletor aberto={seletor} fechar={() => setSeletor(false)}
         jaEscolhidos={grupos.map(g => g.exercicioId)}
         onEscolher={async ex => {
-          const ant = await ultimaCarga(ex.id)
-          const novas: SerieLog[] = [1, 2, 3].map(n => ({
-            exercicioId: ex.id, serie: n, reps: ant?.reps ?? 0, carga: ant?.carga ?? 0, feito: false,
-          }))
+          const ant = await ultimasSeries(ex.id)
+          const novas: SerieLog[] = [1, 2, 3].map(n => {
+            const a = serieAnterior(ant, n - 1)
+            return { exercicioId: ex.id, serie: n, reps: a?.reps ?? 0, carga: a?.carga ?? 0, feito: false }
+          })
           await salvar([...sessao.series, ...novas])
           setAnteriores(a => ({ ...a, [ex.id]: ant }))
           setRecordes(r => ({ ...r, [ex.id]: SEM_RECORDE }))

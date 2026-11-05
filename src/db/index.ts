@@ -90,6 +90,17 @@ export class OneMoreDB extends Dexie {
     this.version(7).stores({
       apagados: 'id, ts, tabela',
     })
+
+    /**
+     * v8: `melhores` passa a guardar as series da ultima vez, uma a uma
+     * (ultimaSeries). Quem ja tinha treino registrado so tem a melhor serie
+     * nas linhas antigas, entao refaz a tabela a partir das sessoes.
+     */
+    this.version(8).stores({}).upgrade(async tx => {
+      const linhas = calcularMelhores(await tx.table('sessoes').toArray())
+      await tx.table('melhores').clear()
+      if (linhas.length) await tx.table('melhores').bulkPut(linhas)
+    })
   }
 }
 
