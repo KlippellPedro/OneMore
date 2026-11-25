@@ -8,6 +8,7 @@ import {
 } from 'node:crypto'
 import { promisify } from 'node:util'
 import { consultar } from './banco.js'
+import { normalizarEmail, emailCanonico, emailValido } from './email.js'
 
 const scryptAsync = promisify(scrypt)
 
@@ -96,27 +97,64 @@ export async function encerrarSessao(token) {
 /* USUARIO                                                             */
 /* ------------------------------------------------------------------ */
 
-/** Guardado sempre em minusculo e sem espaco, pra "A@x.com" e "a@x.com " serem a mesma conta. */
-export const normalizarEmail = e => String(e ?? '').trim().toLowerCase()
+// a regra de "mesmo e-mail" mora em email.js (banco.js tambem usa, na migracao)
+export { normalizarEmail, emailCanonico, emailValido }
 
-export const emailValido = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e) && e.length <= 254
-
+/**
+ * Uma conta por pessoa: `email_canonico` tem indice unico no banco (ver
+ * banco.js), entao nem duas requisicoes simultaneas conseguem criar a mesma.
+ * `email` guarda como a pessoa digitou (em minusculo) - e o que o app mostra.
+ */
 export async function criarUsuario(email, senha) {
   const id = randomUUID()
   const codigo = gerarCodigo()
   await consultar(
-    'insert into usuarios (id, email, senha_hash, codigo_hash) values ($1, $2, $3, $4)',
-    [id, email, await hashSenha(senha), await hashCodigo(codigo)],
+    'insert into usuarios (id, email, email_canonico, senha_hash, codigo_hash) values ($1, $2, $3, $4, $5)',
+    [id, email, emailCanonico(email), await hashSenha(senha), await hashCodigo(codigo)],
   )
   // o codigo volta UMA vez, aqui. Depois disso so existe o hash.
   return { id, email, codigo }
 }
 
+/**
+ * Acha pela forma canonica: quem criou a conta com `p.edro@gmail.com` entra
+ * digitando `pedro@gmail.com` - e e a MESMA conta, nao uma segunda. O `order
+ * by` so desempata contas antigas que ja colidiam antes desta regra existir:
+ * o e-mail exato ganha, e depois a mais antiga.
+ */
 export async function acharPorEmail(email) {
   const { rows } = await consultar(
-    'select id, email, senha_hash, codigo_hash from usuarios where email = $1', [email],
+    `select id, email, senha_hash, codigo_hash from usuarios
+      where email_canonico = $2
+      order by (email = $1) desc, criado_em asc
+      limit 1`,
+    [email, emailCanonico(email)],
   )
   return rows[0] ?? null
+}
+
+/** Senhas que qualquer lista de vazamento tenta primeiro. Minimo 8 caracteres ja filtrou as menores. */
+const SENHAS_COMUNS = new Set([
+  '12345678', '123456789', '1234567890', '11111111', '00000000', '87654321',
+  'password', 'password1', 'password123', 'senha123', 'senha1234', 'minhasenha',
+  'qwertyui', 'qwerty123', 'qwertyuiop', 'abcd1234', 'abc12345', 'iloveyou',
+  'admin123', 'onemore1', 'onemore123', 'treino123', 'academia', 'musculacao',
+  '12341234', '123123123', '1q2w3e4r', 'brasil123', 'corinthians', 'flamengo1',
+])
+
+/**
+ * Mensagem de erro se a senha nao serve, ou null. Alem do tamanho: nao pode ser
+ * uma das senhas mais usadas, nem so repetir um caractere, nem ser o proprio
+ * e-mail (ou o comeco dele) - os tres primeiros palpites de quem ataca.
+ */
+export function problemaNaSenha(senha, email = '') {
+  const s = senha.normalize('NFKC').toLowerCase()
+  const local = normalizarEmail(email).split('@')[0]
+  if (SENHAS_COMUNS.has(s) || /^(.)\1+$/.test(s)) return 'Essa senha e muito comum. Escolha outra.'
+  if (email && (s === normalizarEmail(email) || (local.length >= 6 && s === local))) {
+    return 'A senha nao pode ser igual ao e-mail.'
+  }
+  return null
 }
 
 /* ------------------------------------------------------------------ */

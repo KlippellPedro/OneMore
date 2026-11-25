@@ -5,7 +5,7 @@ import { usePerfil, useNivel } from '../state/hooks'
 import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo, apagarTudoNaConta,
-  entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao,
+  entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao, excluirConta,
   sincronizar, ultimoSync, ultimaFalhaSync, type Backup,
 } from '../lib/sync'
 import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
@@ -305,6 +305,8 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   const [falha, setFalha] = useState(ultimaFalhaSync())
   /** Codigo recem-gerado, esperando a pessoa confirmar que anotou. */
   const [codigo, setCodigo] = useState<string | null>(null)
+  const [excluindo, setExcluindo] = useState(false)
+  const [senhaExcluir, setSenhaExcluir] = useState('')
 
   useEffect(() => {
     if (!aberto) return
@@ -384,6 +386,39 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
               })}>
               {ocupado === 'codigo' ? 'Gerando...' : 'Gerar novo código de recuperação'}
             </Btn>
+
+            <div className="border-t border-line mt-4 pt-4">
+              {!excluindo ? (
+                <button onClick={() => setExcluindo(true)}
+                  className="toque w-full text-[12px] font-semibold text-bad py-1">
+                  Excluir minha conta
+                </button>
+              ) : (
+                <>
+                  <p className="text-[12px] text-muted leading-relaxed mb-3">
+                    Apaga a conta e o backup na nuvem, e não dá pra desfazer. Os
+                    dados <b>deste aparelho</b> continuam aqui. Confirme com a sua senha.
+                  </p>
+                  <Campo label="Senha">
+                    <Input type="password" value={senhaExcluir} autoComplete="current-password"
+                      onChange={e => setSenhaExcluir(e.target.value)} />
+                  </Campo>
+                  <div className="flex gap-2">
+                    <Btn variant="ghost" className="flex-1"
+                      onClick={() => { setExcluindo(false); setSenhaExcluir('') }}>Cancelar</Btn>
+                    <Btn variant="danger" className="flex-1"
+                      disabled={ocupado === 'excluir' || !senhaExcluir}
+                      onClick={() => tentar('excluir', async () => {
+                        await excluirConta(senhaExcluir)
+                        setUsuario(null); setExcluindo(false); setSenhaExcluir('')
+                        toast('Conta excluída', 'ok', 'Seus dados continuam neste aparelho')
+                      })}>
+                      {ocupado === 'excluir' ? 'Excluindo...' : 'Excluir de vez'}
+                    </Btn>
+                  </div>
+                </>
+              )}
+            </div>
           </>
         ) : (
           <>

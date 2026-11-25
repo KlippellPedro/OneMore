@@ -6,6 +6,7 @@
  * DATABASE_URL no .env e subiu - na primeira execucao o esquema ja nasce.
  */
 import pg from 'pg'
+import { emailCanonico } from './email.js'
 
 const { Pool } = pg
 
@@ -120,14 +121,68 @@ create index if not exists push_avisos_pendentes on push_avisos (ts) where envia
  */
 export let pronto = false
 
+/**
+ * Uma conta por e-mail DE VERDADE: `email` e unico, mas "a@gmail.com" e
+ * "a+x@gmail.com" sao textos diferentes na mesma caixa. `email_canonico` guarda
+ * a forma normalizada (ver email.js) e leva o indice unico.
+ *
+ * Contas antigas nao tem a coluna preenchida: o preenchimento roda aqui, em JS,
+ * porque a regra mora no Node. E se duas contas JA existentes colidem na forma
+ * canonica, o indice unico nao pode ser criado - e isso NAO pode derrubar a
+ * subida (conectarComRetentativa tentaria pra sempre e a API ficaria em 503).
+ * Nesse caso so avisa no log; a checagem do cadastro continua valendo pra
+ * contas novas, e quem resolver as duplicadas na mao ganha o indice no
+ * proximo restart.
+ */
+async function garantirEmailUnico() {
+  await pool.query('alter table usuarios add column if not exists email_canonico text')
+  const { rows } = await pool.query('select id, email from usuarios where email_canonico is null')
+  for (const r of rows) {
+    await pool.query('update usuarios set email_canonico = $2 where id = $1', [r.id, emailCanonico(r.email)])
+  }
+  if (rows.length) console.log(`[banco] ${rows.length} conta(s) com e-mail canonico preenchido`)
+  // olha ANTES de criar: assim o caso comum (conta duplicada antiga) e um aviso
+  // normal e nao depende de o banco se recuperar de um erro de indice
+  const { rows: dup } = await pool.query(
+    `select email_canonico, count(*)::int as contas from usuarios
+      group by email_canonico having count(*) > 1`,
+  )
+  if (dup.length) {
+    console.error(
+      `[banco] ${dup.length} e-mail(s) com mais de uma conta (mesma caixa, grafia diferente) - `
+      + 'indice unico NAO criado. Junte ou apague as duplicadas: '
+      + dup.map(d => `${d.email_canonico} x${d.contas}`).join(', '),
+    )
+    return
+  }
+  try {
+    await pool.query(
+      'create unique index if not exists usuarios_email_canonico on usuarios (email_canonico)',
+    )
+  } catch (e) {
+    // corrida: alguem criou uma duplicada entre a checagem e o indice. Tentara no proximo restart
+    if (e.code !== '23505') throw e
+    console.error('[banco] duplicata apareceu durante a criacao do indice unico de e-mail; tente reiniciar')
+  }
+}
+
 async function migrar() {
   await pool.query(ESQUEMA)
+  await garantirEmailUnico()
   // sessao vencida nao serve pra nada e a tabela so cresce
   const { rowCount } = await pool.query('delete from sessoes where expira_em < now()')
   if (rowCount) console.log(`[banco] ${rowCount} sessao(oes) vencida(s) removida(s)`)
   pronto = true
   console.log('[banco] conectado, tabelas prontas')
+  // so limpava na subida: um servidor que fica semanas no ar acumulava sessao vencida
+  if (!limpeza) {
+    limpeza = setInterval(() => {
+      pool.query('delete from sessoes where expira_em < now()').catch(() => {})
+    }, 6 * 60 * 60 * 1000)
+    limpeza.unref()
+  }
 }
+let limpeza = null
 
 /**
  * Tenta migrar sem nunca derrubar o processo. O banco da Discloud fica numa

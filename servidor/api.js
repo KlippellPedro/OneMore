@@ -5,7 +5,8 @@
  * sessao sem deixar o token ao alcance de qualquer script da pagina.
  *
  * Rotas:
- *   POST   /api/conta    cria a conta e ja deixa logado
+ *   POST   /api/conta    cria a conta e ja deixa logado (uma conta por e-mail)
+ *   DELETE /api/conta    apaga a conta e tudo dela (logado + confirma a senha)
  *   POST   /api/sessao   entra
  *   DELETE /api/sessao   sai
  *   GET    /api/eu       quem esta logado (204 se ninguem)
@@ -27,7 +28,7 @@ import {
 } from './push.js'
 import {
   COOKIE, hashSenha, conferirSenha, criarSessao, usuarioDaSessao, encerrarSessao,
-  criarUsuario, acharPorEmail, normalizarEmail, emailValido,
+  criarUsuario, acharPorEmail, normalizarEmail, emailCanonico, emailValido, problemaNaSenha,
   gerarCodigo, hashCodigo, conferirCodigo, trocarSenha,
   lerCookie, cookieSessao, cookieLimpo,
 } from './auth.js'
@@ -37,6 +38,7 @@ const LIMITE_CORPO = 12 * 1024 * 1024
 /** E-mail + senha (+ codigo): cabe de sobra em 4 KB, mesmo com folga generosa. */
 export const LIMITE_CORPO_CONTA = 4 * 1024
 const SENHA_MINIMA = 8
+const MSG_EMAIL_EM_USO = 'Ja existe uma conta com esse e-mail. Entre nela ou use "Esqueci a senha".'
 /**
  * Nenhuma senha de verdade chega perto disso. Sem um teto, um corpo de ate
  * 12 MB (o limite do lerCorpo acima) virava uma senha gigante jogada direto
@@ -158,12 +160,17 @@ function contar(chave, max) {
 }
 
 export const freadoPorIp = req => contar(`ip:${ipDe(req)}`, MAX_POR_IP)
-export const freadoPorConta = email => contar(`conta:${email}`, MAX_POR_CONTA)
+/**
+ * Conta pela forma CANONICA: `a@gmail.com`, `a+1@gmail.com`, `a+2@gmail.com`...
+ * entram na MESMA conta (ver acharPorEmail), entao se cada grafia tivesse o
+ * proprio contador o freio por conta nunca travava - bastava variar o "+".
+ */
+export const freadoPorConta = email => contar(`conta:${emailCanonico(email)}`, MAX_POR_CONTA)
 
 /** Sucesso limpa os dois contadores - senao o uso normal ia acumulando ate travar. */
 function desfrear(req, email) {
   tentativas.delete(`ip:${ipDe(req)}`)
-  tentativas.delete(`conta:${email}`)
+  tentativas.delete(`conta:${emailCanonico(email)}`)
 }
 
 // a cada 30 min joga fora quem ja venceu, pro Map nao virar vazamento de memoria
@@ -199,14 +206,17 @@ async function postConta(req, res) {
   if (senha.length > SENHA_MAXIMA) {
     return erro(res, 400, `A senha pode ter no maximo ${SENHA_MAXIMA} caracteres.`)
   }
-  if (await acharPorEmail(email)) return erro(res, 409, 'Ja existe uma conta com esse e-mail.')
+  const ruim = problemaNaSenha(senha, email)
+  if (ruim) return erro(res, 400, ruim)
+  // pela forma canonica: a+x@gmail.com e a.b@gmail.com sao a mesma caixa
+  if (await acharPorEmail(email)) return erro(res, 409, MSG_EMAIL_EM_USO)
 
   let usuario
   try {
     usuario = await criarUsuario(email, senha)
   } catch (e) {
     // corrida entre dois cadastros do mesmo e-mail: o unique do banco decide
-    if (e.code === '23505') return erro(res, 409, 'Ja existe uma conta com esse e-mail.')
+    if (e.code === '23505') return erro(res, 409, MSG_EMAIL_EM_USO)
     throw e
   }
 
@@ -215,6 +225,29 @@ async function postConta(req, res) {
   // o codigo de recuperacao volta AQUI e so aqui - depois disso so existe o hash
   responder(res, 201, { email: usuario.email, codigo: usuario.codigo },
     { 'Set-Cookie': cookieSessao(req, token, expira) })
+}
+
+/**
+ * Apaga a conta e tudo que e dela. Exige a SENHA de novo, mesmo logado: um
+ * celular desbloqueado e esquecido por ai nao pode ser o bastante pra apagar
+ * (ou, pior, pra um terceiro apagar) anos de treino. As tabelas filhas
+ * (sessoes, dados, push_inscricoes e push_avisos) saem junto por `on delete
+ * cascade` - ver banco.js. Os dados DESTE aparelho ficam: sao da pessoa.
+ */
+async function deleteConta(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const corpo = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  const senha = String(corpo.senha ?? '').slice(0, SENHA_MAXIMA)
+  // mesmo freio do login: aqui a senha tambem esta sendo adivinhada
+  if (freadoPorConta(u.email)) return erro(res, 429, 'Muitas tentativas. Espere uns minutos.')
+  const { rows } = await consultar('select senha_hash from usuarios where id = $1', [u.id])
+  if (!rows.length || !(await conferirSenha(senha, rows[0].senha_hash))) {
+    return erro(res, 401, 'Senha incorreta.')
+  }
+  await consultar('delete from usuarios where id = $1', [u.id])
+  desfrear(req, u.email)
+  responder(res, 200, { ok: true }, { 'Set-Cookie': cookieLimpo(req) })
 }
 
 /**
@@ -262,6 +295,9 @@ async function postSenha(req, res) {
   if (senha.length > SENHA_MAXIMA) {
     return erro(res, 400, `A senha pode ter no maximo ${SENHA_MAXIMA} caracteres.`)
   }
+
+  const ruim = problemaNaSenha(senha, email)
+  if (ruim) return erro(res, 400, ruim)
 
   const usuario = await acharPorEmail(email)
   const ok = usuario?.codigo_hash
@@ -419,6 +455,7 @@ const ROTAS = {
   'PUT /api/push/agenda': putAgenda,
   'POST /api/push/teste': postTestePush,
   'POST /api/conta': postConta,
+  'DELETE /api/conta': deleteConta,
   'POST /api/sessao': postSessao,
   'DELETE /api/sessao': deleteSessao,
   'GET /api/eu': getEu,
@@ -449,6 +486,24 @@ function logarAcesso(req, caminho, status, desde) {
 export async function tratarApi(req, res, caminho) {
   if (caminho !== '/api' && !caminho.startsWith('/api/')) return false
   const desde = Date.now()
+
+  /**
+   * CSRF, em camada dupla com o SameSite=Lax do cookie: o navegador informa em
+   * `Sec-Fetch-Site` de onde veio a requisicao, e isso um site malicioso nao
+   * consegue forjar. Escrita (POST/PUT/DELETE) vinda de OUTRO site e barrada
+   * antes de chegar na rota. Nao se compara Origin/Host de proposito: atras do
+   * proxy da Discloud o Host pode nao ser o que o navegador digitou, e isso
+   * derrubaria o login de todo mundo. Navegador sem o cabecalho (antigo) segue
+   * so com o SameSite - e `curl`/scripts, que nao sao vetor de CSRF, tambem.
+   */
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    const origem = req.headers['sec-fetch-site']
+    if (origem === 'cross-site' || origem === 'same-site') {
+      erro(res, 403, 'Requisicao de outro site bloqueada.')
+      logarAcesso(req, caminho, 403, desde)
+      return true
+    }
+  }
 
   // sem banco a conta nao funciona, mas o site continua servindo normalmente
   if (!configurado || !pronto) {

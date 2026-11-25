@@ -233,6 +233,15 @@ export interface Usuario { email: string }
  */
 export interface UsuarioComCodigo extends Usuario { codigo: string }
 
+/** Erro da API com o status HTTP junto: a tela decide o que fazer (ex.: 409 = e-mail ja tem conta). */
+export class ErroApi extends Error {
+  status: number
+  constructor(mensagem: string, status: number) {
+    super(mensagem)
+    this.status = status
+  }
+}
+
 async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null> {
   let r: Response
   try {
@@ -247,8 +256,13 @@ async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null
 
   if (r.status === 204) return null
   const texto = await r.text()
-  const corpo = texto ? JSON.parse(texto) : null
-  if (!r.ok) throw new Error(corpo?.erro ?? `Erro ${r.status}.`)
+  let corpo: { erro?: string } | null = null
+  try {
+    corpo = texto ? JSON.parse(texto) : null
+  } catch {
+    // resposta que nao e JSON (pagina de erro do proxy): cai na mensagem generica abaixo
+  }
+  if (!r.ok) throw new ErroApi(corpo?.erro ?? `Erro ${r.status}.`, r.status)
   return corpo as T
 }
 
@@ -280,6 +294,18 @@ export async function sair() {
   // saiu nao pode continuar recebendo os lembretes da conta neste aparelho
   await desligarPush().catch(() => {})
   await chamar('/sessao', { method: 'DELETE' })
+  for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA]) localStorage.removeItem(chave)
+}
+
+/**
+ * Apaga a conta e tudo que esta na nuvem (exige a senha). Os dados deste
+ * aparelho ficam: o app continua funcionando offline, so sem conta.
+ */
+export async function excluirConta(senha: string) {
+  // primeiro a conta: com a senha errada nada pode mudar (nem o push deste aparelho)
+  await chamar('/conta', { method: 'DELETE', body: JSON.stringify({ senha }) })
+  // o servidor ja esqueceu a inscricao (cascade); falta o navegador parar de receber
+  await desligarPush().catch(() => {})
   for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA]) localStorage.removeItem(chave)
 }
 

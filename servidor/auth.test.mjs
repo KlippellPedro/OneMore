@@ -68,3 +68,58 @@ test('e-mail normaliza e valida', () => {
   assert.ok(emailValido('a@b.com'))
   assert.ok(!emailValido('naoehemail'))
 })
+
+/* ---------- uma conta por e-mail ---------- */
+
+import { emailCanonico, problemaNaSenha } from './auth.js'
+
+test('emailCanonico: maiuscula, espaco e forma Unicode nao criam outra conta', () => {
+  assert.equal(emailCanonico('  Pedro@Teste.COM '), 'pedro@teste.com')
+  assert.equal(emailCanonico('ｐedro@teste.com'), 'pedro@teste.com') // "p" de largura total
+})
+
+test('emailCanonico: +etiqueta cai na mesma caixa em qualquer provedor', () => {
+  assert.equal(emailCanonico('ana+treino@empresa.com.br'), 'ana@empresa.com.br')
+  assert.equal(emailCanonico('ana+a+b@empresa.com.br'), 'ana@empresa.com.br')
+})
+
+test('emailCanonico: Gmail ignora ponto e googlemail.com e gmail.com', () => {
+  const base = emailCanonico('pedro@gmail.com')
+  for (const v of ['p.edro@gmail.com', 'P.E.D.R.O@GMAIL.COM', 'pedro+x@gmail.com', 'pedro@googlemail.com']) {
+    assert.equal(emailCanonico(v), base, v)
+  }
+})
+
+test('emailCanonico: ponto NAO e ignorado fora do Gmail (la sao caixas diferentes)', () => {
+  assert.notEqual(emailCanonico('a.b@empresa.com'), emailCanonico('ab@empresa.com'))
+})
+
+test('emailCanonico: pessoas diferentes continuam diferentes', () => {
+  assert.notEqual(emailCanonico('pedro@gmail.com'), emailCanonico('pedra@gmail.com'))
+  assert.notEqual(emailCanonico('a@x.com'), emailCanonico('a@y.com'))
+})
+
+test('emailCanonico: lixo sem arroba nao estoura', () => {
+  assert.equal(emailCanonico('naoehemail'), 'naoehemail')
+  assert.equal(emailCanonico(undefined), '')
+  assert.equal(emailCanonico('+x@a.com'), '+x@a.com')
+})
+
+test('emailValido: barra os formatos quebrados mais comuns', () => {
+  for (const ruim of ['', 'a@b', 'a@@b.com', 'a b@c.com', 'a@b..com', '.a@b.com', 'a.@b.com',
+    'a@.b.com', 'a@b.c', 'a\n@b.com', `${'x'.repeat(65)}@b.com`, `a@${'b'.repeat(250)}.com`]) {
+    assert.ok(!emailValido(ruim), `deveria recusar: ${JSON.stringify(ruim)}`)
+  }
+  for (const bom of ['a@b.co', 'pedro.klippel+x@gmail.com', 'a_b-c@sub.dominio.com.br']) {
+    assert.ok(emailValido(bom), `deveria aceitar: ${bom}`)
+  }
+})
+
+test('problemaNaSenha: recusa senha comum, repetida e igual ao e-mail', () => {
+  assert.ok(problemaNaSenha('12345678'))
+  assert.ok(problemaNaSenha('Password123'))
+  assert.ok(problemaNaSenha('aaaaaaaaaa'))
+  assert.ok(problemaNaSenha('pedro@teste.com', 'pedro@teste.com'))
+  assert.ok(problemaNaSenha('pedroklippel', 'pedroklippel@teste.com'))
+  assert.equal(problemaNaSenha('cavalo-bateria-grampo', 'pedro@teste.com'), null)
+})

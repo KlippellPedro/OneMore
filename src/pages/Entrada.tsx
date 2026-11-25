@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { entrar, criarConta, redefinirSenha } from '../lib/sync'
+import { entrar, criarConta, redefinirSenha, ErroApi } from '../lib/sync'
 import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
 import { Btn, Campo, Input, Chip } from '../components/ui'
 import { Icone } from '../components/Icone'
@@ -49,6 +49,13 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
       toast(`Bem-vindo, ${u?.email ?? ''}`, 'ok')
       pronto()
     } catch (e) {
+      // 409 no cadastro: esse e-mail ja tem conta - leva direto pro login
+      if (criando && e instanceof ErroApi && e.status === 409) {
+        setModo('entrar')
+        setSenha('')
+        toast('Esse e-mail já tem conta', 'info', 'Entre com a senha dela, ou use "Esqueci a senha".')
+        return
+      }
       toast('Não deu', 'erro', (e as Error).message)
     } finally {
       setOcupado(false)

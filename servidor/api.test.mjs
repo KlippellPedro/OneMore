@@ -195,3 +195,36 @@ test('tratarApi: loga tambem a rota inexistente (404), nao so o caminho tratado'
   assert.equal(linhas.length, 1)
   assert.match(linhas[0], /^\[api\] GET \/api\/rota-que-nao-existe -> 503 \(\d+ms\)$/)
 })
+
+test('a CSP barra script de fora, plugin, iframe alheio e <base>', () => {
+  const csp = CABECALHOS_SEGURANCA['Content-Security-Policy']
+  assert.ok(csp, 'sem Content-Security-Policy')
+  for (const regra of ["default-src 'self'", "script-src 'self'", "object-src 'none'",
+    "base-uri 'self'", "frame-ancestors 'none'", "form-action 'self'"]) {
+    assert.ok(csp.includes(regra), regra)
+  }
+  const script = csp.split('; ').find(d => d.startsWith('script-src'))
+  assert.ok(!script.includes('unsafe-inline') && !script.includes('unsafe-eval'), script)
+})
+
+/* ---------- CSRF: escrita vinda de outro site e barrada ---------- */
+
+test('POST com Sec-Fetch-Site cross-site/same-site e recusado (403) antes de qualquer rota', async () => {
+  for (const origem of ['cross-site', 'same-site']) {
+    for (const metodo of ['POST', 'PUT', 'DELETE']) {
+      const req = { method: metodo, headers: { 'sec-fetch-site': origem }, socket: { remoteAddress: '203.0.113.1' } }
+      const res = resFake()
+      assert.ok(await tratarApi(req, res, '/api/sessao'))
+      assert.equal(res.chamadas[0].status, 403, `${metodo} ${origem}`)
+    }
+  }
+})
+
+test('Sec-Fetch-Site same-origin, none e ausente NAO sao bloqueados; GET cross-site tambem passa', async () => {
+  for (const [metodo, origem] of [['POST', 'same-origin'], ['POST', 'none'], ['POST', undefined], ['GET', 'cross-site']]) {
+    const headers = origem ? { 'sec-fetch-site': origem } : {}
+    const res = resFake()
+    await tratarApi({ method: metodo, headers, socket: { remoteAddress: '203.0.113.1' } }, res, '/api/sessao')
+    assert.notEqual(res.chamadas[0].status, 403, `${metodo} ${origem}`)
+  }
+})

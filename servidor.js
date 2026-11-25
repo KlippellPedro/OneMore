@@ -13,7 +13,7 @@
 import './servidor/env.js'
 import { createServer } from 'node:http'
 import { readFile, stat } from 'node:fs/promises'
-import { extname, join, normalize } from 'node:path'
+import { extname, join, normalize, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { brotliCompress, gzip as gzipCompress, constants as zlib } from 'node:zlib'
@@ -64,11 +64,12 @@ function cacheDe(caminho) {
     : 'public, max-age=86400'
 }
 
-async function achar(urlPath) {
+async function achar(caminhoDecodificado) {
   // normalize + prefixo obrigatorio barram ../.. tentando sair da pasta
-  const relativo = normalize(decodeURIComponent(urlPath)).replace(/^(\.\.[/\\])+/, '')
+  const relativo = normalize(caminhoDecodificado).replace(/^(\.\.[/\\])+/, '')
   let alvo = join(RAIZ, relativo)
-  if (!alvo.startsWith(RAIZ)) return null
+  // com o separador no fim: "site-secreto" tambem comeca com "site"
+  if (alvo !== RAIZ && !alvo.startsWith(RAIZ + sep)) return null
 
   try {
     if ((await stat(alvo)).isDirectory()) alvo = join(alvo, 'index.html')
@@ -117,8 +118,28 @@ const servidor = createServer(async (req, res) => {
     const url = new URL(req.url, 'http://local')
     // a API vem antes do disco: senao /api/dados cairia no fallback do index
     if (await tratarApi(req, res, url.pathname)) return
+    // arquivo estatico so se le: POST/PUT/DELETE num caminho de pagina nao tem o que fazer
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      res.writeHead(405, {
+        Allow: 'GET, HEAD', 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA,
+      })
+      return res.end('Metodo nao permitido.')
+    }
+    let caminho
+    try {
+      caminho = decodeURIComponent(url.pathname)
+    } catch {
+      // %E0%A4%A: URL quebrada de proposito. E erro de quem pediu, nao do servidor
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA })
+      return res.end('Endereco invalido.')
+    }
+    // byte nulo no caminho faria o readFile estourar com detalhe do sistema de arquivos
+    if (caminho.includes('\0')) {
+      res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA })
+      return res.end('Endereco invalido.')
+    }
     // o app usa rotas em #/, entao qualquer caminho desconhecido e o index mesmo
-    const alvo = (await achar(url.pathname)) ?? join(RAIZ, 'index.html')
+    const alvo = (await achar(caminho)) ?? join(RAIZ, 'index.html')
     const item = await carregar(alvo)
     const aceita = String(req.headers['accept-encoding'] ?? '')
     const [codificacao, corpo] = item.br && /\bbr\b/.test(aceita) ? ['br', item.br]
@@ -134,8 +155,12 @@ const servidor = createServer(async (req, res) => {
     })
     res.end(corpo)
   } catch (e) {
-    res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA })
-    res.end('Erro ao servir: ' + e.message)
+    // o detalhe (que pode ter caminho de pasta do servidor) fica so no log
+    console.error('[site] erro ao servir', req.url, e)
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA })
+    }
+    res.end('Erro ao servir o site.')
   }
 })
 
