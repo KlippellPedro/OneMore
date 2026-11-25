@@ -3,6 +3,7 @@ import { entrar, criarConta, redefinirSenha, ErroApi } from '../lib/sync'
 import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
 import { Btn, Campo, Input, Chip } from '../components/ui'
 import { Icone } from '../components/Icone'
+import { Politica } from './Privacidade'
 import { useUI } from '../state/ui'
 
 /**
@@ -24,6 +25,7 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
   const [ocupado, setOcupado] = useState(false)
   /** Quando preenchido, a tela para tudo e mostra o codigo. */
   const [mostrarCodigo, setMostrarCodigo] = useState<string | null>(null)
+  const [verPolitica, setVerPolitica] = useState(false)
 
   const criando = modo === 'criar'
   const recuperando = modo === 'recuperar'
@@ -61,6 +63,9 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
       setOcupado(false)
     }
   }
+
+  // a politica abre aqui mesmo: a tela de entrada vive fora do roteador do app
+  if (verPolitica) return <Politica onVoltar={() => setVerPolitica(false)} rotulo="Voltar ao cadastro" />
 
   if (mostrarCodigo) {
     return (
@@ -117,6 +122,14 @@ export default function Entrada({ pronto }: { pronto: () => void }) {
         <p className="text-[11px] text-muted leading-relaxed mt-2.5 text-center">
           Você vai receber um código de recuperação pra guardar - e o único jeito
           de voltar se esquecer a senha.
+        </p>
+      )}
+      {criando && (
+        <p className="text-[11px] text-muted leading-relaxed mt-2 text-center">
+          Ao criar a conta você concorda com o tratamento dos seus dados descrito na{' '}
+          <button onClick={() => setVerPolitica(true)} className="underline font-semibold text-txt/80">
+            política de privacidade
+          </button>.
         </p>
       )}
 

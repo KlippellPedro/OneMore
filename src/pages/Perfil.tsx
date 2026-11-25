@@ -140,6 +140,7 @@ export default function Perfil() {
             onClick={() => arquivo.current?.click()} />
           <Linha titulo="Apagar tudo" sub="Zera treinos, dieta e XP - com conta, em todos os aparelhos" perigo
             onClick={pedirApagar} />
+          <LinhaLink to="/privacidade" titulo="Política de privacidade" sub="O que o app guarda, com quem passa e seus direitos" />
         </Grupo>
 
         <input ref={arquivo} type="file" accept="application/json,.json" className="hidden"

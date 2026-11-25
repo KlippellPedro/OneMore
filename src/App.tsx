@@ -29,6 +29,7 @@ import Progresso from './pages/Progresso'
 import Perfil from './pages/Perfil'
 import Lembretes from './pages/Lembretes'
 import Entrada from './pages/Entrada'
+import Privacidade from './pages/Privacidade'
 
 const TABS_BASE = [
   { to: '/', label: 'Início', icone: 'casa' },
@@ -218,6 +219,7 @@ export default function App() {
           <Route path="/progresso" element={<Progresso />} />
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/lembretes" element={<Lembretes />} />
+          <Route path="/privacidade" element={<Privacidade />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Miolo>
