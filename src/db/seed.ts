@@ -9,6 +9,9 @@ import { migrarDeForja } from './migrar'
 
 const VERSAO_SEED = 2
 
+/** Instante em que o setup de fabrica foi montado neste aparelho. Some na 1a sincronizacao. */
+export const CHAVE_SETUP = 'onemore:setup-em'
+
 let emExecucao: Promise<void> | null = null
 
 /**
@@ -73,7 +76,12 @@ async function executarSeed() {
     && (await db.planos.count()) === 0
     && (await db.sessoes.count()) === 0
 
-  if (virgem) await montarSetupInicial()
+  if (virgem) {
+    await montarSetupInicial()
+    // quando o setup de fabrica terminou: a sincronizacao usa isto pra nao deixar
+    // ele passar por cima do que ja esta na conta - ver setupDeFabricaIntacto
+    localStorage.setItem(CHAVE_SETUP, String(Date.now()))
+  }
   localStorage.setItem('onemore:seed', String(VERSAO_SEED))
 }
 

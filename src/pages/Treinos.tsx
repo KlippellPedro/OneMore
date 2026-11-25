@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { db, uid, apagarLinha } from '../db'
-import { useRotinas, useMapaExercicios, useSessaoAtiva } from '../state/hooks'
-import { iniciarSessao, atribuirDia } from '../lib/acoes'
+import { useRotinas, useRotinasArquivadas, useMapaExercicios, useSessaoAtiva } from '../state/hooks'
+import { iniciarSessao, atribuirDia, restaurarRotina } from '../lib/acoes'
 import { corGrupo, nomeGrupo } from '../db/seedExercicios'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Vazio, Confirmar, Sheet, Campo, Input, Chip } from '../components/ui'
@@ -20,6 +20,7 @@ export default function Treinos() {
   const nav = useNavigate()
   const { toast } = useUI()
   const rotinas = useRotinas()
+  const arquivadas = useRotinasArquivadas()
   const mapaEx = useMapaExercicios()
   const sessaoAtiva = useSessaoAtiva()
 
@@ -200,6 +201,35 @@ export default function Treinos() {
                 </Card>
               )
             })}
+          </div>
+        )}
+
+        {/* -------- rotinas que sairam da lista ao trocar de programa -------- */}
+        {vista === 'rotinas' && arquivadas.length > 0 && (
+          <div className="mb-6">
+            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-1 px-1">
+              Arquivados
+            </h2>
+            <p className="text-[11.5px] text-muted leading-relaxed mb-2.5 px-1">
+              Saíram da lista quando você trocou de programa. O histórico deles continua intacto.
+            </p>
+            <Card className="overflow-hidden">
+              {arquivadas.map(r => (
+                <div key={r.id}
+                  className="flex items-center gap-3 px-3.5 py-3 border-b border-line/40 last:border-0">
+                  <span className="w-1 self-stretch rounded-full shrink-0 min-h-[32px]" style={{ background: r.cor }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13.5px] font-semibold leading-tight line-clamp-2">{r.nome}</p>
+                    <p className="text-[11px] text-muted mt-0.5">{pl(r.itens.length, 'exercício')}</p>
+                  </div>
+                  <Btn size="sm" onClick={async () => {
+                    await restaurarRotina(r.id)
+                    vibrar()
+                    toast(`${r.nome} voltou`, 'ok', 'Escolha o dia dela em Semana')
+                  }}>Restaurar</Btn>
+                </div>
+              ))}
+            </Card>
           </div>
         )}
 

@@ -452,6 +452,18 @@ export async function aplicarPrograma(
 }
 
 /**
+ * Traz de volta uma rotina arquivada (ver `aplicarPrograma`). Volta sem dia
+ * fixo: o dia dela pode ter sido ocupado por outra rotina nesse meio tempo, e
+ * cada dia so tem uma - quem escolhe e a pessoa, em "Semana".
+ */
+export async function restaurarRotina(id: string) {
+  const ativas = await db.rotinas.where('arquivada').equals(0).count()
+  await db.rotinas.update(id, {
+    arquivada: 0, dias: [], ordem: ativas, atualizadoEm: Date.now(),
+  })
+}
+
+/**
  * Coloca uma rotina num dia da semana. Cada dia tem no maximo uma rotina,
  * entao atribuir tira esse dia de quem estava nele antes.
  * rotinaId null = dia de descanso.

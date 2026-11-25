@@ -48,6 +48,17 @@ export function useRotinas() {
   ) ?? []
 }
 
+/**
+ * Rotinas que sairam da lista ao trocar de programa. Nunca sao apagadas: o
+ * historico de treinos aponta pra elas. Aparecem em Treino > Rotinas pra
+ * poder voltar.
+ */
+export function useRotinasArquivadas() {
+  return useLiveQuery(
+    () => db.rotinas.where('arquivada').equals(1).sortBy('ordem'), [], [],
+  ) ?? []
+}
+
 /** A sessao de treino em andamento, se houver. So pode existir uma. */
 export function useSessaoAtiva() {
   return useLiveQuery(

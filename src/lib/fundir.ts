@@ -221,6 +221,46 @@ export function assinatura(dados: Record<string, unknown[]>): string {
 }
 
 /**
+ * Aparelho novo (ou com os dados do navegador apagados): o app monta sozinho um
+ * setup de fabrica - perfil, programa de treino e plano alimentar - ANTES de a
+ * pessoa entrar na conta. Esse setup nasce com carimbo de "agora" e ids
+ * aleatorios, entao na primeira sincronizacao ele parecia edicao mais recente
+ * que a da conta: o perfil e as metas voltavam ao padrao, e treino e dieta
+ * apareciam em dobro (o de fabrica ao lado do que a pessoa tinha editado).
+ *
+ * `setupEm` e o instante em que o setup terminou de ser montado (null = este
+ * aparelho nao montou setup nenhum). So conta como "de fabrica" se NADA foi
+ * mexido depois dele: qualquer linha com carimbo posterior, ou qualquer treino,
+ * refeicao, agua etc., e trabalho da pessoa e segue a fusao normal.
+ */
+export function setupDeFabricaIntacto(
+  dados: Record<string, unknown[]>, setupEm: number | null,
+): boolean {
+  if (setupEm == null || !Number.isFinite(setupEm)) return false
+
+  const REGISTROS = ['sessoes', 'corpo', 'dieta', 'xp', 'agua', 'glicemia', 'dietas', 'apagados']
+  if (REGISTROS.some(t => (dados[t]?.length ?? 0) > 0)) return false
+
+  for (const t of ['rotinas', 'planos'] as const) {
+    if (((dados[t] ?? []) as LinhaSync[]).some(l => quando(l) > setupEm)) return false
+  }
+  for (const p of (dados.perfil ?? []) as ComCamposEm[]) {
+    if ((p.atualizadoEm ?? 0) > setupEm) return false
+    if (Object.values(p.camposEm ?? {}).some(t => t > setupEm)) return false
+  }
+  return true
+}
+
+/**
+ * O estado deste aparelho sem o que o setup de fabrica montou. O catalogo
+ * (exercicios e alimentos) fica: ele vem do seed, tem carimbo 0 e a fusao ja o
+ * trata certo.
+ */
+export function semSetupDeFabrica(dados: Record<string, unknown[]>): Record<string, unknown[]> {
+  return { ...dados, rotinas: [], planos: [], perfil: [] }
+}
+
+/**
  * Uma linha valida so precisa ter `id` de texto nao vazio - e o unico requisito
  * que toda tabela sincronizada compartilha (cada `interface` em db/types.ts
  * comeca com `id: string`) e o que `bulkPut` usa como chave primaria.

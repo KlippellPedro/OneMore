@@ -2,7 +2,7 @@ import {
   db, normalizarFlags, limparLapidesVelhas, escutarEscrita, semAvisarEscrita,
   apagarLinhas, hoje, PERFIL_PADRAO, type TabelaSync,
 } from '../db'
-import { resetarCacheSeed } from '../db/seed'
+import { resetarCacheSeed, CHAVE_SETUP } from '../db/seed'
 import { EXERCICIOS_SEED } from '../db/seedExercicios'
 import { ALIMENTOS_SEED } from '../db/seedAlimentos'
 import type { Perfil } from '../db/types'
@@ -12,6 +12,7 @@ import { regerarAgenda } from './lembretes'
 import { desligarPush } from './push'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela, sanitizarDados,
+  setupDeFabricaIntacto, semSetupDeFabrica,
   type LinhaSync, type Lapide, type ComCamposEm,
 } from './fundir'
 
@@ -383,7 +384,19 @@ export async function sincronizar(): Promise<ResultadoSync> {
     return { quando: marcarSync(), primeiraVez: true, recebidos: 0, semNovidade: false }
   }
 
-  const fundido = fundirBackups(local, nuvem.backup)
+  /**
+   * Aparelho que so tem o setup de fabrica (instalacao nova, ou dados do
+   * navegador apagados): a conta manda. Fundir daria ao padrao recem-criado, com
+   * carimbo de agora, o direito de vencer o perfil e as edicoes da conta, e
+   * treino e dieta apareceriam em dobro. Compara com `local` de verdade (nao
+   * com o vazio) abaixo, entao a tabela de fabrica e substituida pela da conta.
+   */
+  const setupEm = Number(localStorage.getItem(CHAVE_SETUP)) || null
+  const deFabrica = setupDeFabricaIntacto(local.dados, setupEm)
+  const fundido = fundirBackups(
+    deFabrica ? { ...local, dados: semSetupDeFabrica(local.dados) } : local,
+    nuvem.backup,
+  )
 
   // quais tabelas a fusao mudou deste lado: so essas sao reescritas
   const mudadas = TABELAS.filter(t => mudouTabela(local.dados[t] ?? [], fundido.dados[t] ?? []))
@@ -421,6 +434,8 @@ async function publicar(backup: Backup) {
 function marcarSync(): Date {
   const agora = new Date()
   localStorage.setItem('onemore:sync', agora.toISOString())
+  // o aparelho ja foi juntado com a conta: o que vier daqui pra frente e dele
+  localStorage.removeItem(CHAVE_SETUP)
   // deu certo: o que falhou antes virou historia
   localStorage.removeItem(CHAVE_FALHA)
   // aproveita a visita pra jogar fora lapide antiga demais pra importar

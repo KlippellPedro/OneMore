@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela,
-  linhaValida, sanitizarDados, conquistasDoLedger,
+  linhaValida, sanitizarDados, conquistasDoLedger, setupDeFabricaIntacto, semSetupDeFabrica,
 } from './fundir.ts'
 
 const ids = a => a.map(x => x.id).sort()
@@ -271,4 +271,41 @@ test('conquistasDoLedger: cada aparelho pagou uma - a fusao do ledger guarda as 
     [{ id: 'b', ts: 2, tipo: 'conquista', motivo: 'Semana Cheia', conquistas: ['st7'] }],
   )
   assert.deepEqual(conquistasDoLedger(ledger, NOMES).sort(), ['st7', 't1'])
+})
+
+/* ---- aparelho novo: o setup de fabrica nao pode ganhar da conta ---- */
+
+test('a fusao sozinha nao protege a conta do setup de fabrica (por isso a sincronizacao o descarta antes)', () => {
+  const conta = [{ id: 'me', nome: 'Pedro', diabetesTipo1: true, atualizadoEm: 100, camposEm: { nome: 100, diabetesTipo1: 100 } }]
+  const fabrica = [{ id: 'me', nome: 'Jogador', diabetesTipo1: false, atualizadoEm: 500, camposEm: { nome: 500, diabetesTipo1: 500 } }]
+  const [r] = fundirPerfil(fabrica, conta)
+  // e o bug: sem tratamento, "Jogador" apaga "Pedro"
+  assert.equal(r.nome, 'Jogador')
+})
+
+test('setupDeFabricaIntacto: so o setup, nada tocado depois', () => {
+  const vazio = { sessoes: [], corpo: [], dieta: [], xp: [], agua: [], glicemia: [], dietas: [], apagados: [] }
+  const dados = {
+    ...vazio,
+    rotinas: [{ id: 'r', atualizadoEm: 400 }],
+    planos: [{ id: 'p', atualizadoEm: 400 }],
+    perfil: [{ id: 'me', atualizadoEm: 450, camposEm: { nome: 450 } }],
+  }
+  assert.equal(setupDeFabricaIntacto(dados, 500), true)
+  // editou uma rotina depois do setup: e trabalho dele, nao pode ser jogado fora
+  assert.equal(setupDeFabricaIntacto({ ...dados, rotinas: [{ id: 'r', atualizadoEm: 900 }] }, 500), false)
+  // mudou o perfil depois
+  assert.equal(setupDeFabricaIntacto({ ...dados, perfil: [{ id: 'me', atualizadoEm: 900, camposEm: { nome: 900 } }] }, 500), false)
+  // ja treinou / bebeu agua / registrou algo
+  assert.equal(setupDeFabricaIntacto({ ...dados, sessoes: [{ id: 's' }] }, 500), false)
+  assert.equal(setupDeFabricaIntacto({ ...dados, agua: [{ id: 'a' }] }, 500), false)
+  // sem a marca do setup (aparelho antigo, ou o usuario ja sincronizou): nunca mexe
+  assert.equal(setupDeFabricaIntacto(dados, null), false)
+})
+
+test('semSetupDeFabrica: rotinas, planos e perfil saem, o resto fica', () => {
+  const d = { rotinas: [{ id: 'r' }], planos: [{ id: 'p' }], perfil: [{ id: 'me' }], exercicios: [{ id: 'e' }], sessoes: [] }
+  const r = semSetupDeFabrica(d)
+  assert.deepEqual([r.rotinas, r.planos, r.perfil], [[], [], []])
+  assert.deepEqual(r.exercicios, [{ id: 'e' }])
 })
