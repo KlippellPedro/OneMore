@@ -475,9 +475,9 @@ export default function Sessao() {
               })()}
 
               <div className="space-y-1.5">
-                <div className="flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
+                <div className="flex items-center gap-2 max-[359px]:gap-1.5 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
                   <span className="w-8 text-center shrink-0">Set</span>
-                  <span className="flex-1 text-center">Carga (kg)</span>
+                  <span className="flex-[1.3] text-center">Carga (kg)</span>
                   <span className="flex-1 text-center">Reps</span>
                   <span className="w-10 shrink-0" />
                 </div>
@@ -640,18 +640,18 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
   const [menu, setMenu] = useState(false)
   return (
     <>
-      <div className={`flex items-center gap-2 rounded-xl transition-colors ${
+      <div className={`flex items-center gap-2 max-[359px]:gap-1.5 rounded-xl transition-colors ${
         serie.feito ? 'bg-good/10' : ''
       }`}>
         <button onClick={() => setMenu(true)} aria-label={`Opções da série ${serie.serie}`}
-          className={`w-9 h-11 shrink-0 rounded-lg text-[12px] font-bold ${
+          className={`w-9 max-[359px]:w-7 h-11 shrink-0 rounded-lg text-[12px] font-bold ${
             serie.aquecimento ? 'text-warn' : serie.feito ? 'text-good' : 'text-muted'
           }`}>
           {serie.aquecimento ? 'A' : serie.serie}
         </button>
 
         <NumInput valor={serie.carga} onChange={onCarga} passo={2.5} feito={serie.feito} destaque={ehRecorde}
-          rotulo={`carga da série ${serie.serie}, em kg`} max={CARGA_MAX} />
+          rotulo={`carga da série ${serie.serie}, em kg`} max={CARGA_MAX} largo />
         <NumInput valor={serie.reps} onChange={onReps} passo={1} feito={serie.feito} inteiro
           rotulo={`repetições da série ${serie.serie}`} max={REPS_MAX} />
 
@@ -683,11 +683,18 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
   )
 }
 
-function NumInput({ valor, onChange, passo, feito, inteiro, destaque, rotulo, max }: {
+function NumInput({ valor, onChange, passo, feito, inteiro, destaque, rotulo, max, largo }: {
   valor: number; onChange: (v: number) => void; passo: number
   feito?: boolean; inteiro?: boolean; destaque?: boolean
   /** O que o campo e, pra leitor de tela: "carga da série 2, em kg". */
   rotulo: string
+  /**
+   * Mais espaco que o vizinho. A carga tem ate 5 caracteres ("102,5") e as
+   * repeticoes quase sempre 1 ou 2: dividindo meio a meio, num celular de
+   * 360 px sobravam 29 px pro numero e a carga aparecia cortada - justo o
+   * numero que a pessoa confere antes de marcar a serie.
+   */
+  largo?: boolean
   /**
    * Teto do que se digita. Sem ele, "10000" no lugar de "100" virava recorde,
    * inflava o volume e podia liberar a conquista de 1 milhao de kg - e um "-5"
@@ -697,10 +704,10 @@ function NumInput({ valor, onChange, passo, feito, inteiro, destaque, rotulo, ma
 }) {
   const limitar = (v: number) => clamp(Number.isFinite(v) ? v : 0, 0, max)
   return (
-    <div className="flex-1 flex items-center rounded-xl bg-bg-soft border border-line overflow-hidden h-11">
+    <div className={`${largo ? 'flex-[1.3]' : 'flex-1'} min-w-0 flex items-center rounded-xl bg-bg-soft border border-line overflow-hidden h-11`}>
       <button onClick={() => onChange(limitar(Number((valor - passo).toFixed(2))))}
         aria-label={`Diminuir ${rotulo}`}
-        className="w-9 h-full shrink-0 text-muted text-base active:bg-surface-2">-</button>
+        className="w-8 max-[359px]:w-6 h-full shrink-0 text-muted text-base active:bg-surface-2">-</button>
       <input
         type="number" inputMode="decimal" aria-label={rotulo[0].toUpperCase() + rotulo.slice(1)}
         value={valor === 0 ? '' : valor} placeholder="0"
@@ -715,7 +722,7 @@ function NumInput({ valor, onChange, passo, feito, inteiro, destaque, rotulo, ma
         }`} />
       <button onClick={() => onChange(limitar(Number((valor + passo).toFixed(2))))}
         aria-label={`Aumentar ${rotulo}`}
-        className="w-9 h-full shrink-0 text-muted text-base active:bg-surface-2">+</button>
+        className="w-8 max-[359px]:w-6 h-full shrink-0 text-muted text-base active:bg-surface-2">+</button>
     </div>
   )
 }
