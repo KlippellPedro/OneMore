@@ -560,6 +560,24 @@ export async function desarquivarRotina(r: Rotina) {
   if (r.dias?.length) await definirDias(r.id, r.dias)
 }
 
+/**
+ * Apaga de vez rotinas ARQUIVADAS - todas, ou so as de `ids`. Rotina ativa
+ * nunca entra, mesmo que o id venha errado: o caminho pra apagar uma ativa
+ * continua sendo arquivar primeiro.
+ *
+ * Leva lapide (apagarLinhas), entao some tambem da nuvem e dos outros
+ * aparelhos. Devolve as linhas apagadas pra tela oferecer o Desfazer:
+ * restaurarLinhas as grava de volta com carimbo novo, que vence a lapide
+ * mesmo que ela ja tenha subido. O historico nao depende delas - cada treino
+ * feito guarda o proprio nome e as proprias series.
+ */
+export async function apagarArquivadas(ids?: string[]): Promise<Rotina[]> {
+  const arquivadas = await db.rotinas.where('arquivada').equals(1).toArray()
+  const alvo = ids ? arquivadas.filter(r => ids.includes(r.id)) : arquivadas
+  await apagarLinhas('rotinas', alvo.map(r => r.id))
+  return alvo
+}
+
 export async function restaurarRotina(id: string) {
   const ativas = await db.rotinas.where('arquivada').equals(0).count()
   await db.rotinas.update(id, {

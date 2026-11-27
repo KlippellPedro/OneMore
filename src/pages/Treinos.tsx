@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { db, uid, apagarLinha } from '../db'
+import { db, uid, restaurarLinhas } from '../db'
 import { useRotinas, useRotinasArquivadas, useMapaExercicios, useSessaoAtiva } from '../state/hooks'
-import { iniciarSessao, atribuirDia, restaurarRotina, arquivarRotina, desarquivarRotina } from '../lib/acoes'
+import {
+  iniciarSessao, atribuirDia, restaurarRotina, arquivarRotina, desarquivarRotina, apagarArquivadas,
+} from '../lib/acoes'
 import { corGrupo, nomeGrupo } from '../db/seedExercicios'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Vazio, Confirmar, Sheet, Campo, Input, Chip } from '../components/ui'
@@ -36,6 +38,18 @@ export default function Treinos() {
   const [apagar, setApagar] = useState<string | null>(null)
   /** Rotina arquivada que vai ser apagada de vez. */
   const [apagarDeVez, setApagarDeVez] = useState<Rotina | null>(null)
+  /** Confirmacao do "Apagar todos" dos Arquivados. */
+  const [limparArquivados, setLimparArquivados] = useState(false)
+
+  /** Apaga de vez e oferece o Desfazer - nenhum dos dois caminhos fica sem volta. */
+  async function apagarDosArquivados(ids?: string[]) {
+    const linhas = await apagarArquivadas(ids)
+    if (!linhas.length) return
+    vibrar()
+    toast(linhas.length === 1 ? `${linhas[0].nome} apagado` : `${pl(linhas.length, 'treino')} apagados`, 'ok', undefined, {
+      rotulo: 'Desfazer', fazer: () => { restaurarLinhas('rotinas', linhas) },
+    })
+  }
   const [diaAberto, setDiaAberto] = useState<number | null>(null)
   const [vista, setVista] = useState<'semana' | 'rotinas'>('semana')
   const [enviar, setEnviar] = useState(false)
@@ -238,9 +252,18 @@ export default function Treinos() {
         {/* -------- rotinas que sairam da lista ao trocar de programa -------- */}
         {vista === 'rotinas' && arquivadas.length > 0 && (
           <div className="mb-6">
-            <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted mb-1 px-1">
-              Arquivados
-            </h2>
+            <div className="flex items-center justify-between gap-3 mb-1 px-1">
+              <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted">
+                Arquivados
+              </h2>
+              {arquivadas.length > 1 && (
+                <button onClick={() => setLimparArquivados(true)}
+                  className="h-8 -my-1 -mr-2 px-2 rounded-lg text-[12px] font-semibold text-muted active:bg-surface-2 active:text-bad flex items-center gap-1.5">
+                  <Icone nome="lixeira" tamanho={14} />
+                  Apagar todos
+                </button>
+              )}
+            </div>
             <p className="text-[11.5px] text-muted leading-relaxed mb-2.5 px-1">
               Treinos que você apagou ou que saíram quando você trocou de programa. O histórico deles continua intacto.
             </p>
@@ -345,12 +368,21 @@ export default function Treinos() {
         onNao={() => setApagar(null)} />
 
       <Confirmar aberto={!!apagarDeVez} perigo titulo="Apagar de vez?"
-        texto={`${apagarDeVez?.nome ?? 'Esse treino'} some da lista de arquivados e não dá pra trazer de volta - a não ser por uma semana salva que tenha ele. Os treinos já feitos com ele continuam no histórico.`}
+        texto={`${apagarDeVez?.nome ?? 'Esse treino'} some dos Arquivados, aqui e nos seus outros aparelhos. Logo depois dá pra desfazer. Os treinos já feitos com ele continuam no histórico.`}
         onSim={async () => {
-          if (apagarDeVez) await apagarLinha('rotinas', apagarDeVez.id)
-          setApagarDeVez(null); toast('Treino apagado', 'ok')
+          const r = apagarDeVez
+          setApagarDeVez(null)
+          if (r) await apagarDosArquivados([r.id])
         }}
         onNao={() => setApagarDeVez(null)} />
+
+      <Confirmar aberto={limparArquivados} perigo titulo={`Apagar os ${arquivadas.length} arquivados?`}
+        texto="Todos somem dos Arquivados, aqui e nos seus outros aparelhos. Logo depois dá pra desfazer. Os treinos já feitos com eles continuam no histórico, e as rotinas da sua semana não são tocadas."
+        onSim={async () => {
+          setLimparArquivados(false)
+          await apagarDosArquivados()
+        }}
+        onNao={() => setLimparArquivados(false)} />
 
       <SheetEnviar aberto={enviar} fechar={() => setEnviar(false)} tipo="treino"
         titulo="Mandar treino pra amigo"
