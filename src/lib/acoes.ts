@@ -1,7 +1,17 @@
 import { db, uid, hoje, getPerfil, salvarPerfil, apagarLinha, apagarLinhas } from '../db'
 import { calcularMelhores, dobrarSessao, porExercicio, type SerieAnterior } from '../db/melhores'
-import type { Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia, EventoXP } from '../db/types'
+import type {
+  Rotina, Sessao, SerieLog, Alimento, MomentoGlicemia, EventoXP, SemanaSalva, RegistroDieta, RegistroGlicemia,
+  DietaSalva, RefeicaoSalva,
+} from '../db/types'
 import type { Programa } from '../db/programas'
+import {
+  retratoDaSemana, mesmaSemana, automaticasDemais, planoDeRestauracao, paraArquivo,
+  lerArquivoSemana, type ConteudoSemana,
+} from './semana'
+import { baixarJSON } from './arquivo'
+import { repsIniciais } from './treino'
+import { retratoDoPlano, mesmoCardapio } from './dietas'
 import { darXP, reconstruirGamificacao, XP, type GanhoXP } from './xp'
 import { macrosDe, totalDoDia, diaBatido, paraGramas } from './nutricao'
 
@@ -26,7 +36,8 @@ export async function iniciarSessao(rotina?: Rotina, nomeLivre?: string): Promis
         series.push({
           exercicioId: item.exercicioId,
           serie: i,
-          reps: ant?.reps ?? 0,
+          // primeira vez: o piso da faixa alvo, em vez de 0 e um "Preencha as repetições" por serie
+          reps: ant?.reps ?? repsIniciais(item.repsAlvo),
           carga: ant?.carga ?? item.cargaAlvo ?? 0,
           feito: false,
         })
@@ -321,14 +332,61 @@ export async function registrarAlimento(
   return macrosDe(alimento, gramas)
 }
 
-export async function removerRegistro(id: string) {
+/** Tira um lancamento do diario e devolve ele - e o que o "Desfazer" grava de volta. */
+export async function removerRegistro(id: string): Promise<RegistroDieta | undefined> {
+  const antes = await db.dieta.get(id)
   await apagarLinha('dieta', id)
+  return antes
 }
 
 /** Desfaz uma refeicao inteira - tira do diario tudo que foi lancado nela naquele dia. */
-export async function removerRefeicaoDoDia(data: string, refeicao: string) {
-  const ids = await db.dieta.where('[data+refeicao]').equals([data, refeicao]).primaryKeys()
-  await apagarLinhas('dieta', ids)
+export async function removerRefeicaoDoDia(data: string, refeicao: string): Promise<RegistroDieta[]> {
+  const linhas = await db.dieta.where('[data+refeicao]').equals([data, refeicao]).toArray()
+  await apagarLinhas('dieta', linhas.map(l => l.id))
+  return linhas
+}
+
+/* ------------------------------------------------------------------ */
+/* PLANO ALIMENTAR                                                     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Guarda o cardapio em uso como dieta salva automatica - o mesmo "save" das
+ * semanas de treino, antes de algo que troca o plano inteiro. Plano vazio nao
+ * gera copia; plano igual a uma dieta ja guardada devolve ESSA dieta (nao
+ * precisa de outra copia, e o Desfazer volta pra ela do mesmo jeito).
+ */
+export async function guardarPlanoAtual(nome: string, auto: NonNullable<DietaSalva['auto']>): Promise<DietaSalva | null> {
+  const refeicoes = retratoDoPlano(await db.planos.toArray())
+  if (!refeicoes.some(r => r.itens.length)) return null
+  const dietas = await db.dietas.toArray()
+  const igual = dietas.find(d => mesmoCardapio(d.refeicoes, refeicoes))
+  if (igual) return igual
+  const agora = Date.now()
+  const copia: DietaSalva = { id: uid(), nome, refeicoes, auto, criadoEm: agora, atualizadoEm: agora }
+  await db.dietas.put(copia)
+  await apagarLinhas('dietas', automaticasDemais([...dietas, copia]))
+  return copia
+}
+
+/**
+ * Troca o cardapio inteiro. Com `copiaAntes`, guarda o atual antes (ver
+ * guardarPlanoAtual) e devolve a copia - pra quem chamou oferecer o Desfazer.
+ * Esvazia com lapide, nunca com clear(): `planos` e sincronizada, e sem lapide
+ * as refeicoes antigas voltavam do outro aparelho do lado das novas.
+ */
+export async function trocarPlano(
+  refeicoes: (Omit<RefeicaoSalva, 'ordem'> & { ordem?: number })[],
+  copiaAntes?: { nome: string; auto: NonNullable<DietaSalva['auto']> },
+): Promise<DietaSalva | null> {
+  const copia = copiaAntes ? await guardarPlanoAtual(copiaAntes.nome, copiaAntes.auto) : null
+  await apagarLinhas('planos', (await db.planos.toCollection().primaryKeys()) as string[])
+  const agora = Date.now()
+  await db.planos.bulkPut(refeicoes.map((r, i) => ({
+    id: uid(), nome: r.nome, horario: r.horario, itens: r.itens.map(it => ({ ...it })),
+    ordem: r.ordem ?? i, atualizadoEm: agora,
+  })))
+  return copia
 }
 
 /**
@@ -425,6 +483,8 @@ export async function aplicarPrograma(
   opts: { substituir?: boolean; dias?: (number | null)[] } = {},
 ): Promise<Rotina[]> {
   if (opts.substituir) {
+    // a semana montada a mao vai pros Arquivados - a copia deixa voltar ela inteira, com os dias
+    await salvarSemana(`Antes de aplicar ${prog.nome}`, 'programa')
     const atuais = await db.rotinas.where('arquivada').equals(0).toArray()
     for (const r of atuais) {
       await db.rotinas.update(r.id, { arquivada: 1, atualizadoEm: Date.now() })
@@ -456,6 +516,25 @@ export async function aplicarPrograma(
  * fixo: o dia dela pode ter sido ocupado por outra rotina nesse meio tempo, e
  * cada dia so tem uma - quem escolhe e a pessoa, em "Semana".
  */
+/**
+ * "Apagar" uma rotina da lista: ela vai pros Arquivados, nao some. O historico
+ * continua apontando pra ela e da pra voltar. Apagar de vez e outro passo, de
+ * dentro dos Arquivados - quem ja perdeu treino uma vez nao precisa de mais
+ * um botao que apaga sem volta logo do lado do "duplicar".
+ */
+export async function arquivarRotina(id: string): Promise<Rotina | null> {
+  const r = await db.rotinas.get(id)
+  if (!r) return null
+  await db.rotinas.update(id, { arquivada: 1, atualizadoEm: Date.now() })
+  return r
+}
+
+/** Desfaz o arquivarRotina: volta com os mesmos dias e no mesmo lugar da lista. */
+export async function desarquivarRotina(r: Rotina) {
+  await db.rotinas.update(r.id, { arquivada: 0, ordem: r.ordem, atualizadoEm: Date.now() })
+  if (r.dias?.length) await definirDias(r.id, r.dias)
+}
+
 export async function restaurarRotina(id: string) {
   const ativas = await db.rotinas.where('arquivada').equals(0).count()
   await db.rotinas.update(id, {
@@ -479,6 +558,103 @@ export async function atribuirDia(dia: number, rotinaId: string | null) {
       : (r.dias ?? []).filter(d => d !== dia)
     await db.rotinas.update(r.id, { dias, atualizadoEm: Date.now() })
   }
+}
+
+/**
+ * Os dias de uma rotina de uma vez (Ajustes do treino). Mesma regra do
+ * atribuirDia: o dia que ela ganha sai de quem tinha. Gravar so os dias dela
+ * deixava duas rotinas no mesmo dia, e a Semana mostrava uma e escondia a outra.
+ */
+export async function definirDias(rotinaId: string, dias: number[]) {
+  const rotinas = await db.rotinas.where('arquivada').equals(0).toArray()
+  const agora = Date.now()
+  for (const r of rotinas) {
+    if (r.id === rotinaId) continue
+    const sobra = (r.dias ?? []).filter(d => !dias.includes(d))
+    if (sobra.length !== (r.dias ?? []).length) {
+      await db.rotinas.update(r.id, { dias: sobra, atualizadoEm: agora })
+    }
+  }
+  await db.rotinas.update(rotinaId, { dias: [...new Set(dias)].sort(), atualizadoEm: agora })
+}
+
+/* ------------------------------------------------------------------ */
+/* SEMANAS SALVAS                                                      */
+/* ------------------------------------------------------------------ */
+
+async function retratoAtual() {
+  return retratoDaSemana(await db.rotinas.toArray(), await db.exercicios.toArray())
+}
+
+/**
+ * Guarda a semana como ela esta agora. Com `auto`, e a copia de seguranca
+ * tirada antes de trocar a semana inteira: nao sai se nao ha treino nenhum ou
+ * se alguma semana guardada ja e igual a esta, e so as MAX_AUTOMATICAS mais
+ * novas ficam. Devolve null quando nao salvou nada.
+ */
+export async function salvarSemana(nome: string, auto?: SemanaSalva['auto']): Promise<SemanaSalva | null> {
+  const retrato = await retratoAtual()
+  if (!retrato.rotinas.length) return null
+  // copia automatica de uma semana que ja esta guardada nao protege nada a mais - so enche a lista
+  if (auto && (await db.semanas.toArray()).some(s => mesmaSemana(s, retrato))) return null
+  const agora = Date.now()
+  const semana: SemanaSalva = { id: uid(), nome: nome.trim(), ...retrato, auto, criadoEm: agora, atualizadoEm: agora }
+  await db.semanas.put(semana)
+  if (auto) await apagarLinhas('semanas', automaticasDemais(await db.semanas.toArray()))
+  return semana
+}
+
+/** Troca o conteudo de uma semana salva pela semana de agora. Copia automatica vira salva pela pessoa. */
+export async function atualizarSemana(id: string) {
+  await db.semanas.update(id, { ...(await retratoAtual()), auto: undefined, atualizadoEm: Date.now() })
+}
+
+/**
+ * Volta a semana salva: as rotinas dela voltam como estavam (mesmos ids,
+ * mesmos dias), as outras ativas vao pros Arquivados e o exercicio criado
+ * pela pessoa que tiver sumido e recriado. Antes de mexer, guarda a semana
+ * atual como copia automatica - restaurar a semana errada tem volta.
+ */
+export async function restaurarSemana(s: ConteudoSemana & { nome: string }) {
+  await salvarSemana(`Antes de restaurar "${s.nome}"`, 'restaurar')
+  const atuais = await db.rotinas.toArray()
+  const existentes = new Set((await db.exercicios.toCollection().primaryKeys()) as string[])
+  const agora = Date.now()
+  const plano = planoDeRestauracao(atuais, s, existentes, agora)
+  await db.transaction('rw', db.rotinas, db.exercicios, async () => {
+    if (plano.exercicios.length) await db.exercicios.bulkPut(plano.exercicios)
+    for (const id of plano.arquivar) {
+      await db.rotinas.update(id, { arquivada: 1, atualizadoEm: agora })
+    }
+    await db.rotinas.bulkPut(plano.gravar)
+  })
+  return plano
+}
+
+export async function apagarSemana(id: string) {
+  await apagarLinha('semanas', id)
+}
+
+/** Nome do arquivo, sem caractere que o sistema de arquivos recusa. */
+function nomeDeArquivo(nome: string) {
+  const limpo = nome.normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase().slice(0, 40)
+  return `onemore-semana-${limpo || hoje()}.json`
+}
+
+/** Baixa a semana salva (ou, sem argumento, a de agora) como arquivo pra guardar fora do app. */
+export async function baixarSemana(s?: ConteudoSemana & { nome: string }) {
+  const semana = s ?? { nome: `Semana de ${hoje().split('-').reverse().join('/')}`, ...(await retratoAtual()) }
+  baixarJSON(nomeDeArquivo(s ? s.nome : hoje()), paraArquivo(semana.nome, semana))
+}
+
+/** Le um arquivo de semana (ou um backup completo) e guarda como semana salva. */
+export async function importarSemana(arquivo: File): Promise<SemanaSalva> {
+  const lida = lerArquivoSemana(JSON.parse(await arquivo.text()))
+  const agora = Date.now()
+  const semana: SemanaSalva = { id: uid(), ...lida, criadoEm: agora, atualizadoEm: agora }
+  await db.semanas.put(semana)
+  return semana
 }
 
 /* ------------------------------------------------------------------ */
@@ -509,8 +685,10 @@ export async function registrarGlicemia(dados: {
   return darXP('glicemia', 'Glicemia registrada', XP.GLICEMIA)
 }
 
-export async function removerGlicemia(id: string) {
+export async function removerGlicemia(id: string): Promise<RegistroGlicemia | undefined> {
+  const antes = await db.glicemia.get(id)
   await apagarLinha('glicemia', id)
+  return antes
 }
 
 /** Faixa de referencia mais usada pra tempo no alvo. Confirmar com o medico. */

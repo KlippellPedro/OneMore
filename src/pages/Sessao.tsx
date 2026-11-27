@@ -14,9 +14,13 @@ import { TrocarExercicio } from '../components/Variacoes'
 import { Btn, Sheet, Confirmar, Textarea, Card } from '../components/ui'
 import { Icone } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
+import { CalculadoraAnilhas } from '../components/Anilhas'
 import { useUI, vibrar } from '../state/ui'
-import { tempo, duracao, peso, n0 } from '../lib/format'
-import type { SerieLog } from '../db/types'
+import { tempo, duracao, peso, n0, nq, dataCurta } from '../lib/format'
+import { sugerirCarga, faixaDeReps, textoDoTreino } from '../lib/treino'
+import { compartilharTexto } from '../lib/arquivo'
+import { isoDia } from '../db'
+import type { Sessao as TSessao, SerieLog } from '../db/types'
 
 const SEM_RECORDE: Recorde = { carga: 0, reps: 0, volume: 0 }
 
@@ -137,6 +141,10 @@ export default function Sessao() {
   const [recordes, setRecordes] = useState<Record<string, Recorde>>({})
   /** Series da ultima vez de cada exercicio, uma a uma - o que da pra comparar com hoje. */
   const [anteriores, setAnteriores] = useState<Record<string, SerieAnterior[]>>({})
+  /** Exercicio com a calculadora de anilhas aberta. */
+  const [anilhas, setAnilhas] = useState<string | null>(null)
+  /** Sugestoes de carga que a pessoa dispensou nesse treino. */
+  const [dispensadas, setDispensadas] = useState<string[]>([])
 
   useEffect(() => {
     const i = setInterval(() => setAgora(Date.now()), 1000)
@@ -289,12 +297,27 @@ export default function Sessao() {
       if (corrigindo) return { ...s, exercicioId: para }
       if (s.feito) return s
       const a = serieAnterior(ant, s.serie - 1)
-      return { ...s, exercicioId: para, carga: a?.carga ?? 0, reps: a?.reps ?? 0 }
+      // reps sem historico ficam: o alvo da posicao no treino continua o mesmo
+      return { ...s, exercicioId: para, carga: a?.carga ?? 0, reps: a?.reps ?? s.reps }
     })
     await salvar(renumerarSeries(series))
     setAnteriores(a => ({ ...a, [para]: ant }))
     recordeDe(para).then(rec => setRecordes(r => ({ ...r, [para]: rec })))
     fecharTroca()
+  }
+
+  /**
+   * Grava uma carga nas series que faltam do exercicio (aquecimento fica como
+   * esta). Com `reps`, volta as repeticoes pro piso da faixa - subiu o peso,
+   * recomeca embaixo: e assim que a progressao dupla anda.
+   */
+  async function aplicarCarga(exercicioId: string, carga: number, reps?: number) {
+    const series = sessao!.series.map(s =>
+      s.exercicioId === exercicioId && !s.feito && !s.aquecimento
+        ? { ...s, carga, ...(reps ? { reps } : {}) }
+        : s)
+    await salvar(series)
+    vibrar(15)
   }
 
   async function finalizar() {
@@ -360,11 +383,19 @@ export default function Sessao() {
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-[11px] text-muted">
                     {item && <span>alvo {item.series}x{item.repsAlvo}</span>}
                     {ant && ant.length > 0 && (
-                      <span>última vez {ant.map(a => `${a.carga} kg x ${a.reps}`).join(' · ')}</span>
+                      <span>última vez {ant.every(a => a.carga === ant[0].carga)
+                        ? `${nq(ant[0].carga)} kg x ${ant.map(a => a.reps).join(', ')}`
+                        : ant.map(a => `${nq(a.carga)} kg x ${a.reps}`).join(' · ')}</span>
                     )}
                     {rec.carga > 0 && <span className="text-xp">recorde {rec.carga} kg</span>}
                   </div>
                   {item?.obs && <p className="text-[11.5px] text-accent/90 mt-1">{item.obs}</p>}
+                  {ex?.equipamento === 'barra' && (
+                    <button onClick={() => setAnilhas(g.exercicioId)}
+                      className="toque mt-1.5 inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent">
+                      <Icone nome="anilha" tamanho={13} /> Anilhas na barra
+                    </button>
+                  )}
                 </div>
                 <button onClick={() => setTrocando(g.exercicioId)}
                   aria-label={`Trocar ${ex?.nome ?? 'exercicio'} por uma variação`}
@@ -377,6 +408,31 @@ export default function Sessao() {
                   <Icone nome="lixeira" tamanho={16} />
                 </button>
               </div>
+
+              {(() => {
+                const sug = sugerirCarga(ant, item?.repsAlvo, ex?.equipamento)
+                const pendentes = g.series.filter(({ s }) => !s.feito && !s.aquecimento)
+                if (!sug || dispensadas.includes(g.exercicioId)) return null
+                if (!pendentes.some(({ s }) => s.carga < sug.carga)) return null
+                const piso = faixaDeReps(item?.repsAlvo)?.min
+                return (
+                  <div className="flex items-center gap-2.5 mb-3 p-2.5 pl-3 rounded-xl bg-good/10 border border-good/30 anim-pop">
+                    <Icone nome="foguete" tamanho={18} className="text-good shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[12.5px] font-bold text-good leading-tight">Hora de subir: {nq(sug.carga)} kg</p>
+                      <p className="text-[11px] text-muted leading-snug mt-0.5">
+                        Da última vez você fez {sug.topo}+ reps em todas as séries com {nq(sug.anterior)} kg.
+                      </p>
+                    </div>
+                    <Btn size="sm" variant="primary" className="shrink-0"
+                      onClick={() => aplicarCarga(g.exercicioId, sug.carga, piso)}>Usar</Btn>
+                    <button onClick={() => setDispensadas(d => [...d, g.exercicioId])}
+                      aria-label="Dispensar sugestão" className="w-7 h-9 -mr-1 shrink-0 text-muted flex items-center justify-center">
+                      <Icone nome="x" tamanho={14} />
+                    </button>
+                  </div>
+                )
+              })()}
 
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 px-1 text-[10px] font-semibold uppercase tracking-wider text-muted">
@@ -462,6 +518,16 @@ export default function Sessao() {
       <Seletor aberto={!!trocando && trocaPeloCatalogo} fechar={fecharTroca} titulo="Trocar por outro exercício"
         jaEscolhidos={grupos.map(g => g.exercicioId).filter(x => x !== trocando)}
         onEscolher={ex => { if (trocando) trocarExercicio(trocando, ex.id) }} />
+
+      <CalculadoraAnilhas aberto={!!anilhas} fechar={() => setAnilhas(null)}
+        carga={(() => {
+          const doEx = sessao.series.filter(s => s.exercicioId === anilhas)
+          return (doEx.find(s => !s.feito && !s.aquecimento) ?? doEx[doEx.length - 1])?.carga ?? 0
+        })()}
+        // so oferece gravar se ainda tem serie pra fazer - com tudo feito, o botao nao mudaria nada
+        onUsar={sessao.series.some(s => s.exercicioId === anilhas && !s.feito && !s.aquecimento)
+          ? c => { if (anilhas) aplicarCarga(anilhas, c) }
+          : undefined} />
 
       <Sheet aberto={notas} fechar={() => setNotas(false)} titulo="Anotações do treino">
         <Textarea rows={6} defaultValue={sessao.notas ?? ''}
@@ -605,10 +671,28 @@ function NumInput({ valor, onChange, passo, feito, inteiro, destaque }: {
 
 function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
   resumo: ResumoSessao
-  sessao: { nome: string }
+  sessao: TSessao
   onFechar: () => void
   mapaEx: Map<string, { nome: string }>
 }) {
+  const { toast } = useUI()
+  const nomeDe = (id: string) => mapaEx.get(id)?.nome ?? 'Exercício'
+
+  async function compartilhar() {
+    const texto = textoDoTreino({
+      nome: sessao.nome,
+      data: dataCurta(isoDia(new Date(sessao.inicio))),
+      duracao: duracao(resumo.duracaoMs),
+      series: sessao.series,
+      nomeDe,
+      recordes: resumo.prs.map(pr => `${nomeDe(pr.exercicioId)} ${pr.tipo === 'carga'
+        ? `${nq(pr.valor)} kg` : `${nq(pr.carga ?? 0)} kg x ${pr.reps}`}`),
+    })
+    const r = await compartilharTexto(sessao.nome, texto)
+    if (r === 'copiado') toast('Treino copiado', 'ok', 'Cole no WhatsApp ou onde quiser')
+    else if (r === 'falhou') toast('Não deu pra compartilhar daqui', 'erro')
+  }
+
   return (
     <div className="fixed inset-0 z-[65] bg-bg overflow-y-auto">
       <div className="max-w-[560px] mx-auto px-6 py-10 safe-t safe-b">
@@ -652,6 +736,9 @@ function TelaResumo({ resumo, sessao, onFechar, mapaEx }: {
           </div>
         )}
 
+        <Btn size="lg" className="w-full mb-2.5" onClick={compartilhar}>
+          <Icone nome="compartilhar" tamanho={17} /> Compartilhar treino
+        </Btn>
         <Btn variant="primary" size="lg" className="w-full" onClick={onFechar}>Voltar ao início</Btn>
       </div>
     </div>

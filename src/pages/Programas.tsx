@@ -173,7 +173,7 @@ export default function Programas() {
         aberto={!!confirmar}
         titulo={confirmar?.substituir ? 'Trocar seus treinos?' : 'Adicionar esses treinos?'}
         texto={confirmar?.substituir
-          ? 'Suas rotinas atuais saem da lista, mas o histórico de treinos continua intacto. Elas ficam em Treino > Rotinas > Arquivados, de onde dá pra restaurar.'
+          ? 'Suas rotinas atuais saem da lista, mas o histórico de treinos continua intacto. Antes de trocar, o app guarda a sua semana em Treino > Semanas salvas - restaurar de lá traz tudo de volta, com os dias.'
           : `${pl(confirmar?.prog.treinos.length ?? 0, 'treino')} entram na sua lista junto com os que você já tem.`}
         onNao={() => setConfirmar(null)}
         onSim={() => confirmar && usar(confirmar.prog, confirmar.substituir)} />

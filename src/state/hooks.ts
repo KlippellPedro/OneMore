@@ -59,6 +59,13 @@ export function useRotinasArquivadas() {
   ) ?? []
 }
 
+/** Semanas de treino salvas, a mais recente primeiro. */
+export function useSemanas() {
+  return useLiveQuery(
+    () => db.semanas.orderBy('atualizadoEm').reverse().toArray(), [], [],
+  ) ?? []
+}
+
 /** A sessao de treino em andamento, se houver. So pode existir uma. */
 export function useSessaoAtiva() {
   return useLiveQuery(

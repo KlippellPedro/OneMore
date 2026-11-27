@@ -11,6 +11,9 @@ import { Card, Vazio, Btn, Stepper, Confirmar } from '../components/ui'
 import { ImagemExercicio } from '../components/ImagemExercicio'
 import { useUI } from '../state/ui'
 import { dataCurta, duracao, horaDe, peso, n0, pl } from '../lib/format'
+import { textoDoTreino } from '../lib/treino'
+import { compartilharTexto } from '../lib/arquivo'
+import { Icone } from '../components/Icone'
 import type { SerieLog } from '../db/types'
 
 /**
@@ -64,10 +67,29 @@ export default function DetalheSessao() {
     toast('Treino corrigido', 'ok', 'Recordes recalculados')
   }
 
+  async function compartilhar() {
+    const texto = textoDoTreino({
+      nome: sessao!.nome,
+      data: dataCurta(dia),
+      duracao: sessao!.fim ? duracao(sessao!.fim - sessao!.inicio) : '',
+      series: sessao!.series,
+      nomeDe: exId => mapaEx.get(exId)?.nome ?? 'Exercício',
+    })
+    const r = await compartilharTexto(sessao!.nome, texto)
+    if (r === 'copiado') toast('Treino copiado', 'ok', 'Cole no WhatsApp ou onde quiser')
+    else if (r === 'falhou') toast('Não deu pra compartilhar daqui', 'erro')
+  }
+
   return (
     <div>
       <Cabecalho titulo={sessao.nome} voltarPara="/progresso"
-        sub={`${dataCurta(dia)} - ${horaDe(sessao.inicio)}`} />
+        sub={`${dataCurta(dia)} - ${horaDe(sessao.inicio)}`}
+        acao={!editando && validas.length > 0 ? (
+          <button onClick={compartilhar} aria-label="Compartilhar treino"
+            className="toque w-9 h-9 rounded-xl flex items-center justify-center text-muted active:bg-surface-2">
+            <Icone nome="compartilhar" tamanho={18} />
+          </button>
+        ) : undefined} />
 
       <div className="px-4 pt-4 pb-6">
         {/* 2 colunas: em 4, "1h 00min" nao cabe num celular de 375px */}

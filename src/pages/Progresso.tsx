@@ -13,6 +13,7 @@ import { useUI } from '../state/ui'
 import { n0, n1, pl, peso, dataCurta, duracao, dataNumerica } from '../lib/format'
 import { calcularProgressao, ROTULO_TENDENCIA } from '../lib/progressao'
 import { useMapaExercicios } from '../state/hooks'
+import { ResumoSemana } from '../components/ResumoSemana'
 
 type Aba = 'treino' | 'corpo' | 'conquistas'
 
@@ -35,6 +36,10 @@ export default function Progresso() {
     return s.sort((a, b) => b.inicio - a.inicio)
   }, [], []) ?? []
   const corpo = useLiveQuery(() => db.corpo.orderBy('data').toArray(), [], []) ?? []
+  // metas batidas das duas ultimas semanas - o resumo semanal conta dia a dia
+  const eventos = useLiveQuery(
+    () => db.xp.where('data').aboveOrEqual(diaMais(hoje(), -14)).toArray(), [], [],
+  ) ?? []
 
   /* -------- volume por semana (ultimas 8) -------- */
   const semanas = (() => {
@@ -99,6 +104,10 @@ export default function Progresso() {
             <Numero rotulo="Melhor sequência" valor={pl(stats.melhorStreak, 'dia')} destaque={perfil.streak > 2} />
           </div>
         )}
+
+        {/* -------- a semana contra a passada -------- */}
+        <ResumoSemana sessoes={sessoes} eventos={eventos} hoje={hoje()}
+          nivel={{ nivel, rank: rank.nome }} />
 
         {/* -------- abas -------- */}
         <div className="flex gap-1.5 mb-4 overflow-x-auto">

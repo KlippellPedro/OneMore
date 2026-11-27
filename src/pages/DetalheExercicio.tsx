@@ -12,7 +12,11 @@ import { youtubeId, dataNumerica, n0, peso, pl } from '../lib/format'
 import { Icone, BotaoFavorito } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
 import { CardVariacoes } from '../components/Variacoes'
+import { FormExercicio } from '../components/FormExercicio'
 import { imagemExercicio } from '../db/imagensExercicios'
+import { CalculadoraAnilhas } from '../components/Anilhas'
+import { melhorUmRM, ZONAS_RM, arredondarCarga } from '../lib/treino'
+import { nq } from '../lib/format'
 
 export default function DetalheExercicio() {
   const { id = '' } = useParams()
@@ -22,12 +26,14 @@ export default function DetalheExercicio() {
   const [editVideo, setEditVideo] = useState(false)
   const [url, setUrl] = useState('')
   const [apagar, setApagar] = useState(false)
+  const [editar, setEditar] = useState(false)
+  const [anilhas, setAnilhas] = useState(false)
   const usos = useLiveQuery(() => (apagar ? ondeUsam(id) : undefined), [apagar, id])
 
   // historico: melhor carga por dia
   const historico = useLiveQuery(async () => {
     const sessoes = await db.sessoes.where('concluida').equals(1).toArray()
-    const porDia = new Map<string, { carga: number; volume: number; reps: number }>()
+    const porDia = new Map<string, { carga: number; volume: number; reps: number; rm: number | null }>()
     for (const s of sessoes) {
       const doEx = s.series.filter(g => g.exercicioId === id && g.feito && !g.aquecimento)
       if (!doEx.length) continue
@@ -35,10 +41,12 @@ export default function DetalheExercicio() {
       const melhor = doEx.reduce((a, b) => (b.carga > a.carga ? b : a))
       const vol = doEx.reduce((t, g) => t + g.carga * g.reps, 0)
       const atual = porDia.get(dia)
+      const rm = melhorUmRM(doEx)
       porDia.set(dia, {
         carga: Math.max(atual?.carga ?? 0, melhor.carga),
         volume: (atual?.volume ?? 0) + vol,
         reps: melhor.reps,
+        rm: Math.max(atual?.rm ?? 0, rm ?? 0) || null,
       })
     }
     return [...porDia.entries()].sort((a, b) => a[0].localeCompare(b[0]))
@@ -59,6 +67,10 @@ export default function DetalheExercicio() {
   const temIlustracao = !!imagemExercicio(ex.id)
   const recorde = historico.reduce((m, [, v]) => Math.max(m, v.carga), 0)
   const volumeTotal = historico.reduce((t, [, v]) => t + v.volume, 0)
+  // 1RM estimado: o melhor dos ultimos 90 dias - forca de hoje, nao a de um ano atras
+  const desde = isoDia(new Date(Date.now() - 90 * 86400000))
+  const rmAtual = historico.filter(([d]) => d >= desde).reduce((m, [, v]) => Math.max(m, v.rm ?? 0), 0)
+  const temCarga = !['peso-corporal', 'cardio', 'elastico'].includes(ex.equipamento)
 
   return (
     <div>
@@ -172,6 +184,28 @@ export default function DetalheExercicio() {
               <Mini rotulo="Sessões" valor={String(historico.length)} />
               <Mini rotulo="Volume" valor={peso(volumeTotal)} />
             </div>
+            {temCarga && rmAtual > 0 && (
+              <div className="rounded-xl bg-bg-soft border border-line p-3 mb-4">
+                <div className="flex items-baseline justify-between gap-2 mb-2.5">
+                  <p className="text-[12px] font-semibold">
+                    1RM estimado <span className="text-muted font-normal">- o máximo pra 1 repetição</span>
+                  </p>
+                  <p className="text-[17px] font-black tabular-nums text-accent shrink-0">{nq(rmAtual)} kg</p>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {ZONAS_RM.map(z => (
+                    <div key={z.pct} className="rounded-lg bg-surface-2/70 px-1.5 py-2 text-center">
+                      <p className="text-[10px] text-muted font-semibold">{z.pct}%</p>
+                      <p className="text-[13px] font-bold tabular-nums">{nq(arredondarCarga(rmAtual * z.pct / 100))}</p>
+                      <p className="text-[9.5px] text-muted">{z.reps} reps</p>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10.5px] text-muted mt-2 leading-snug">
+                  Calculado das suas séries dos últimos 90 dias (fórmula de Epley). É estimativa - não precisa testar o máximo.
+                </p>
+              </div>
+            )}
             {historico.length > 1 && (
               <Grafico
                 pontos={historico.map(([dia, v]) => ({ x: dia, y: v.carga }))}
@@ -188,10 +222,21 @@ export default function DetalheExercicio() {
           </Card>
         )}
 
-        {ex.custom && (
-          <Btn variant="danger" className="w-full mb-4" onClick={() => setApagar(true)}>
-            Apagar esse exercício
+        {ex.equipamento === 'barra' && (
+          <Btn className="w-full mb-3" onClick={() => setAnilhas(true)}>
+            <Icone nome="anilha" tamanho={16} /> Calcular anilhas na barra
           </Btn>
+        )}
+
+        {ex.custom && (
+          <div className="mb-4 space-y-2">
+            <Btn className="w-full" onClick={() => setEditar(true)}>
+              <Icone nome="lapis" tamanho={16} /> Editar nome, músculo e execução
+            </Btn>
+            <Btn variant="danger" className="w-full" onClick={() => setApagar(true)}>
+              Apagar esse exercício
+            </Btn>
+          </div>
         )}
       </div>
 
@@ -213,6 +258,12 @@ export default function DetalheExercicio() {
           }}>Salvar</Btn>
         </div>
       </Sheet>
+
+      <CalculadoraAnilhas aberto={anilhas} fechar={() => setAnilhas(false)}
+        carga={historico.length ? historico[historico.length - 1][1].carga : 0} />
+
+      <FormExercicio aberto={editar} fechar={() => setEditar(false)} exercicio={ex}
+        onSalvo={e => toast(`${e.nome} salvo`, 'ok')} />
 
       <Confirmar aberto={apagar} perigo titulo="Apagar exercício?"
         texto={textoApagar(usos)}

@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { db, uid, apagarLinha } from '../db'
 import { useRotinas, useRotinasArquivadas, useMapaExercicios, useSessaoAtiva } from '../state/hooks'
-import { iniciarSessao, atribuirDia, restaurarRotina } from '../lib/acoes'
+import { iniciarSessao, atribuirDia, restaurarRotina, arquivarRotina, desarquivarRotina } from '../lib/acoes'
 import { corGrupo, nomeGrupo } from '../db/seedExercicios'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Vazio, Confirmar, Sheet, Campo, Input, Chip } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
 import { diaCurto, diaLongo, pl } from '../lib/format'
 import { Icone } from '../components/Icone'
+import { SemanasSalvas } from '../components/SemanasSalvas'
+import { VolumeSemanal } from '../components/VolumeSemanal'
+import { duracaoEstimada } from '../lib/treino'
 import type { GrupoMuscular, Rotina } from '../db/types'
 
 const CORES = ['#8b6dd6', '#4f9aad', '#4caf87', '#c9a049', '#bd7095', '#c25f70', '#7b81be', '#a86eaf']
@@ -28,6 +31,8 @@ export default function Treinos() {
   const [nome, setNome] = useState('')
   const [cor, setCor] = useState(CORES[0])
   const [apagar, setApagar] = useState<string | null>(null)
+  /** Rotina arquivada que vai ser apagada de vez. */
+  const [apagarDeVez, setApagarDeVez] = useState<Rotina | null>(null)
   const [diaAberto, setDiaAberto] = useState<number | null>(null)
   const [vista, setVista] = useState<'semana' | 'rotinas'>('semana')
 
@@ -128,6 +133,7 @@ export default function Treinos() {
                         <p className="text-[13.5px] font-semibold leading-tight line-clamp-2">{r.nome}</p>
                         <p className="text-[11px] text-muted mt-0.5">
                           {pl(r.itens.length, 'exercício')}
+                          {r.itens.length > 0 && ` - ~${duracaoEstimada(r.itens)} min`}
                         </p>
                       </div>
                       {ehHoje && r.itens.length > 0 && (
@@ -164,6 +170,7 @@ export default function Treinos() {
                           <p className="font-bold text-[15px] leading-tight">{r.nome}</p>
                           <p className="text-[11.5px] text-muted mt-1">
                             {pl(r.itens.length, 'exercício')} - {pl(totalSeries, 'série')}
+                            {r.itens.length > 0 && ` - ~${duracaoEstimada(r.itens)} min`}
                             {r.dias?.length ? ' - ' + r.dias.map(diaCurto).join(', ') : ' - sem dia fixo'}
                           </p>
                         </Link>
@@ -204,6 +211,12 @@ export default function Treinos() {
           </div>
         )}
 
+        {/* -------- equilibrio da semana -------- */}
+        {vista === 'semana' && <VolumeSemanal rotinas={rotinas} mapaEx={mapaEx} />}
+
+        {/* -------- o "save" da semana -------- */}
+        {vista === 'semana' && <SemanasSalvas rotinas={rotinas} />}
+
         {/* -------- rotinas que sairam da lista ao trocar de programa -------- */}
         {vista === 'rotinas' && arquivadas.length > 0 && (
           <div className="mb-6">
@@ -211,7 +224,7 @@ export default function Treinos() {
               Arquivados
             </h2>
             <p className="text-[11.5px] text-muted leading-relaxed mb-2.5 px-1">
-              Saíram da lista quando você trocou de programa. O histórico deles continua intacto.
+              Treinos que você apagou ou que saíram quando você trocou de programa. O histórico deles continua intacto.
             </p>
             <Card className="overflow-hidden">
               {arquivadas.map(r => (
@@ -227,6 +240,10 @@ export default function Treinos() {
                     vibrar()
                     toast(`${r.nome} voltou`, 'ok', 'Escolha o dia dela em Semana')
                   }}>Restaurar</Btn>
+                  <button onClick={() => setApagarDeVez(r)} aria-label={`Apagar ${r.nome} de vez`}
+                    className="w-10 h-10 -mr-1.5 shrink-0 rounded-lg text-muted active:bg-surface-2 active:text-bad flex items-center justify-center">
+                    <Icone nome="lixeira" tamanho={16} />
+                  </button>
                 </div>
               ))}
             </Card>
@@ -297,12 +314,25 @@ export default function Treinos() {
       </Sheet>
 
       <Confirmar aberto={!!apagar} perigo titulo="Apagar treino?"
-        texto="A rotina sai da lista. Os treinos já registrados no histórico continuam lá."
+        texto="Ele sai da lista e vai pros Arquivados, no fim de Rotinas - dá pra restaurar de lá. Os treinos já registrados no histórico continuam."
         onSim={async () => {
-          if (apagar) await apagarLinha('rotinas', apagar)
-          setApagar(null); toast('Treino removido', 'ok')
+          const antes = apagar ? await arquivarRotina(apagar) : null
+          setApagar(null)
+          if (antes) {
+            toast(`${antes.nome} foi pros Arquivados`, 'ok', undefined, {
+              rotulo: 'Desfazer', fazer: () => { desarquivarRotina(antes) },
+            })
+          }
         }}
         onNao={() => setApagar(null)} />
+
+      <Confirmar aberto={!!apagarDeVez} perigo titulo="Apagar de vez?"
+        texto={`${apagarDeVez?.nome ?? 'Esse treino'} some da lista de arquivados e não dá pra trazer de volta - a não ser por uma semana salva que tenha ele. Os treinos já feitos com ele continuam no histórico.`}
+        onSim={async () => {
+          if (apagarDeVez) await apagarLinha('rotinas', apagarDeVez.id)
+          setApagarDeVez(null); toast('Treino apagado', 'ok')
+        }}
+        onNao={() => setApagarDeVez(null)} />
     </div>
   )
 }

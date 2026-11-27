@@ -32,7 +32,7 @@ function Confete({ quantidade = 24 }: { quantidade?: number }) {
 }
 
 export function Feedback() {
-  const { toasts, levelUp, conquista, fecharLevelUp, proximaConquista } = useUI()
+  const { toasts, levelUp, conquista, fecharLevelUp, proximaConquista, fecharToast } = useUI()
 
   useEffect(() => {
     if (!levelUp) return
@@ -63,12 +63,19 @@ export function Feedback() {
             {t.tipo === 'xp' && <Icone nome="raio" tamanho={20} className="shrink-0 text-xp" />}
             {t.tipo === 'ok' && <Icone nome="check" tamanho={20} className="shrink-0 text-good" traco={2.4} />}
             {t.tipo === 'erro' && <Icone nome="alerta" tamanho={20} className="shrink-0 text-bad" />}
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className={`text-sm font-bold leading-tight ${
                 t.tipo === 'xp' ? 'text-xp' : t.tipo === 'ok' ? 'text-good' : t.tipo === 'erro' ? 'text-bad' : 'text-txt'
               }`}>{t.texto}</p>
               {t.sub && <p className="text-[11.5px] text-muted truncate">{t.sub}</p>}
             </div>
+            {t.acao && (
+              <button type="button"
+                onClick={() => { t.acao!.fazer(); fecharToast(t.id); vibrar(12) }}
+                className="pointer-events-auto shrink-0 -my-1 -mr-1 px-3 h-9 rounded-xl bg-accent/20 text-accent text-[13px] font-bold active:scale-95">
+                {t.acao.rotulo}
+              </button>
+            )}
           </div>
         ))}
       </div>

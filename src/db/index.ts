@@ -2,7 +2,7 @@ import Dexie, { type Table } from 'dexie'
 import type {
   Exercicio, Rotina, Sessao, Alimento, PlanoRefeicao, DietaSalva,
   RegistroDieta, RegistroCorpo, EventoXP, Perfil, Agua, RegistroGlicemia,
-  Lembrete, Apagado,
+  Lembrete, Apagado, SemanaSalva,
 } from './types'
 import { calcularMelhores, type MelhorExercicio } from './melhores'
 
@@ -22,6 +22,7 @@ export class OneMoreDB extends Dexie {
   lembretes!: Table<Lembrete, string>
   melhores!: Table<MelhorExercicio, string>
   apagados!: Table<Apagado, string>
+  semanas!: Table<SemanaSalva, string>
 
   constructor() {
     super('onemore')
@@ -101,6 +102,14 @@ export class OneMoreDB extends Dexie {
       await tx.table('melhores').clear()
       if (linhas.length) await tx.table('melhores').bulkPut(linhas)
     })
+
+    /**
+     * v9: semanas de treino salvas com nome - o "save" das rotinas, pra voltar
+     * a semana inteira se algo der errado. Ver SemanaSalva em db/types.ts.
+     */
+    this.version(9).stores({
+      semanas: 'id, atualizadoEm',
+    })
   }
 }
 
@@ -178,7 +187,7 @@ export async function normalizarFlags() {
 /** Tabelas que entram na sincronizacao e podem receber lapide. */
 export type TabelaSync =
   | 'exercicios' | 'rotinas' | 'sessoes' | 'alimentos' | 'planos' | 'dietas'
-  | 'dieta' | 'corpo' | 'xp' | 'agua' | 'glicemia'
+  | 'dieta' | 'corpo' | 'xp' | 'agua' | 'glicemia' | 'semanas'
 
 /**
  * Apaga uma linha E registra a lapide, na mesma operacao. Use SEMPRE isto em
@@ -188,6 +197,18 @@ export type TabelaSync =
 export async function apagarLinha(tabela: TabelaSync, chave: string) {
   await (db[tabela] as Table<{ id: string }, string>).delete(chave)
   await db.apagados.put({ id: `${tabela}:${chave}`, tabela, chave, ts: Date.now() })
+}
+
+/**
+ * Desfaz um apagarLinha/apagarLinhas: grava as linhas de volta com carimbo
+ * novo e tira a lapide daqui. O carimbo novo e o que vence a lapide que ja
+ * tiver ido pra nuvem - a fusao so apaga linha editada ANTES da lapide.
+ */
+export async function restaurarLinhas<T extends { id: string }>(tabela: TabelaSync, linhas: T[]) {
+  if (!linhas.length) return
+  const agora = Date.now()
+  await (db[tabela] as unknown as Table<T, string>).bulkPut(linhas.map(l => ({ ...l, atualizadoEm: agora })))
+  await db.apagados.bulkDelete(linhas.map(l => `${tabela}:${l.id}`))
 }
 
 /** Igual a apagarLinha, pra varias chaves da mesma tabela. */

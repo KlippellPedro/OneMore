@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, hoje, diaMais } from '../db'
+import { db, hoje, diaMais, restaurarLinhas } from '../db'
+import { textoDoDia } from '../lib/dietas'
+import { compartilharTexto } from '../lib/arquivo'
 import {
   usePerfil, useMapaAlimentos, usePlanos, useAguaDoDia, useGlicemiaDoDia,
 } from '../state/hooks'
@@ -144,9 +146,40 @@ export default function Dieta() {
   }
 
   async function desfazer(nome: string) {
-    await removerRefeicaoDoDia(data, nome)
+    const tirados = await removerRefeicaoDoDia(data, nome)
     setDesfazerAlvo(null)
-    toast(`${nome} desfeita`, 'ok')
+    toast(`${nome} desfeita`, 'ok', undefined, tirados.length ? {
+      rotulo: 'Desfazer', fazer: () => { restaurarLinhas('dieta', tirados) },
+    } : undefined)
+  }
+
+  /** O dia em texto, pro nutricionista ou pra guardar. */
+  async function compartilharDia() {
+    const texto = textoDoDia({
+      data: dataCurta(data),
+      refeicoes: nomesRefeicao.map(nome => ({
+        nome,
+        itens: registros.filter(r => mesmoTexto(r.refeicao, nome)).map(r => {
+          const a = mapa.get(r.alimentoId)
+          const m = a ? macrosDe(a, r.gramas) : ZERO
+          return { nome: a?.nome ?? 'Alimento', qtd: r.qtd, medida: nomeMedida(a, r.medida), kcal: m.kcal, carb: m.carb }
+        }),
+      })),
+      total,
+      metaKcal: perfil.metaKcal,
+      aguaMl: agua?.ml,
+    })
+    const r = await compartilharTexto(`Dieta - ${dataCurta(data)}`, texto)
+    if (r === 'copiado') toast('Dia copiado', 'ok', 'Cole no WhatsApp ou onde quiser')
+    else if (r === 'falhou') toast('Não deu pra compartilhar daqui', 'erro')
+  }
+
+  async function beberAgua(ml: number) {
+    const g = await addAgua(ml, data); vibrar()
+    if (g) return celebrar(g)
+    toast(`+${ml} ml de água`, 'ok', undefined, {
+      rotulo: 'Desfazer', fazer: () => { addAgua(-ml, data) },
+    })
   }
 
   async function copiarOntem() {
@@ -166,7 +199,13 @@ export default function Dieta() {
     <div>
       <Titulo titulo="Dieta" sub={dataCurta(data)}
         acao={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {registros.length > 0 && (
+              <button onClick={compartilharDia} aria-label="Compartilhar o dia"
+                className="toque w-10 h-11 flex items-center justify-center text-muted active:text-accent">
+                <Icone nome="compartilhar" tamanho={18} />
+              </button>
+            )}
             <Link to="/dieta/imprimir" aria-label="Abrir versão pra imprimir"
               className="h-11 px-2 flex items-center text-[12px] font-semibold text-muted">PDF</Link>
             <Link to="/dieta/plano"><Btn size="sm">Plano</Btn></Link>
@@ -274,10 +313,7 @@ export default function Dieta() {
               </div>
               <Barra valor={(agua?.ml ?? 0) / perfil.metaAgua} cor="var(--color-accent-2)" altura={6} />
             </div>
-            <Btn size="sm" onClick={async () => {
-              const g = await addAgua(250, data); vibrar()
-              if (g) celebrar(g)
-            }}>+250</Btn>
+            <Btn size="sm" onClick={() => beberAgua(250)}>+250</Btn>
           </div>
         </Card>
 
@@ -386,9 +422,11 @@ export default function Dieta() {
               setDetalhe(null)
             }}>Trocar por um equivalente</Btn>
             <Btn variant="danger" className="w-full" onClick={async () => {
-              await removerRegistro(detalhe.id)
+              const tirado = await removerRegistro(detalhe.id)
               setDetalhe(null)
-              toast('Removido', 'ok')
+              toast(`${mapa.get(detalhe.alimentoId)?.nome ?? 'Item'} saiu do diário`, 'ok', undefined, tirado && {
+                rotulo: 'Desfazer', fazer: () => { restaurarLinhas('dieta', [tirado]) },
+              })
             }}>Remover do diário</Btn>
           </>
         )}
@@ -402,8 +440,11 @@ export default function Dieta() {
       <Confirmar aberto={!!apagarGli} perigo titulo="Apagar essa medição?"
         onNao={() => setApagarGli(null)}
         onSim={async () => {
-          if (apagarGli) await removerGlicemia(apagarGli)
+          const tirada = apagarGli ? await removerGlicemia(apagarGli) : undefined
           setApagarGli(null)
+          if (tirada) toast('Medição apagada', 'ok', undefined, {
+            rotulo: 'Desfazer', fazer: () => { restaurarLinhas('glicemia', [tirada]) },
+          })
         }} />
     </div>
   )

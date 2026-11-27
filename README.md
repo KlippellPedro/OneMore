@@ -80,10 +80,40 @@ dedo no ícone mostra atalhos: **Beber água (+250 ml)**, **Treinos** e **Dieta 
   você usou em cada uma, depois os outros do mesmo músculo. As séries já feitas ficam
   registradas no exercício original; só as que faltam mudam
 - Campo de **link de vídeo** por exercício — cola um YouTube e ele toca dentro do app
-- Monta rotinas (Treino A/B/C…) com séries, repetições alvo, carga alvo e descanso
+- Monta rotinas (Treino A/B/C…) com séries, repetições alvo, carga alvo e descanso.
+  O seletor marca **vários exercícios de uma vez** (entram na ordem em que você tocou,
+  com as séries e o descanso do último da rotina), e o que não está no catálogo dá pra
+  criar ali mesmo
+- Na ficha de cada exercício da rotina: **trocar o exercício** (variações primeiro)
+  mantendo séries, reps, descanso e posição; descanso livre além dos atalhos; a carga da
+  última vez do lado da carga alvo. Fechar a ficha salva — não precisa achar o botão
+- Exercício criado por você pode ser **editado** depois (nome, músculo, aparelho,
+  execução, erros comuns, vídeo)
+- **Semanas salvas**: guarda a semana inteira — treinos, exercícios, séries e o dia de
+  cada um — e restaura com um toque. Vai pra nuvem com a conta e sai em **arquivo**
+  (`onemore-semana-*.json`), a cópia que sobrevive até a perder o celular. Abrir arquivo
+  aceita também o backup completo do Perfil, tirando dele só o treino. Antes de aplicar
+  um programa por cima ou de restaurar outra semana, o app tira uma cópia automática
+  (ficam as 5 mais novas), então dá pra desfazer
 - **Player de treino**: marca série por série, cronômetro de descanso automático
   com bipe e vibração, carga da última vez já preenchida. A tela fica acesa enquanto
   o treino está aberto — o celular não apaga no meio do descanso
+- **Sugestão de carga** (progressão dupla): bateu o topo da faixa de repetições em
+  todas as séries? O player sugere subir (barra e máquina +2,5 kg, halter +2 kg) e
+  um toque aplica, já voltando as reps pro piso da faixa. No primeiro treino de um
+  exercício, as repetições vêm preenchidas com o piso do alvo
+- **Calculadora de anilhas** nos exercícios de barra: quais anilhas por lado pra
+  chegar na carga, com barra de 20, 15 ou 10 kg — no player e na página do exercício
+- **1RM estimado** (Epley, últimos 90 dias) na página do exercício, com as cargas de
+  90/80/70/60%
+- **Compartilhar treino**: no fim do treino e no histórico, manda o resumo em texto
+  pelo menu do celular (ou copia, no PC)
+- **Séries por músculo na semana**: em Treino > Semana, quantas séries cada músculo
+  recebe na semana montada, com a faixa de referência de 10 a 20 — mostra o músculo
+  esquecido e o afogado. Cada rotina mostra a duração estimada e, no editor, as
+  séries por músculo daquele treino
+- **Apagar não perde nada**: apagar um treino manda ele pros Arquivados (apagar de
+  vez é de lá), e tirar um treino ou um exercício da rotina mostra **Desfazer**
 - Detecta **recorde pessoal** na hora e avisa
 - Séries de aquecimento não contam volume nem recorde
 - Treino livre, sem rotina, adicionando exercício na hora
@@ -104,6 +134,14 @@ dedo no ícone mostra atalhos: **Beber água (+250 ml)**, **Treinos** e **Dieta 
   corredor de mercado, multiplicado pelos dias que você escolher (1 a 30) e com as
   trocas de cada item — dá pra marcar o que já tem em casa antes de imprimir
 - Copiar o dia de ontem inteiro
+- **Compartilhar o dia**: o diário em texto (refeições, itens, carbo de cada refeição,
+  totais e água) pelo menu do celular — pra mandar pro nutricionista
+- **Nada some sem volta**: tirar um alimento do diário, desfazer uma refeição, apagar
+  uma glicemia, um item ou uma refeição do plano, uma dieta salva ou um alimento seu
+  mostra **Desfazer**; tomar água também (tocou 500 em vez de 200? um toque volta)
+- **Cópia automática do plano**: antes de gerar um cardápio, usar outra dieta ou
+  aplicar uma pronta, o app guarda o plano atual em *Minhas dietas* (marcado como
+  AUTOMÁTICA, ficam as 5 mais novas) — e o aviso tem **Desfazer**, que volta pra ele
 - Calcula TMB (Mifflin-St Jeor) e gasto diário, e sugere kcal + macros pro seu objetivo
 - Cadastro de alimentos próprios, com validação: se os macros não batem com as
   calorias que você digitou, ele avisa
@@ -166,6 +204,9 @@ antes de começar, porque superávit calórico muda a necessidade de insulina.
 - Animação de level up e de conquista, com vibração
 
 ### Progresso
+- **Esta semana**: treinos, séries, volume e dias com dieta, proteína e água na meta,
+  contra o mesmo trecho da semana passada (quarta compara seg-qua com seg-qua), com
+  seta de subiu/caiu e botão de compartilhar
 - Volume levantado por semana
 - Calendário de frequência dos últimos 28 dias
 - Gráfico de peso corporal e medidas (peito, cintura, braço, coxa, quadril)
@@ -247,7 +288,8 @@ precisa de um alerta na cara —, mas a última falha fica registrada e aparece 
 **Perfil → Sua conta**, embaixo de "Última vez".
 
 Sem nuvem, **Perfil → Baixar backup** gera um JSON com tudo, e **Restaurar backup**
-traz de volta.
+traz de volta. A linha do backup mostra quando foi o último arquivo baixado naquele
+aparelho ("há 12 dias", "você ainda não baixou nenhum").
 
 ---
 

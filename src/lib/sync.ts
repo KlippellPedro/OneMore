@@ -10,6 +10,7 @@ import { reconstruirMelhores } from './acoes'
 import { reconstruirGamificacao } from './xp'
 import { regerarAgenda } from './lembretes'
 import { desligarPush } from './push'
+import { baixarJSON } from './arquivo'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela, sanitizarDados,
   setupDeFabricaIntacto, semSetupDeFabrica,
@@ -32,7 +33,7 @@ export interface Backup {
 /** O que entra no backup: dado que a pessoa criou. */
 const TABELAS = [
   'exercicios', 'rotinas', 'sessoes', 'alimentos', 'planos', 'dietas',
-  'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia',
+  'dieta', 'corpo', 'xp', 'perfil', 'agua', 'glicemia', 'semanas',
   // as lapides viajam junto: sem elas o outro aparelho nao tem como saber que
   // um registro foi apagado, e a fusao o traria de volta
   'apagados',
@@ -57,15 +58,17 @@ export async function exportar(): Promise<Backup> {
 }
 
 export async function baixarBackup() {
-  const backup = await exportar()
-  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
   // hoje() e nao toISOString(): o UTC poe a data de amanha no backup feito depois das 21h
-  a.download = `onemore-backup-${hoje()}.json`
-  a.click()
-  setTimeout(() => URL.revokeObjectURL(url), 2000)
+  baixarJSON(`onemore-backup-${hoje()}.json`, await exportar())
+  localStorage.setItem(CHAVE_ULTIMO_BACKUP, String(Date.now()))
+}
+
+const CHAVE_ULTIMO_BACKUP = 'onemore:ultimoBackup'
+
+/** Quando o ultimo arquivo de backup foi baixado neste aparelho (null = nunca). */
+export function ultimoBackup(): Date | null {
+  const v = Number(localStorage.getItem(CHAVE_ULTIMO_BACKUP))
+  return v > 0 ? new Date(v) : null
 }
 
 export interface ResultadoImport { tabelas: number; registros: number }
@@ -162,7 +165,7 @@ export async function apagarTudo() {
 
 /** O que a pessoa criou e pode levar lapide inteiro. Catalogo fica de fora - ver abaixo. */
 const CRIADAS_PELA_PESSOA: TabelaSync[] = [
-  'rotinas', 'sessoes', 'planos', 'dietas', 'dieta', 'corpo', 'xp', 'agua', 'glicemia',
+  'rotinas', 'sessoes', 'planos', 'dietas', 'dieta', 'corpo', 'xp', 'agua', 'glicemia', 'semanas',
 ]
 
 /**
@@ -356,6 +359,17 @@ export function fundirBackups(localBruto: Backup, nuvemBruto: Backup): Backup {
         )
   }
   dados.apagados = lapides
+
+  /**
+   * Tabela que esta versao nao conhece (veio de uma versao mais nova do app,
+   * noutro aparelho) passa adiante intacta. Sem isto, o aparelho desatualizado
+   * publicava a fusao sem ela e apagava da nuvem, por exemplo, as semanas de
+   * treino salvas no aparelho novo. Nada disso e gravado aqui: `importar` so
+   * escreve as TABELAS.
+   */
+  for (const [t, linhas] of Object.entries(nuvem.dados)) {
+    if (!(t in dados)) dados[t] = linhas
+  }
 
   return { app: 'onemore', versao: VERSAO_BACKUP, criadoEm: new Date().toISOString(), dados }
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { db, uid, apagarLinha } from '../db'
+import { db, uid, apagarLinha, restaurarLinhas } from '../db'
 import { restricoesDoPerfil, conflitos, textoConflito } from '../lib/restricoes'
 import { useAlimentos, usePerfil } from '../state/hooks'
 import { CATEGORIAS_ALIMENTO } from '../db/seedAlimentos'
@@ -95,9 +95,16 @@ export default function Alimentos() {
         onSalvo={n => toast(`${n} salvo`, 'ok')} />
 
       <Confirmar aberto={!!apagar} perigo titulo="Apagar alimento?"
-        texto="Registros já feitos no diário ficam sem nome."
+        texto="Registros já feitos no diário ficam sem nome até você desfazer."
         onNao={() => setApagar(null)}
-        onSim={async () => { await apagarLinha('alimentos', apagar!); setApagar(null) }} />
+        onSim={async () => {
+          const antes = await db.alimentos.get(apagar!)
+          await apagarLinha('alimentos', apagar!)
+          setApagar(null)
+          if (antes) toast(`${antes.nome} apagado`, 'ok', undefined, {
+            rotulo: 'Desfazer', fazer: () => { restaurarLinhas('alimentos', [antes]) },
+          })
+        }} />
     </div>
   )
 }

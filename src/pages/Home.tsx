@@ -100,7 +100,8 @@ export default function Home() {
     vibrar()
     const g = await addAgua(ml)
     if (g) celebrar(g)
-    else toast(`+${ml} ml`, 'ok')
+    // tocou no botao errado (500 em vez de 200)? um toque volta
+    else toast(`+${ml} ml de água`, 'ok', undefined, { rotulo: 'Desfazer', fazer: () => { addAgua(-ml) } })
   }
 
   /**

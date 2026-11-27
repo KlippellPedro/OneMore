@@ -238,7 +238,7 @@ export function setupDeFabricaIntacto(
 ): boolean {
   if (setupEm == null || !Number.isFinite(setupEm)) return false
 
-  const REGISTROS = ['sessoes', 'corpo', 'dieta', 'xp', 'agua', 'glicemia', 'dietas', 'apagados']
+  const REGISTROS = ['sessoes', 'corpo', 'dieta', 'xp', 'agua', 'glicemia', 'dietas', 'semanas', 'apagados']
   if (REGISTROS.some(t => (dados[t]?.length ?? 0) > 0)) return false
 
   for (const t of ['rotinas', 'planos'] as const) {
