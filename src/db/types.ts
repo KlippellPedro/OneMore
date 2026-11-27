@@ -63,6 +63,35 @@ export interface Rotina {
   atualizadoEm: number
 }
 
+/** Uma rotina como ela estava no momento em que a semana foi salva. */
+export type RotinaSalva = Omit<Rotina, 'arquivada' | 'atualizadoEm'>
+
+/**
+ * A semana de treino inteira guardada com nome: as rotinas ativas, os
+ * exercicios de cada uma, os dias e os exercicios criados pela pessoa que elas
+ * usam. E o "save" do treino - se algo der errado (programa aplicado por cima,
+ * rotina apagada, sincronizacao que baguncou), restaurar traz tudo de volta.
+ *
+ * Guarda copia, nao referencia: editar uma rotina depois nao mexe na semana
+ * salva. Os ids das rotinas sao os originais, pra restaurar devolver as mesmas
+ * rotinas - e o historico de treinos continuar apontando pra elas.
+ */
+export interface SemanaSalva {
+  id: string
+  nome: string
+  rotinas: RotinaSalva[]
+  /** Exercicios criados pela pessoa que as rotinas usam - sem eles, restaurar num aparelho novo daria "Exercício removido". */
+  exercicios?: Exercicio[]
+  /**
+   * Copia automatica, tirada antes de algo que troca a semana inteira - o que
+   * ia acontecer ('programa', 'restaurar'). O motivo legivel fica no `nome`.
+   * Ausente = salva pela pessoa.
+   */
+  auto?: 'programa' | 'restaurar'
+  criadoEm: number
+  atualizadoEm: number
+}
+
 export interface SerieLog {
   exercicioId: string
   serie: number
@@ -142,10 +171,18 @@ export interface DietaSalva {
   id: string
   nome: string
   /** Snapshot das refeicoes do plano no momento em que foi salva. */
-  refeicoes: { nome: NomeRefeicao; horario: string; itens: ItemRefeicao[]; ordem: number }[]
+  refeicoes: RefeicaoSalva[]
+  /**
+   * Copia automatica do plano, tirada antes de algo que troca o cardapio
+   * inteiro (gerar, usar outra dieta, aplicar uma pronta). Ausente = salva
+   * pela pessoa. Mesma ideia da SemanaSalva.auto.
+   */
+  auto?: 'gerar' | 'carregar' | 'pronta'
   criadoEm: number
   atualizadoEm: number
 }
+
+export interface RefeicaoSalva { nome: NomeRefeicao; horario: string; itens: ItemRefeicao[]; ordem: number }
 
 export interface RegistroDieta {
   id: string

@@ -41,6 +41,12 @@ const ICONES: Record<string, ReactNode> = {
     <path d="M14 3.8h6.2V10" /><path d="M20.2 3.8 10.5 13.5" />
     <path d="M18 14v5.7a1.5 1.5 0 0 1-1.5 1.5H5.3a1.5 1.5 0 0 1-1.5-1.5V8.5A1.5 1.5 0 0 1 5.3 7H11" />
   </>,
+  relogio: <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
+  // tres pontos ligados: o "mandar pra alguem" de todo celular
+  compartilhar: <>
+    <circle cx="17.5" cy="5.5" r="2.4" /><circle cx="6.5" cy="12" r="2.4" /><circle cx="17.5" cy="18.5" r="2.4" />
+    <path d="m8.6 10.8 6.8-4M8.6 13.2l6.8 4" />
+  </>,
 
   /* -------- navegacao -------- */
   casa: <><path d="M3 10.4 12 3l9 7.4" /><path d="M5.2 9.3V20.8h13.6V9.3" /></>,

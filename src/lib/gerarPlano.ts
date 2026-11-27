@@ -127,12 +127,16 @@ function arredondar(g: number, papel: Papel) {
  */
 function melhorMedida(a: Alimento, gramas: number): { qtd: number; medida: string } {
   let melhor: { qtd: number; medida: string; erro: number } | null = null
-  for (const m of a.medidas) {
+  for (const [i, m] of a.medidas.entries()) {
     if (m.gramas <= 0) continue
     const arred = Math.round((gramas / m.gramas) * 2) / 2   // aceita meia unidade
     if (arred < 0.5 || arred > 12) continue                 // ninguem conta "23 colheres"
     const erro = Math.abs(arred * m.gramas - gramas) / gramas
     if (erro > 0.08) continue
+    // a primeira medida e a porcao natural do alimento: se ela serve, e ela.
+    // Sem isso o ovo saia em "9,5 gemas" - a gema fechava a conta mais exata
+    // que "3 unidades", mas ninguem come 9 gemas e meia
+    if (i === 0) return { qtd: arred, medida: m.nome }
     if (!melhor || erro < melhor.erro) melhor = { qtd: arred, medida: m.nome, erro }
   }
   return melhor

@@ -6,7 +6,7 @@ import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo, apagarTudoNaConta,
   entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao, excluirConta,
-  sincronizar, ultimoSync, ultimaFalhaSync, type Backup,
+  sincronizar, ultimoSync, ultimaFalhaSync, ultimoBackup, type Backup,
 } from '../lib/sync'
 import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
 import { rodarSeed } from '../db/seed'
@@ -31,6 +31,18 @@ const ATIVIDADES = [
   { v: 1.725, nome: 'Intenso', desc: 'Exercício 6 a 7x por semana' },
   { v: 1.9, nome: 'Atleta', desc: 'Treino pesado 2x por dia' },
 ] as const
+
+/**
+ * Quando foi o ultimo arquivo de backup. Quem ja perdeu dado uma vez precisa
+ * ver isso sem procurar: "nunca" e o empurrao pra baixar o primeiro.
+ */
+function textoBackup() {
+  const d = ultimoBackup()
+  if (!d) return 'Arquivo JSON com tudo do aparelho - você ainda não baixou nenhum'
+  const dias = Math.floor((Date.now() - d.getTime()) / 86400000)
+  return `Arquivo JSON com tudo do aparelho - último ${
+    dias === 0 ? 'hoje' : dias === 1 ? 'ontem' : `há ${dias} dias`}`
+}
 
 export default function Perfil() {
   const { toast } = useUI()
@@ -134,7 +146,7 @@ export default function Perfil() {
           <Linha titulo="Sua conta e sincronização"
             sub={ultimoSync() ? `Último envio: ${ultimoSync()!.toLocaleString('pt-BR')}` : 'Entre pra ter backup na nuvem'}
             onClick={() => setAberto('nuvem')} />
-          <Linha titulo="Baixar backup" sub="Arquivo JSON com tudo que está no aparelho"
+          <Linha titulo="Baixar backup" sub={textoBackup()}
             onClick={async () => { await baixarBackup(); toast('Backup gerado', 'ok') }} />
           <Linha titulo="Restaurar backup" sub="Substitui tudo pelo conteudo do arquivo"
             onClick={() => arquivo.current?.click()} />

@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { db, uid, salvarPerfil, apagarLinha, apagarLinhas } from '../db'
+import { db, uid, salvarPerfil, apagarLinha, restaurarLinhas } from '../db'
+import { trocarPlano } from '../lib/acoes'
 import { restricoesDoPerfil, temConflito, conflitos, textoConflito } from '../lib/restricoes'
 import type { Marcador } from '../db/marcadores'
 import { usePerfil, useMapaAlimentos, usePlanos, useDietasSalvas } from '../state/hooks'
@@ -16,15 +17,8 @@ import { n0, nq, clamp } from '../lib/format'
 import { Icone } from '../components/Icone'
 import type { Alimento, ItemRefeicao, PlanoRefeicao, DietaSalva } from '../db/types'
 
-/**
- * Esvazia o plano em uso ANTES de gravar o novo. Nao pode ser
- * `db.planos.clear()`: `planos` e tabela sincronizada, e apagar sem lapide nao
- * se propaga - as refeicoes antigas voltam do outro aparelho na proxima fusao
- * e o plano aparece duplicado, com o cardapio velho e o novo lado a lado.
- */
-async function esvaziarPlano() {
-  await apagarLinhas('planos', (await db.planos.toArray()).map(p => p.id))
-}
+/** "27/11" - entra no nome da copia automatica, pra distinguir uma da outra. */
+const diaMes = () => new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
 
 export default function PlanoAlimentar() {
   const { toast } = useUI()
@@ -55,6 +49,17 @@ export default function PlanoAlimentar() {
   const [sobrescrever, setSobrescrever] = useState<DietaSalva | null>(null)
 
   const fora = (atual: number, meta: number) => meta > 0 && Math.abs(atual - meta) / meta > 0.1
+
+  /**
+   * Aviso de quem acabou de trocar o cardapio inteiro: o plano de antes ficou
+   * em Minhas dietas, e o Desfazer volta pra ele na hora.
+   */
+  function avisarTroca(texto: string, sub: string | undefined, copia: DietaSalva | null) {
+    toast(texto, 'ok', copia ? 'O plano anterior ficou em Minhas dietas' : sub, copia ? {
+      rotulo: 'Desfazer',
+      fazer: async () => { await trocarPlano(copia.refeicoes); toast('Plano anterior de volta', 'ok') },
+    } : undefined)
+  }
 
   const totalPlano = somaMacros(
     ...planos.flatMap(p => p.itens.map(i => {
@@ -88,10 +93,9 @@ export default function PlanoAlimentar() {
       ? new Map([...mapa].filter(([id]) => !temConflito(id, evitar)))
       : mapa
     const plano = gerarPlano(perfil, disponivel)
-    await esvaziarPlano()
-    await db.planos.bulkPut(paraPlanoRefeicao(plano))
+    const copia = await trocarPlano(paraPlanoRefeicao(plano), { nome: `Antes de gerar o cardápio (${diaMes()})`, auto: 'gerar' })
     setGerar(false)
-    toast('Plano gerado', 'ok', `${n0(plano.total.kcal)} kcal - ${n0(plano.total.carb)} g de carbo`)
+    avisarTroca('Plano gerado', `${n0(plano.total.kcal)} kcal - ${n0(plano.total.carb)} g de carbo`, copia)
   }
 
   /**
@@ -148,31 +152,23 @@ export default function PlanoAlimentar() {
   }
 
   async function atualizarDieta(d: DietaSalva) {
-    await db.dietas.update(d.id, { refeicoes: instantaneo(), atualizadoEm: Date.now() })
+    await db.dietas.update(d.id, { refeicoes: instantaneo(), auto: undefined, atualizadoEm: Date.now() })
     setSobrescrever(null)
     toast(`"${d.nome}" atualizada`, 'ok')
   }
 
   async function carregarDieta(d: DietaSalva) {
-    await esvaziarPlano()
-    await db.planos.bulkPut(d.refeicoes.map((r, i) => ({
-      id: uid(), nome: r.nome, horario: r.horario,
-      itens: r.itens.map(it => ({ ...it })),
-      ordem: r.ordem ?? i, atualizadoEm: Date.now(),
-    })))
+    const copia = await trocarPlano(d.refeicoes, { nome: `Antes de usar "${d.nome}" (${diaMes()})`, auto: 'carregar' })
     setCarregar(null)
-    toast(`"${d.nome}" carregada`, 'ok')
+    // carregar a propria copia de agora nao tem o que desfazer
+    avisarTroca(`"${d.nome}" carregada`, undefined, copia?.id === d.id ? null : copia)
   }
 
   /** Traz uma dieta pronta do catalogo do app pro plano em uso. */
   async function aplicarDietaPronta(d: DietaPronta) {
-    await esvaziarPlano()
-    await db.planos.bulkPut(d.refeicoes.map((r, idx) => ({
-      id: uid(), nome: r.nome, horario: r.horario,
-      itens: r.itens.map(it => ({ ...it })), ordem: idx, atualizadoEm: Date.now(),
-    })))
+    const copia = await trocarPlano(d.refeicoes, { nome: `Antes de "${d.nome}" (${diaMes()})`, auto: 'pronta' })
     setDietaPronta(null)
-    toast(`"${d.nome}" aplicada`, 'ok')
+    avisarTroca(`"${d.nome}" aplicada`, undefined, copia)
   }
 
   const macrosDeRefeicoes = (refeicoes: { itens: { alimentoId: string; gramas: number }[] }[]) =>
@@ -241,7 +237,7 @@ export default function PlanoAlimentar() {
           {planos.length > 0 && (
             <button onClick={() => setSalvarNome('')}
               className="toque text-[12px] font-semibold text-accent">
-              Salvar está
+              Salvar esta
             </button>
           )}
         </div>
@@ -250,15 +246,23 @@ export default function PlanoAlimentar() {
           {dietas.length === 0 ? (
             <p className="px-4 py-4 text-[12.5px] text-muted leading-relaxed">
               Monte o cardápio do seu jeito nas refeições abaixo e toque em
-              <span className="text-accent font-semibold"> Salvar está</span> pra guardar
-              como uma dieta sua. Da pra ter varias e alternar entre elas.
+              <span className="text-accent font-semibold"> Salvar esta</span> pra guardar
+              como uma dieta sua. Dá pra ter várias e alternar entre elas. Antes de gerar
+              um cardápio ou trocar de dieta, o app guarda o plano atual aqui sozinho.
             </p>
           ) : (
             dietas.map(d => (
               <div key={d.id}
                 className="flex items-center gap-2 px-3.5 py-3 border-b border-line/40 last:border-0">
                 <button onClick={() => setCarregar(d)} className="flex-1 min-w-0 text-left">
-                  <p className="text-[13.5px] font-semibold truncate">{d.nome}</p>
+                  <p className="text-[13.5px] font-semibold truncate">
+                    {d.auto && (
+                      <span className="mr-1.5 align-middle text-[9px] font-bold tracking-wider px-1.5 py-0.5 rounded bg-surface-2 text-muted">
+                        AUTOMÁTICA
+                      </span>
+                    )}
+                    {d.nome}
+                  </p>
                   <p className="text-[11px] text-muted">
                     {d.refeicoes.length} refeic{d.refeicoes.length === 1 ? 'ao' : 'oes'}
                     {' - '}{n0(kcalDeDieta(d))} kcal
@@ -384,8 +388,8 @@ export default function PlanoAlimentar() {
               <p className="text-[14px] font-bold">Gerar um cardápio pronto</p>
               <p className="text-[11.5px] text-muted mt-0.5 leading-relaxed">
                 Atalho pra ter um ponto de partida: monta 6 refeições nas suas metas e
-                você edita o que quiser depois. Substitui as refeições atuais - salve a
-                sua dieta antes se não quiser perder.
+                você edita o que quiser depois. Substitui as refeições atuais - o app
+                guarda as de agora em Minhas dietas antes, então dá pra voltar.
               </p>
               <Btn size="sm" className="mt-3" onClick={() => setGerar(true)}>
                 {planos.some(p => p.itens.length) ? 'Refazer o plano' : 'Gerar agora'}
@@ -423,11 +427,22 @@ export default function PlanoAlimentar() {
           fechar={() => setEditando(null)}
           onRemover={async () => {
             const { plano, idx } = editando
+            const item = plano.itens[idx]
             await db.planos.update(plano.id, {
               itens: plano.itens.filter((_, i) => i !== idx), atualizadoEm: Date.now(),
             })
             setEditando(null)
-            toast('Item removido do plano', 'ok')
+            toast(`${mapa.get(item.alimentoId)?.nome ?? 'Item'} saiu de ${plano.nome}`, 'ok', undefined, {
+              rotulo: 'Desfazer',
+              // volta pro mesmo lugar, em cima do que estiver gravado agora
+              fazer: async () => {
+                const atual = await db.planos.get(plano.id)
+                if (!atual) return
+                const itens = [...atual.itens]
+                itens.splice(Math.min(idx, itens.length), 0, item)
+                await db.planos.update(plano.id, { itens, atualizadoEm: Date.now() })
+              },
+            })
           }}
           onConfirmar={async (q, md) => {
             const { plano, idx } = editando
@@ -540,16 +555,18 @@ export default function PlanoAlimentar() {
         onNao={() => setAlinhar(false)} onSim={alinharMetas} />
 
       <Confirmar aberto={gerar} titulo="Gerar o cardápio?"
-        texto="As refeições atuais do plano são substituídas por um cardápio novo, calculado nas suas metas. O que já foi registrado no diário não muda."
+        texto="As refeições atuais do plano são substituídas por um cardápio novo, calculado nas suas metas. O plano atual fica guardado em Minhas dietas, e o diário já registrado não muda."
         onNao={() => setGerar(false)} onSim={gerarAutomatico} />
 
       <Confirmar aberto={!!carregar} titulo={`Usar "${carregar?.nome}"?`}
-        texto="As refeições do plano atual são substituídas pelas dessa dieta. O diário já registrado não muda."
+        texto="As refeições do plano atual são substituídas pelas dessa dieta - o app guarda o plano atual em Minhas dietas antes. O diário já registrado não muda."
         onNao={() => setCarregar(null)}
         onSim={() => carregar && carregarDieta(carregar)} />
 
       <Confirmar aberto={!!sobrescrever} titulo={`Atualizar "${sobrescrever?.nome}"?`}
-        texto="A dieta salva passa a guardar as refeições do plano atual."
+        texto={sobrescrever?.auto
+          ? 'Ela passa a guardar as refeições do plano atual e deixa de ser cópia automática.'
+          : 'A dieta salva passa a guardar as refeições do plano atual.'}
         onNao={() => setSobrescrever(null)}
         onSim={() => sobrescrever && atualizarDieta(sobrescrever)} />
 
@@ -557,15 +574,25 @@ export default function PlanoAlimentar() {
         texto="Só a dieta salva se perde. O plano que está em uso continua."
         onNao={() => setApagarDieta(null)}
         onSim={async () => {
-          if (apagarDieta) await apagarLinha('dietas', apagarDieta.id)
+          const d = apagarDieta
+          if (d) await apagarLinha('dietas', d.id)
           setApagarDieta(null)
-          toast('Dieta apagada', 'ok')
+          if (d) toast(`"${d.nome}" apagada`, 'ok', undefined, {
+            rotulo: 'Desfazer', fazer: () => { restaurarLinhas('dietas', [d]) },
+          })
         }} />
 
       <Confirmar aberto={!!apagarRef} perigo titulo="Apagar refeição?"
         texto="O cardápio dela se perde. O diário já registrado continua."
         onNao={() => setApagarRef(null)}
-        onSim={async () => { await apagarLinha('planos', apagarRef!); setApagarRef(null) }} />
+        onSim={async () => {
+          const ref = planos.find(p => p.id === apagarRef)
+          await apagarLinha('planos', apagarRef!)
+          setApagarRef(null)
+          if (ref) toast(`${ref.nome} saiu do plano`, 'ok', undefined, {
+            rotulo: 'Desfazer', fazer: () => { restaurarLinhas('planos', [ref]) },
+          })
+        }} />
     </div>
   )
 }

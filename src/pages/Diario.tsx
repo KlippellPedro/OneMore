@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db, hoje, diaMais } from '../db'
+import { db, hoje, diaMais, restaurarLinhas } from '../db'
 import { useUI } from '../state/ui'
 import { removerGlicemia, estatisticasGlicemia, classificarGlicemia, FAIXA_ALVO } from '../lib/acoes'
 import { SheetGlicemia, LinhaGlicemia, nomeMomento } from '../components/Glicemia'
@@ -174,9 +174,11 @@ export default function Diario() {
       <Confirmar aberto={!!apagar} perigo titulo="Apagar essa medição?"
         onNao={() => setApagar(null)}
         onSim={async () => {
-          if (apagar) await removerGlicemia(apagar)
+          const tirada = apagar ? await removerGlicemia(apagar) : undefined
           setApagar(null)
-          toast('Removido', 'ok')
+          if (tirada) toast('Medição apagada', 'ok', undefined, {
+            rotulo: 'Desfazer', fazer: () => { restaurarLinhas('glicemia', [tirada]) },
+          })
         }} />
     </div>
   )

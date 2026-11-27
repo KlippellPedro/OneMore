@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { db, uid } from '../db'
+import { db } from '../db'
 import { useExercicios } from '../state/hooks'
-import { GRUPOS, EQUIPAMENTOS, corGrupo, nomeGrupo, nomeEquip } from '../db/seedExercicios'
+import { GRUPOS, corGrupo, nomeGrupo, nomeEquip } from '../db/seedExercicios'
 import { normalizar } from '../components/SeletorExercicio'
 import { Cabecalho } from '../components/Cabecalho'
-import { Btn, Input, Chip, Sheet, Campo, Select, Textarea } from '../components/ui'
+import { Btn, Input, Chip } from '../components/ui'
 import { BotaoFavorito } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
-import { SelectFamilia } from '../components/Variacoes'
+import { FormExercicio } from '../components/FormExercicio'
 import { CREDITO_IMAGENS } from '../db/imagensExercicios'
 import { useUI } from '../state/ui'
-import type { GrupoMuscular, Equipamento } from '../db/types'
+import type { GrupoMuscular } from '../db/types'
 
 export default function Exercicios() {
   const todos = useExercicios()
@@ -59,7 +59,12 @@ export default function Exercicios() {
         </div>
 
         {lista.length === 0 && (
-          <p className="text-center text-[13px] text-muted py-12">Nada encontrado.</p>
+          <div className="text-center py-12">
+            <p className="text-[13px] text-muted mb-3">Nada encontrado.</p>
+            <Btn size="sm" onClick={() => setNovo(true)}>
+              Criar {busca.trim() ? `"${busca.trim()}"` : 'exercício'}
+            </Btn>
+          </div>
         )}
 
         {porGrupo.map(([g, itens]) => (
@@ -109,64 +114,9 @@ export default function Exercicios() {
         </p>
       </div>
 
-      <NovoExercicio aberto={novo} fechar={() => setNovo(false)} onCriado={n => toast(`${n} criado`, 'ok')} />
+      <FormExercicio aberto={novo} fechar={() => setNovo(false)} nomeInicial={busca.trim()}
+        grupoInicial={grupo !== 'todos' && grupo !== 'favoritos' ? grupo : undefined}
+        onSalvo={ex => toast(`${ex.nome} criado`, 'ok')} />
     </div>
-  )
-}
-
-/* ------------------------------------------------------------------ */
-
-function NovoExercicio({ aberto, fechar, onCriado }: {
-  aberto: boolean; fechar: () => void; onCriado: (nome: string) => void
-}) {
-  const { toast } = useUI()
-  const [nome, setNome] = useState('')
-  const [grupo, setGrupo] = useState<GrupoMuscular>('peito')
-  const [equip, setEquip] = useState<Equipamento>('barra')
-  const [familia, setFamilia] = useState<string | undefined>()
-  const [exec, setExec] = useState('')
-  const [video, setVideo] = useState('')
-
-  async function criar() {
-    if (!nome.trim()) return toast('Da um nome pro exercício', 'erro')
-    await db.exercicios.put({
-      id: 'usr_' + uid(),
-      nome: nome.trim(), grupo, equipamento: equip, familia,
-      execucao: exec.split('\n').map(s => s.trim()).filter(Boolean),
-      erros: [],
-      videoUrl: video.trim() || undefined,
-      custom: true,
-      atualizadoEm: Date.now(),
-    })
-    onCriado(nome.trim())
-    setNome(''); setExec(''); setVideo(''); setFamilia(undefined)
-    fechar()
-  }
-
-  return (
-    <Sheet aberto={aberto} fechar={fechar} titulo="Novo exercício">
-      <Campo label="Nome"><Input value={nome} onChange={e => setNome(e.target.value)} autoFocus /></Campo>
-      <Campo label="Músculo principal">
-        <Select value={grupo} onChange={e => setGrupo(e.target.value as GrupoMuscular)}>
-          {GRUPOS.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
-        </Select>
-      </Campo>
-      <Campo label="Equipamento">
-        <Select value={equip} onChange={e => setEquip(e.target.value as Equipamento)}>
-          {EQUIPAMENTOS.map(g => <option key={g.id} value={g.id}>{g.nome}</option>)}
-        </Select>
-      </Campo>
-      <Campo label="Movimento" hint="Opcional. Faz ele aparecer como variação dos outros do mesmo movimento, e vice-versa.">
-        <SelectFamilia valor={familia} onChange={setFamilia} />
-      </Campo>
-      <Campo label="Execução" hint="Uma etapa por linha.">
-        <Textarea rows={4} value={exec} onChange={e => setExec(e.target.value)}
-          placeholder={'Ajuste o banco\nDesca controlado\nEmpurre sem travar o cotovelo'} />
-      </Campo>
-      <Campo label="Link do vídeo" hint="Cole um link do YouTube e ele toca dentro do app.">
-        <Input value={video} onChange={e => setVideo(e.target.value)} placeholder="https://youtube.com/watch?v=..." />
-      </Campo>
-      <Btn variant="primary" size="lg" className="w-full mt-2" onClick={criar}>Criar exercício</Btn>
-    </Sheet>
   )
 }

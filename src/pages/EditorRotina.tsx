@@ -2,18 +2,37 @@ import { useEffect, useRef, useState, type PointerEvent as RPointerEvent } from 
 import { useParams, useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db'
-import { useMapaExercicios } from '../state/hooks'
-import { iniciarSessao } from '../lib/acoes'
+import { useMapaExercicios, useRotinas } from '../state/hooks'
+import { iniciarSessao, definirDias, ultimasSeries } from '../lib/acoes'
 import { corGrupo, nomeGrupo } from '../db/seedExercicios'
 import { Cabecalho } from '../components/Cabecalho'
 import { Seletor } from '../components/SeletorExercicio'
+import { TrocarExercicio } from '../components/Variacoes'
 import { Card, Btn, Vazio, Sheet, Campo, Input, Textarea, Chip, Stepper, Confirmar } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
 import { diaCurto, tempo, pl } from '../lib/format'
 import { Icone } from '../components/Icone'
-import type { ItemRotina } from '../db/types'
+import { duracaoEstimada } from '../lib/treino'
+import type { Exercicio, GrupoMuscular, ItemRotina } from '../db/types'
 
 const CORES = ['#c96a4a', '#5a8cbf', '#4fa385', '#c9a049', '#9b7fc7', '#c25f70', '#4f9aad', '#8ba055']
+
+/**
+ * Configuracao de um exercicio recem-adicionado. Copia series, reps e descanso
+ * do ultimo da rotina - quem monta um treino de 4x6-8 nao quer corrigir cada
+ * exercicio novo de 3x8-12 pra 4x6-8. Cardio nao segue o padrao da musculacao
+ * (nem serve de modelo pra ela).
+ */
+function itemNovo(ex: Exercicio, ultimo?: ItemRotina): ItemRotina {
+  if (ex.grupo === 'cardio') return { exercicioId: ex.id, series: 1, repsAlvo: '20min', descansoSeg: 0 }
+  const modelo = ultimo && !/min/i.test(ultimo.repsAlvo) && ultimo.descansoSeg > 0 ? ultimo : undefined
+  return {
+    exercicioId: ex.id,
+    series: modelo?.series ?? 3,
+    repsAlvo: modelo?.repsAlvo ?? '8-12',
+    descansoSeg: modelo?.descansoSeg ?? 90,
+  }
+}
 
 export default function EditorRotina() {
   const { id = '' } = useParams()
@@ -22,9 +41,12 @@ export default function EditorRotina() {
   // `?? null` separa "carregando" de "não existe" - ver DetalheSessao
   const rotina = useLiveQuery(() => db.rotinas.get(id).then(r => r ?? null), [id])
   const mapaEx = useMapaExercicios()
+  const ativas = useRotinas()
 
   const [seletor, setSeletor] = useState(false)
   const [editando, setEditando] = useState<number | null>(null)
+  // troca do exercicio de uma posicao, guardando o que estava no formulario
+  const [troca, setTroca] = useState<{ indice: number; item: ItemRotina; catalogo: boolean } | null>(null)
   const [config, setConfig] = useState(false)
   const [apagarIdx, setApagarIdx] = useState<number | null>(null)
 
@@ -98,9 +120,11 @@ export default function EditorRotina() {
   async function salvarConfig() {
     if (!nome.trim()) return toast('O treino precisa de um nome', 'erro')
     await db.rotinas.update(id, {
-      nome: nome.trim(), cor, dias, descricao: descricao.trim() || undefined,
+      nome: nome.trim(), cor, descricao: descricao.trim() || undefined,
       atualizadoEm: Date.now(),
     })
+    // os dias passam pelo definirDias: o dia que esta rotina ganha sai da outra
+    await definirDias(id, dias)
     setConfig(false)
   }
 
@@ -165,10 +189,55 @@ export default function EditorRotina() {
   // vez por arrasto, mas precisam enxergar a ordem do render atual
   handlersRef.current = { mover: moverArrasto, soltar: finalizarArrasto, cancelar: cancelarArrasto }
 
+  /**
+   * Troca o exercicio mantendo series, reps, descanso, observacao e a posicao -
+   * antes era tirar e adicionar de novo, e o substituto ia pro fim da lista
+   * com 3x8-12. A carga alvo nao vem junto: o peso do supino com barra nao
+   * serve de alvo pra maquina, e sem alvo o treino usa a ultima carga dele.
+   */
+  async function trocarPor(ex: Exercicio) {
+    if (!troca) return
+    const { indice, item } = troca
+    if (ex.id !== item.exercicioId && rotina!.itens.some((it, j) => j !== indice && it.exercicioId === ex.id)) {
+      return toast(`${ex.nome} já está nesse treino`, 'erro')
+    }
+    const antigo = mapaEx.get(item.exercicioId)?.nome
+    const itens = [...rotina!.itens]
+    itens[indice] = { ...item, exercicioId: ex.id, cargaAlvo: ex.id === item.exercicioId ? item.cargaAlvo : undefined }
+    await salvarItens(itens)
+    setTroca(null)
+    setEditando(indice)
+    vibrar()
+    if (ex.id !== item.exercicioId) toast(antigo ? `${antigo} trocado por ${ex.nome}` : `${ex.nome} no treino`, 'ok')
+  }
+
+  /** Fechou a troca sem escolher: grava o que estava no formulario e volta pra ficha. */
+  async function desistirDaTroca() {
+    if (!troca) return
+    const { indice, item } = troca
+    setTroca(null)
+    if (JSON.stringify(rotina!.itens[indice]) !== JSON.stringify(item)) {
+      const itens = [...rotina!.itens]
+      itens[indice] = item
+      await salvarItens(itens)
+    }
+    setEditando(indice)
+  }
+
+  // dias que esta rotina vai tomar de outra - avisa antes, em vez de sumir com o treino do outro dia
+  const tomados = dias.flatMap(d => {
+    const dono = ativas.find(r => r.id !== id && r.dias?.includes(d))
+    return dono ? [{ d, dono }] : []
+  })
+
   const totalSeries = rotina.itens.reduce((t, i) => t + i.series, 0)
-  const tempoEstimado = rotina.itens.reduce(
-    (t, i) => t + i.series * (i.descansoSeg + 45), 0,
-  )
+  const minutos = duracaoEstimada(rotina.itens)
+  // series de cada musculo nesse treino - o que ele trabalha de fato, na ordem do que mais pesa
+  const porGrupo = [...rotina.itens.reduce((m, it) => {
+    const g = mapaEx.get(it.exercicioId)?.grupo
+    if (g && g !== 'cardio') m.set(g, (m.get(g) ?? 0) + it.series)
+    return m
+  }, new Map<GrupoMuscular, number>())].sort((a, b) => b[1] - a[1])
 
   return (
     <div>
@@ -183,14 +252,26 @@ export default function EditorRotina() {
 
         {rotina.itens.length === 0 ? (
           <Vazio icone="mais" titulo="Treino vazio"
-            texto="Adicione os exercícios na ordem em que você vai executar."
-            acao={<Btn variant="primary" onClick={() => setSeletor(true)}>Adicionar exercício</Btn>} />
+            texto="Marque os exercícios na ordem em que você vai executar - dá pra escolher vários de uma vez."
+            acao={<Btn variant="primary" onClick={() => setSeletor(true)}>Adicionar exercícios</Btn>} />
         ) : (
           <>
-            <div className="flex items-center gap-4 mb-4 px-1 text-[12px] text-muted">
+            <div className="flex items-center gap-4 mb-2 px-1 text-[12px] text-muted">
               <span>{pl(totalSeries, 'série')}</span>
-              <span>~{Math.round(tempoEstimado / 60)} min estimados</span>
+              <span className="flex items-center gap-1">
+                <Icone nome="relogio" tamanho={13} /> ~{minutos} min
+              </span>
             </div>
+            {porGrupo.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-4 px-1">
+                {porGrupo.map(([g, n]) => (
+                  <span key={g} className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md tabular-nums"
+                    style={{ background: corGrupo(g) + '22', color: corGrupo(g) }}>
+                    {nomeGrupo(g)} {n}
+                  </span>
+                ))}
+              </div>
+            )}
 
             <div className="space-y-2">
               {ordem.map((item, i) => {
@@ -265,7 +346,9 @@ export default function EditorRotina() {
           )
         })()}
 
-        <Btn className="w-full mt-3" onClick={() => setSeletor(true)}>+ Adicionar exercício</Btn>
+        {rotina.itens.length > 0 && (
+          <Btn className="w-full mt-3" onClick={() => setSeletor(true)}>+ Adicionar exercícios</Btn>
+        )}
 
         {rotina.itens.length > 0 && (
           <Btn variant="primary" size="lg" className="w-full mt-3" onClick={async () => {
@@ -277,15 +360,17 @@ export default function EditorRotina() {
         )}
       </div>
 
-      {/* -------- adicionar exercicio -------- */}
-      <Seletor aberto={seletor} fechar={() => setSeletor(false)}
+      {/* -------- adicionar exercicios (varios de uma vez) -------- */}
+      <Seletor aberto={seletor} fechar={() => setSeletor(false)} titulo="Adicionar exercícios"
         jaEscolhidos={rotina.itens.map(i => i.exercicioId)}
-        onEscolher={async ex => {
-          await salvarItens([...rotina.itens, {
-            exercicioId: ex.id, series: 3, repsAlvo: '8-12', descansoSeg: 90,
-          }])
+        onEscolherVarios={async exs => {
+          const itens = [...rotina.itens]
+          for (const ex of exs) itens.push(itemNovo(ex, itens[itens.length - 1]))
+          await salvarItens(itens)
           setSeletor(false)
-          toast(`${ex.nome} adicionado`, 'ok')
+          vibrar()
+          toast(exs.length === 1 ? `${exs[0].nome} adicionado` : `${pl(exs.length, 'exercício')} adicionados`,
+            'ok', 'Toque em um pra ajustar séries, reps e carga')
         }} />
 
       {/* -------- editar item -------- */}
@@ -310,12 +395,29 @@ export default function EditorRotina() {
         }}
         podeSubir={editando != null && editando > 0}
         podeDescer={editando != null && editando < rotina.itens.length - 1}
+        trocar={emEdicao => {
+          const i = editando!
+          setEditando(null)
+          setTroca({ indice: i, item: emEdicao, catalogo: false })
+        }}
         salvar={async novo => {
           const itens = [...rotina.itens]
           itens[editando!] = novo
           await salvarItens(itens)
           setEditando(null)
         }} />
+
+      {/* -------- trocar o exercicio de uma posicao: variacoes primeiro, catalogo se nada servir -------- */}
+      <TrocarExercicio exercicioId={troca && !troca.catalogo ? troca.item.exercicioId : null}
+        fechar={desistirDaTroca}
+        noTreino={rotina.itens.map(i => i.exercicioId).filter(x => x !== troca?.item.exercicioId)}
+        nota="Séries, repetições, descanso e a posição no treino continuam."
+        verTodos={() => setTroca(t => t && { ...t, catalogo: true })}
+        onEscolher={ex => trocarPor(ex)} />
+      <Seletor aberto={!!troca?.catalogo} titulo="Trocar por outro exercício"
+        fechar={desistirDaTroca}
+        jaEscolhidos={rotina.itens.map(i => i.exercicioId).filter(x => x !== troca?.item.exercicioId)}
+        onEscolher={ex => trocarPor(ex)} />
 
       {/* -------- ajustes da rotina -------- */}
       <Sheet aberto={config} fechar={() => setConfig(false)} titulo="Ajustes do treino">
@@ -333,14 +435,19 @@ export default function EditorRotina() {
           </div>
         </Campo>
         <Campo label="Dias da semana">
-          <div className="flex gap-1.5">
-            {[0, 1, 2, 3, 4, 5, 6].map(d => (
+          <div className="flex gap-1.5 overflow-x-auto -mx-5 px-5 pb-1">
+            {[1, 2, 3, 4, 5, 6, 0].map(d => (
               <Chip key={d} ativo={dias.includes(d)} cor={cor}
                 onClick={() => setDias(v => v.includes(d) ? v.filter(x => x !== d) : [...v, d].sort())}>
                 {diaCurto(d)}
               </Chip>
             ))}
           </div>
+          {tomados.length > 0 && (
+            <span className="block text-[11.5px] text-warn mt-1.5 leading-relaxed">
+              {tomados.map(t => `${diaCurto(t.d)} sai de ${t.dono.nome}`).join(' - ')}. Cada dia tem um treino só.
+            </span>
+          )}
         </Campo>
         <Btn variant="primary" size="lg" className="w-full mt-2" onClick={salvarConfig}>Salvar</Btn>
       </Sheet>
@@ -351,10 +458,22 @@ export default function EditorRotina() {
           : undefined}
         onNao={() => setApagarIdx(null)}
         onSim={async () => {
-          const fora = mapaEx.get(rotina.itens[apagarIdx!]?.exercicioId ?? '')?.nome
-          await salvarItens(rotina.itens.filter((_, i) => i !== apagarIdx))
+          const idx = apagarIdx!
+          const removido = rotina.itens[idx]
+          const fora = mapaEx.get(removido?.exercicioId ?? '')?.nome
+          await salvarItens(rotina.itens.filter((_, i) => i !== idx))
           setApagarIdx(null)
-          toast(fora ? `${fora} saiu do treino` : 'Exercício removido', 'ok')
+          toast(fora ? `${fora} saiu do treino` : 'Exercício removido', 'ok', undefined, removido && {
+            rotulo: 'Desfazer',
+            // volta pro mesmo lugar, em cima do que estiver gravado agora - nao do retrato antigo
+            fazer: async () => {
+              const atual = await db.rotinas.get(id)
+              if (!atual || atual.itens.some(i => i.exercicioId === removido.exercicioId)) return
+              const itens = [...atual.itens]
+              itens.splice(Math.min(idx, itens.length), 0, removido)
+              await db.rotinas.update(id, { itens, atualizadoEm: Date.now() })
+            },
+          })
         }} />
     </div>
   )
@@ -363,10 +482,15 @@ export default function EditorRotina() {
 /* ------------------------------------------------------------------ */
 
 const REPS_RAPIDAS = ['5', '6-8', '8-12', '10-12', '12-15', '15-20', '30s', '45s', '60s', 'até a falha']
-const DESCANSOS = [30, 45, 60, 90, 120, 150, 180]
+const DESCANSOS = [30, 45, 60, 90, 120, 150, 180, 240]
+
+/** O que o formulario guarda, sem campo vazio - pra comparar com o que esta gravado. */
+const limpo = (i: ItemRotina) => JSON.stringify({
+  ...i, cargaAlvo: i.cargaAlvo || undefined, obs: i.obs?.trim() || undefined,
+})
 
 function EditorItem({
-  indice, item, nomeEx, grupoEx, fechar, salvar, remover, mover, podeSubir, podeDescer,
+  indice, item, nomeEx, grupoEx, fechar, salvar, remover, mover, trocar, podeSubir, podeDescer,
 }: {
   indice: number | null
   item: ItemRotina | null
@@ -376,6 +500,8 @@ function EditorItem({
   salvar: (i: ItemRotina) => void
   remover: () => void
   mover: (delta: number, emEdicao: ItemRotina) => void
+  /** Abre a troca do exercicio, levando o que esta no formulario. */
+  trocar: (emEdicao: ItemRotina) => void
   podeSubir: boolean
   podeDescer: boolean
 }) {
@@ -385,11 +511,17 @@ function EditorItem({
   const [descanso, setDescanso] = useState(90)
   const [obs, setObs] = useState('')
 
+  // a ficha e remontada pelo indice E pelo exercicio: trocar o exercicio mantem a posicao
   useEffect(() => {
     if (!item) return
     setSeries(item.series); setReps(item.repsAlvo)
     setCarga(item.cargaAlvo ?? 0); setDescanso(item.descansoSeg); setObs(item.obs ?? '')
-  }, [indice])
+  }, [indice, item?.exercicioId])
+
+  // o que foi feito da ultima vez: e com isso que se decide a carga alvo
+  const anteriores = useLiveQuery(
+    () => (item ? ultimasSeries(item.exercicioId) : Promise.resolve([])), [item?.exercicioId],
+  ) ?? []
 
   if (indice == null || !item) return null
 
@@ -398,13 +530,29 @@ function EditorItem({
     cargaAlvo: carga || undefined, descansoSeg: descanso, obs: obs.trim() || undefined,
   })
 
+  /**
+   * Fechar (X, arrastar pra baixo, tocar fora) grava. Antes so o botao Salvar
+   * gravava, e quem ajustava series e reps e fechava tocando fora perdia tudo
+   * sem aviso - o mesmo gesto que fecha qualquer outra ficha do app.
+   */
+  const fecharGravando = () => {
+    const atual = doFormulario()
+    if (limpo(atual) !== limpo(item)) salvar(atual)
+    else fechar()
+  }
+
   return (
-    <Sheet aberto fechar={fechar} titulo={nomeEx}>
-      {grupoEx && (
-        <p className="text-[11.5px] font-semibold mb-4 -mt-1" style={{ color: corGrupo(grupoEx as never) }}>
-          {nomeGrupo(grupoEx as never)}
-        </p>
-      )}
+    <Sheet aberto fechar={fecharGravando} titulo={nomeEx}>
+      <div className="flex items-center gap-2 mb-4 -mt-1">
+        {grupoEx && (
+          <p className="flex-1 min-w-0 text-[11.5px] font-semibold" style={{ color: corGrupo(grupoEx as never) }}>
+            {nomeGrupo(grupoEx as never)}
+          </p>
+        )}
+        <Btn size="sm" className="shrink-0 ml-auto" onClick={() => trocar(doFormulario())}>
+          <Icone nome="trocar" tamanho={15} /> Trocar exercício
+        </Btn>
+      </div>
 
       <Campo label="Séries">
         <Stepper valor={series} setValor={setSeries} min={1} max={20} largo />
@@ -421,14 +569,26 @@ function EditorItem({
 
       <Campo label="Carga alvo (kg)" hint="Opcional. Deixe 0 e o app usa a última carga que você fez.">
         <Stepper valor={carga} setValor={setCarga} passo={2.5} max={999} sufixo="kg" />
+        {anteriores.length > 0 && anteriores.some(a => a.carga > 0) && (
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-2 text-[11.5px] text-muted">
+            <span>Última vez: {anteriores.map(a => `${a.carga} x ${a.reps}`).join(' · ')}</span>
+            {!carga && (
+              <button type="button" onClick={() => setCarga(Math.max(...anteriores.map(a => a.carga)))}
+                className="toque font-semibold text-accent">
+                usar {Math.max(...anteriores.map(a => a.carga))} kg
+              </button>
+            )}
+          </span>
+        )}
       </Campo>
 
-      <Campo label="Descanso entre séries">
-        <div className="flex gap-1.5 flex-wrap">
+      <Campo label={`Descanso entre séries - ${tempo(descanso)}`}>
+        <div className="flex gap-1.5 flex-wrap mb-2">
           {DESCANSOS.map(d => (
             <Chip key={d} ativo={descanso === d} onClick={() => setDescanso(d)}>{tempo(d)}</Chip>
           ))}
         </div>
+        <Stepper valor={descanso} setValor={setDescanso} passo={15} max={900} sufixo="seg" />
       </Campo>
 
       <Campo label="Posição no treino">
@@ -443,7 +603,7 @@ function EditorItem({
       </Campo>
 
       <Campo label="Observação">
-        <Input value={obs} onChange={e => setObs(e.target.value)} placeholder="Ex: pegada aberta, cadencia 3-1-1" />
+        <Input value={obs} onChange={e => setObs(e.target.value)} placeholder="Ex: pegada aberta, cadência 3-1-1" />
       </Campo>
 
       <Btn variant="primary" size="lg" className="w-full mt-2" onClick={() => salvar(doFormulario())}>

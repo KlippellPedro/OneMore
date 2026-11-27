@@ -6,7 +6,11 @@ export interface Toast {
   texto: string
   sub?: string
   tipo: 'xp' | 'ok' | 'erro' | 'info'
+  /** Botao no proprio aviso - o "Desfazer" de quem acabou de tirar algo. */
+  acao?: AcaoToast
 }
+
+export interface AcaoToast { rotulo: string; fazer: () => void }
 
 export interface LevelUpInfo { nivel: number; subiuRank: boolean }
 
@@ -16,7 +20,7 @@ interface UIState {
   conquista: Conquista | null
   filaConquistas: Conquista[]
 
-  toast: (texto: string, tipo?: Toast['tipo'], sub?: string) => void
+  toast: (texto: string, tipo?: Toast['tipo'], sub?: string, acao?: AcaoToast) => void
   fecharToast: (id: number) => void
   /** Consome o resultado de darXP(): toast de XP + level up + conquistas. */
   celebrar: (g: GanhoXP) => void
@@ -32,10 +36,11 @@ export const useUI = create<UIState>((set, get) => ({
   conquista: null,
   filaConquistas: [],
 
-  toast: (texto, tipo = 'info', sub) => {
+  toast: (texto, tipo = 'info', sub, acao) => {
     const id = seq++
-    set(s => ({ toasts: [...s.toasts, { id, texto, tipo, sub }] }))
-    setTimeout(() => get().fecharToast(id), tipo === 'erro' ? 4500 : 2600)
+    set(s => ({ toasts: [...s.toasts, { id, texto, tipo, sub, acao }] }))
+    // com botao fica mais tempo: precisa dar tempo de ler, achar e tocar
+    setTimeout(() => get().fecharToast(id), acao ? 6000 : tipo === 'erro' ? 4500 : 2600)
   },
 
   fecharToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
