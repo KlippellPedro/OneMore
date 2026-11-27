@@ -45,11 +45,11 @@ export default function Exercicios() {
 
   return (
     <div>
-      <Cabecalho titulo="Exercícios" sub={`${todos.length} no catalogo`}
+      <Cabecalho titulo="Exercícios" sub={`${todos.length} no catálogo`}
         acao={<Btn size="sm" variant="primary" onClick={() => setNovo(true)}>+ Criar</Btn>} />
 
       <div className="px-4 pt-3">
-        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." className="mb-3" />
+        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." aria-label="Buscar exercício" type="search" className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-3">
           <Chip ativo={grupo === 'todos'} onClick={() => setGrupo('todos')}>Todos</Chip>
           <Chip ativo={grupo === 'favoritos'} onClick={() => setGrupo('favoritos')}>Favoritos</Chip>

@@ -96,7 +96,7 @@ export default function Lembretes() {
       // o push e ligado pelo efeito de `estado`, que muda logo acima
       toast('Notificações ligadas', 'ok')
     } else if (r === 'denied') {
-      toast('O celular bloqueou as notificacoes', 'erro')
+      toast('O celular bloqueou as notificações', 'erro')
     }
   }
 
@@ -131,7 +131,7 @@ export default function Lembretes() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[14px] font-bold">
-                  {estado === 'denied' ? 'Notificações bloqueadas' : 'Ligar as notificacoes'}
+                  {estado === 'denied' ? 'Notificações bloqueadas' : 'Ligar as notificações'}
                 </p>
                 <p className="text-[12px] text-muted leading-relaxed mt-1">
                   {estado === 'denied'
@@ -352,7 +352,7 @@ export default function Lembretes() {
               </Btn>
               <p className="text-[11px] text-muted mt-2.5 leading-relaxed">
                 Se você já mediu perto daquele horário, o aviso não sai. O app só lembra -
-                dose e com o seu medico.
+                dose é com o seu médico.
               </p>
             </Bloco>
           )}

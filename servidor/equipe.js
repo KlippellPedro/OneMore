@@ -45,24 +45,24 @@ export function validarPermissoes(p) {
  * quem recebe faz). Devolve o motivo da recusa, ou null se passa.
  */
 export function problemaNoPacote(tipo, conteudo) {
-  if (tipo !== 'treino' && tipo !== 'dieta') return 'Tipo de envio invalido.'
-  if (!obj(conteudo) || conteudo.app !== 'onemore') return 'Conteudo invalido.'
-  if (JSON.stringify(conteudo).length > LIMITE_PACOTE) return 'Conteudo grande demais.'
+  if (tipo !== 'treino' && tipo !== 'dieta') return 'Tipo de envio inválido.'
+  if (!obj(conteudo) || conteudo.app !== 'onemore') return 'Conteúdo inválido.'
+  if (JSON.stringify(conteudo).length > LIMITE_PACOTE) return 'Conteúdo grande demais.'
   if (tipo === 'treino') {
-    if (conteudo.tipo !== 'semana') return 'Conteudo invalido.'
+    if (conteudo.tipo !== 'semana') return 'Conteúdo inválido.'
     const r = conteudo.rotinas
     if (!Array.isArray(r) || !r.length || r.length > 40) return 'O treino precisa ter de 1 a 40 rotinas.'
-    if (r.some(x => !obj(x) || !Array.isArray(x.itens) || x.itens.length > 60)) return 'Rotina invalida.'
+    if (r.some(x => !obj(x) || !Array.isArray(x.itens) || x.itens.length > 60)) return 'Rotina inválida.'
     if (conteudo.exercicios != null && (!Array.isArray(conteudo.exercicios) || conteudo.exercicios.length > 300)) {
-      return 'Lista de exercicios invalida.'
+      return 'Lista de exercícios inválida.'
     }
   } else {
-    if (conteudo.tipo !== 'dieta') return 'Conteudo invalido.'
+    if (conteudo.tipo !== 'dieta') return 'Conteúdo inválido.'
     const r = conteudo.refeicoes
-    if (!Array.isArray(r) || !r.length || r.length > 12) return 'A dieta precisa ter de 1 a 12 refeicoes.'
-    if (r.some(x => !obj(x) || !Array.isArray(x.itens) || x.itens.length > 40)) return 'Refeicao invalida.'
+    if (!Array.isArray(r) || !r.length || r.length > 12) return 'A dieta precisa ter de 1 a 12 refeições.'
+    if (r.some(x => !obj(x) || !Array.isArray(x.itens) || x.itens.length > 40)) return 'Refeição inválida.'
     if (conteudo.alimentos != null && (!Array.isArray(conteudo.alimentos) || conteudo.alimentos.length > 300)) {
-      return 'Lista de alimentos invalida.'
+      return 'Lista de alimentos inválida.'
     }
   }
   return null

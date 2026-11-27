@@ -1,5 +1,5 @@
 import type { Alimento, Perfil, RegistroDieta, ItemRefeicao } from '../db/types'
-import { mesmoTexto } from './format'
+import { mesmoTexto, medidaPlural } from './format'
 
 export interface Macros {
   kcal: number; prot: number; carb: number; gord: number; fibra: number
@@ -172,6 +172,8 @@ export function diaBatido(t: Macros, p: Pick<Perfil, 'metaKcal' | 'metaProt'>) {
  * do catalogo deixa a tela inteira acentuada sem precisar reescrever o dado da
  * pessoa, e se o alimento sumiu, devolve o que estava salvo mesmo.
  */
-export function nomeMedida(a: Alimento | undefined, medida: string): string {
-  return a?.medidas.find(x => mesmoTexto(x.nome, medida))?.nome ?? medida
+export function nomeMedida(a: Alimento | undefined, medida: string, qtd?: number): string {
+  const nome = a?.medidas.find(x => mesmoTexto(x.nome, medida))?.nome ?? medida
+  // com a quantidade, concorda: "3 unidades", nao "3 unidade"
+  return qtd == null ? nome : medidaPlural(nome, qtd)
 }

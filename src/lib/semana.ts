@@ -8,6 +8,7 @@
 import type {
   Equipamento, Exercicio, GrupoMuscular, ItemRotina, Rotina, RotinaSalva,
 } from '../db/types'
+import { linkSeguro } from './format.ts'
 
 /** Copias automaticas guardadas. A mais velha sai quando entra uma nova. */
 export const MAX_AUTOMATICAS = 5
@@ -227,7 +228,8 @@ function lerExercicio(v: unknown): Exercicio | null {
     erros: textos(v.erros),
     atualizadoEm: numero(v.atualizadoEm) ?? 0,
   }
-  const video = texto(v.videoUrl, 500)
+  // link que nao e http(s) (javascript:, file:...) nao entra - ver linkSeguro
+  const video = linkSeguro(texto(v.videoUrl, 500))
   if (video) ex.videoUrl = video
   const familia = texto(v.familia, 60)
   if (familia) ex.familia = familia

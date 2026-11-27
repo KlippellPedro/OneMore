@@ -141,3 +141,25 @@ test('arquivo estranho e recusado, e campo ruim e consertado', () => {
   assert.equal(a.itens[0].repsAlvo, '8-12')
   assert.deepEqual(b.dias, [2], 'o dia ja ocupado pelo primeiro treino sai do segundo')
 })
+
+/**
+ * Semana que chega de fora (arquivo, amigo, treinador) traz os exercicios
+ * criados por quem mandou - com o link de video. Um `javascript:` ali virava
+ * um link que roda codigo ao ser tocado na pagina do exercicio.
+ */
+test('link de video que nao e http(s) nao entra com o exercicio importado', () => {
+  const ex = (id, videoUrl) => ({ id, nome: id, custom: true, grupo: 'peito', equipamento: 'barra', execucao: [], videoUrl })
+  const lida = lerArquivoSemana({
+    app: 'onemore', tipo: 'semana', nome: 'X',
+    rotinas: [{ id: 'a', nome: 'A', ordem: 0, itens: [{ exercicioId: 'u1' }, { exercicioId: 'u2' }, { exercicioId: 'u3' }] }],
+    exercicios: [
+      ex('u1', 'javascript:alert(document.cookie)'),
+      ex('u2', 'https://www.youtube.com/watch?v=abcdefghijk'),
+      ex('u3', 'data:text/html,<script>alert(1)</script>'),
+    ],
+  })
+  const porId = Object.fromEntries(lida.exercicios.map(e => [e.id, e]))
+  assert.equal(porId.u1.videoUrl, undefined)
+  assert.equal(porId.u2.videoUrl, 'https://www.youtube.com/watch?v=abcdefghijk')
+  assert.equal(porId.u3.videoUrl, undefined)
+})

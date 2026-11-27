@@ -4,7 +4,7 @@ import {
   equivalentes, noMacro, ROTULO_CHAVE, UNIDADE_CHAVE, type Substituto,
 } from '../lib/substituicoes'
 import { Sheet, Chip, Card } from './ui'
-import { n0, n1, nq } from '../lib/format'
+import { n0, n1, nq, medidaPlural } from '../lib/format'
 import type { Alimento } from '../db/types'
 import { semConflito, restricoesDoPerfil } from '../lib/restricoes'
 
@@ -56,7 +56,7 @@ export function SheetSubstituir({ alvo, fechar, onEscolher, onManter, manterText
         </p>
         <p className="text-[14px] font-bold leading-tight">{alvo.alimento.nome}</p>
         <p className="text-[11.5px] text-muted mt-1">
-          {nq(alvo.qtd)} {alvo.medida}{emGramas ? '' : ` (${n0(alvo.gramas)} g)`}
+          {nq(alvo.qtd)} {medidaPlural(alvo.medida, alvo.qtd)}{emGramas ? '' : ` (${n0(alvo.gramas)} g)`}
           {' · '}{n0(eq.original.carb)} g carbo · {n0(eq.original.kcal)} kcal
         </p>
         {onManter && (
@@ -121,7 +121,7 @@ function LinhaSubstituto({ s, chave, onClick }: {
       <div className="flex-1 min-w-0">
         <p className="text-[13.5px] font-semibold truncate">{s.alimento.nome}</p>
         <p className="text-[11px] text-muted truncate">
-          {nq(s.qtd)} {s.medida}{emGramas ? '' : ` (${n0(s.gramas)} g)`}
+          {nq(s.qtd)} {medidaPlural(s.medida, s.qtd)}{emGramas ? '' : ` (${n0(s.gramas)} g)`}
           {!s.mesmaFamilia && <span className="text-muted/70"> · {s.alimento.categoria}</span>}
         </p>
       </div>

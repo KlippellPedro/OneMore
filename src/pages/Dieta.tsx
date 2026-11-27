@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, hoje, diaMais, restaurarLinhas } from '../db'
@@ -21,7 +21,7 @@ import { Icone } from '../components/Icone'
 import { Titulo } from '../components/Cabecalho'
 import { Card, Btn, Anel, Barra, Sheet, Confirmar } from '../components/ui'
 import { useUI, vibrar } from '../state/ui'
-import { n0, n1, nq, dataCurta, clamp, mesmoTexto } from '../lib/format'
+import { n0, n1, nq, dataCurta, clamp, mesmoTexto, medidaPlural } from '../lib/format'
 import type {
   Alimento, RegistroDieta, PlanoRefeicao, ItemRefeicao, MomentoGlicemia,
 } from '../db/types'
@@ -49,6 +49,8 @@ export default function Dieta() {
   const glicemias = useGlicemiaDoDia(data)
 
   const [refeicaoAlvo, setRefeicaoAlvo] = useState<string | null>(null)
+  /** Trava do "comi a refeicao": um toque, um lancamento. */
+  const lancando = useRef(false)
   const [escolhido, setEscolhido] = useState<Alimento | null>(null)
   const [detalhe, setDetalhe] = useState<RegistroDieta | null>(null)
   const [desfazerAlvo, setDesfazerAlvo] = useState<string | null>(null)
@@ -98,17 +100,27 @@ export default function Dieta() {
   }
 
   async function comer(plano: PlanoRefeicao) {
-    // o que ja foi lancado (a troca de um item, por exemplo) nao entra de novo
-    const faltam = pendentesDoPlano(plano.itens, registros.filter(r => mesmoTexto(r.refeicao, plano.nome)))
-    if (!faltam.length) return
-    vibrar([20, 40, 20])
-    for (const item of faltam) {
-      const a = mapa.get(item.alimentoId)
-      if (a) await registrarAlimento(data, plano.nome, a, item.qtd, item.medida)
+    // dois toques no check antes de a tela redesenhar lancavam a refeicao em dobro
+    if (lancando.current) return
+    lancando.current = true
+    try {
+      // o que ja foi lancado (a troca de um item, por exemplo) nao entra de novo.
+      // Le do banco, nao da tela: a lista da tela pode estar um toque atrasada
+      const doDia = await db.dieta.where('data').equals(data).toArray()
+      const faltam = pendentesDoPlano(plano.itens, doDia.filter(r => mesmoTexto(r.refeicao, plano.nome)))
+      if (!faltam.length) return
+      vibrar([20, 40, 20])
+      for (const item of faltam) {
+        const a = mapa.get(item.alimentoId)
+        // as gramas do plano, nao as da medida aproximada - ver registrarAlimento
+        if (a) await registrarAlimento(data, plano.nome, a, item.qtd, item.medida, undefined, item.gramas)
+      }
+      const ganhos = await checarMetasDoDia(data)
+      if (ganhos.length) ganhos.forEach(celebrar)
+      else toast(`${plano.nome} marcada como comida`, 'ok')
+    } finally {
+      lancando.current = false
     }
-    const ganhos = await checarMetasDoDia(data)
-    if (ganhos.length) ganhos.forEach(celebrar)
-    else toast(`${plano.nome} marcada como comida`, 'ok')
   }
 
   /** Lanca um item do plano sozinho - usado pelo "comi esse mesmo" da troca. */
@@ -116,7 +128,7 @@ export default function Dieta() {
     const a = mapa.get(item.alimentoId)
     if (!a) return
     vibrar()
-    await registrarAlimento(data, refeicao, a, item.qtd, item.medida)
+    await registrarAlimento(data, refeicao, a, item.qtd, item.medida, undefined, item.gramas)
     const ganhos = await checarMetasDoDia(data)
     if (ganhos.length) ganhos.forEach(celebrar)
     else toast(`${a.nome} adicionado`, 'ok')
@@ -163,7 +175,7 @@ export default function Dieta() {
         itens: registros.filter(r => mesmoTexto(r.refeicao, nome)).map(r => {
           const a = mapa.get(r.alimentoId)
           const m = a ? macrosDe(a, r.gramas) : ZERO
-          return { nome: a?.nome ?? 'Alimento', qtd: r.qtd, medida: nomeMedida(a, r.medida), kcal: m.kcal, carb: m.carb }
+          return { nome: a?.nome ?? 'Alimento', qtd: r.qtd, medida: nomeMedida(a, r.medida, r.qtd), kcal: m.kcal, carb: m.carb }
         }),
       })),
       total,
@@ -186,10 +198,11 @@ export default function Dieta() {
   async function copiarOntem() {
     const ontem = diaMais(data, -1)
     const doDia = await db.dieta.where('data').equals(ontem).toArray()
-    if (!doDia.length) return toast('Não ha nada registrado ontem', 'erro')
+    if (!doDia.length) return toast('Não há nada registrado ontem', 'erro')
     for (const r of doDia) {
       const a = mapa.get(r.alimentoId)
-      if (a) await registrarAlimento(data, r.refeicao, a, r.qtd, r.medida)
+      // copia o que foi comido de fato, grama por grama
+      if (a) await registrarAlimento(data, r.refeicao, a, r.qtd, r.medida, r.noLugarDe, r.gramas)
     }
     const ganhos = await checarMetasDoDia(data)
     ganhos.forEach(celebrar)
@@ -412,7 +425,7 @@ export default function Dieta() {
         {detalhe && (
           <>
             <p className="text-[13px] text-muted mb-4">
-              {nq(detalhe.qtd)} {detalhe.medida} - {n0(detalhe.gramas)} g em {detalhe.refeicao}
+              {nq(detalhe.qtd)} {medidaPlural(detalhe.medida, detalhe.qtd)} - {n0(detalhe.gramas)} g em {detalhe.refeicao}
             </p>
             <Btn variant="primary" className="w-full mb-2" onClick={() => {
               const a = mapa.get(detalhe.alimentoId)
@@ -512,7 +525,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
       <div className="flex items-center gap-3 px-3.5 py-3 border-b border-line/40">
         <button onClick={comido ? onDesfazer : (temPlano ? onComer : undefined)}
           disabled={!comido && !temPlano}
-          aria-label={comido ? 'Desfazer' : 'Marcar como comida'}
+          aria-label={comido ? `Desfazer ${nome}` : `Marcar ${nome} como comida`}
           className={`toque w-9 h-9 shrink-0 rounded-full border-2 flex items-center justify-center transition-all active:scale-90 ${
             comido && !faltaComer ? 'bg-good border-good text-[#0a0714]'
               : comido ? 'border-good text-good'
@@ -563,7 +576,7 @@ function RefeicaoCard({ nome, plano, itens, mapa, comido, destaque, diabetes, eh
               <div className="flex-1 min-w-0">
                 <p className="text-[13px] font-medium truncate">{a?.nome ?? 'Alimento removido'}</p>
                 <p className="text-[10.5px] text-muted">
-                  {nq(l.qtd)} {nomeMedida(a, l.medida)}
+                  {nq(l.qtd)} {nomeMedida(a, l.medida, l.qtd)}
                   {l.medida !== 'g' && l.medida !== 'ml' ? ` (${n0(l.gramas)} g)` : ''}
                 </p>
                 <AvisoRestricao alimentoId={l.alimentoId} evitar={evitar} />

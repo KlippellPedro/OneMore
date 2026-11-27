@@ -102,8 +102,8 @@ export default function Diario() {
           </div>
 
           <p className="text-[11px] text-muted/80 leading-relaxed mt-4">
-            % das medicoes registradas, nao % do tempo real (isso exigiria sensor continuo).
-            Faixa de referencia geral - a sua e definida pelo seu endocrinologista.
+            % das medições registradas, não % do tempo real (isso exigiria sensor contínuo).
+            Faixa de referência geral - a sua é definida pelo seu endocrinologista.
           </p>
         </Card>
 

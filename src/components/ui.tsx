@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { clamp } from '../lib/format'
 import { Icone } from './Icone'
 
@@ -58,10 +58,12 @@ type BtnProps = {
   className?: string
   disabled?: boolean
   type?: 'button' | 'submit'
+  /** Recebe o foco quando o dialogo em volta abre (ver useDialogo). */
+  focoInicial?: boolean
 }
 
 export function Btn({
-  children, onClick, variant = 'surface', size = 'md', className = '', disabled, type = 'button',
+  children, onClick, variant = 'surface', size = 'md', className = '', disabled, type = 'button', focoInicial,
 }: BtnProps) {
   const v = {
     primary: 'grad-accent glow-accent text-white font-bold active:brightness-110',
@@ -77,6 +79,7 @@ export function Btn({
   return (
     <button
       type={type} onClick={onClick} disabled={disabled}
+      {...(focoInicial ? { 'data-foco-inicial': '' } : {})}
       className={`inline-flex items-center justify-center gap-2 transition-all active:scale-[.97] disabled:opacity-40 disabled:active:scale-100 ${v} ${s} ${className}`}
     >
       {children}
@@ -88,9 +91,25 @@ export function Btn({
 /* INPUTS                                                             */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Clique no TEXTO de um <label>: o navegador repassa o clique pro primeiro
+ * controle de dentro. Com um campo de texto isso e o que se quer (foca o
+ * campo), mas o Campo tambem embrulha grupos de botoes e o Stepper - e ai
+ * tocar em "Nível de atividade" escolhia "Sedentário" sozinho, e tocar em
+ * "Peso" diminuia o peso. Quando o primeiro controle e um botao, o clique no
+ * rotulo so foca o campo de digitar que houver (o do Stepper), sem apertar nada.
+ */
+function aoClicarNoRotulo(e: React.MouseEvent<HTMLLabelElement>) {
+  if ((e.target as HTMLElement).closest('button, input, select, textarea, a')) return
+  const primeiro = e.currentTarget.querySelector('button, input, select, textarea, meter, output, progress')
+  if (primeiro?.tagName !== 'BUTTON') return
+  e.preventDefault()
+  e.currentTarget.querySelector<HTMLElement>('input:not([type=hidden]), select, textarea')?.focus()
+}
+
 export function Campo({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <label className="block mb-3.5">
+    <label className="block mb-3.5" onClick={aoClicarNoRotulo}>
       <span className="block text-[12px] font-medium text-muted mb-1.5">{label}</span>
       {children}
       {hint && <span className="block text-[11px] text-muted/70 mt-1.5">{hint}</span>}
@@ -138,8 +157,8 @@ export function Stepper({ valor, setValor, passo = 1, min = 0, max = 9999, sufix
   const inc = () => setValor(Number(clamp(valor + passo, min, max).toFixed(2)))
   return (
     <div className="flex items-center gap-1">
-      <button type="button" onClick={dec}
-        className="w-9 h-11 shrink-0 rounded-l-xl bg-surface-2 border border-line text-muted text-lg active:bg-line">-</button>
+      <button type="button" onClick={dec} aria-label={`Diminuir ${passo}`} disabled={valor <= min}
+        className="w-9 h-11 shrink-0 rounded-l-xl bg-surface-2 border border-line text-muted text-lg active:bg-line disabled:opacity-40">-</button>
       <div className="relative flex-1">
         <input
           type="number" inputMode="decimal" value={valor === 0 ? '' : valor}
@@ -153,8 +172,8 @@ export function Stepper({ valor, setValor, passo = 1, min = 0, max = 9999, sufix
           </span>
         )}
       </div>
-      <button type="button" onClick={inc}
-        className="w-9 h-11 shrink-0 rounded-r-xl bg-surface-2 border border-line text-muted text-lg active:bg-line">+</button>
+      <button type="button" onClick={inc} aria-label={`Aumentar ${passo}`} disabled={valor >= max}
+        className="w-9 h-11 shrink-0 rounded-r-xl bg-surface-2 border border-line text-muted text-lg active:bg-line disabled:opacity-40">+</button>
     </div>
   )
 }
@@ -163,30 +182,109 @@ export function Stepper({ valor, setValor, passo = 1, min = 0, max = 9999, sufix
 /* BOTTOM SHEET                                                        */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Dialogos abertos, do de baixo pro de cima. So o de cima responde ao teclado:
+ * um Confirmar aberto por cima de um Sheet fecha sozinho no Esc, sem levar o
+ * Sheet junto.
+ */
+const pilhaDialogos: symbol[] = []
+/** Sheets abertos agora - a rolagem da pagina so volta quando o ultimo fecha. */
+let sheetsAbertos = 0
+
+const FOCAVEIS = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), '
+  + 'textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+
+/**
+ * Os dois ultimos elementos que receberam foco. Um dialogo com campo
+ * `autoFocus` (glicemia, link de video) ja puxou o foco pra dentro quando o
+ * efeito roda - o `activeElement` ali e o campo, nao o botao que abriu. O
+ * penultimo foco e quem abriu, e e pra ele que o foco volta ao fechar.
+ */
+let focoAtual: HTMLElement | null = null
+let focoAnterior: HTMLElement | null = null
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', e => {
+    if (!(e.target instanceof HTMLElement) || e.target === focoAtual) return
+    focoAnterior = focoAtual
+    focoAtual = e.target
+  }, true)
+}
+
+/**
+ * O que todo dialogo precisa pra teclado e leitor de tela (WCAG 2.1.2 e
+ * 2.4.3): ao abrir, o foco entra nele (no botao marcado com
+ * data-foco-inicial, ou no proprio painel); o Tab fica dando a volta la
+ * dentro em vez de escapar pra pagina de tras; Esc fecha; e ao fechar o foco
+ * volta pra quem abriu. No toque nada disso aparece - so o teclado ve.
+ */
+function useDialogo(aberto: boolean, painel: React.RefObject<HTMLElement | null>, aoEsc: () => void) {
+  // ref e nao dependencia: quem usa passa `() => setX(null)` novo a cada
+  // render, e o efeito rodando de novo a cada render perderia quem abriu
+  const esc = useRef(aoEsc)
+  useEffect(() => { esc.current = aoEsc })
+
+  useEffect(() => {
+    if (!aberto) return
+    const eu = Symbol('dialogo')
+    pilhaDialogos.push(eu)
+    const el = painel.current
+    const ativo = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    // campo com autoFocus ja pegou o foco: quem abriu e o foco de antes dele
+    const antes = ativo && el?.contains(ativo) ? focoAnterior : ativo
+    el?.querySelector<HTMLElement>('[data-foco-inicial]')?.focus({ preventScroll: true })
+    if (el && !el.contains(document.activeElement)) el.focus({ preventScroll: true })
+
+    const tecla = (e: KeyboardEvent) => {
+      if (pilhaDialogos[pilhaDialogos.length - 1] !== eu || !painel.current) return
+      if (e.key === 'Escape') { e.preventDefault(); esc.current(); return }
+      if (e.key !== 'Tab') return
+      const lista = [...painel.current.querySelectorAll<HTMLElement>(FOCAVEIS)].filter(f => f.offsetParent !== null)
+      if (!lista.length) { e.preventDefault(); return }
+      const [primeiro, ultimo] = [lista[0], lista[lista.length - 1]]
+      const atual = document.activeElement
+      if (e.shiftKey && (atual === primeiro || atual === painel.current)) { e.preventDefault(); ultimo.focus() }
+      else if (!e.shiftKey && (atual === ultimo || !painel.current.contains(atual))) { e.preventDefault(); primeiro.focus() }
+    }
+    document.addEventListener('keydown', tecla)
+    return () => {
+      document.removeEventListener('keydown', tecla)
+      pilhaDialogos.splice(pilhaDialogos.indexOf(eu), 1)
+      if (antes?.isConnected) antes.focus({ preventScroll: true })
+    }
+  }, [aberto, painel])
+}
+
 export function Sheet({ aberto, fechar, titulo, children, alto }: {
   aberto: boolean; fechar: () => void; titulo?: string; children: ReactNode; alto?: boolean
 }) {
+  const painel = useRef<HTMLDivElement>(null)
+  const idTitulo = useId()
+  useDialogo(aberto, painel, fechar)
+
   useEffect(() => {
     if (!aberto) return
-    const h = (e: KeyboardEvent) => { if (e.key === 'Escape') fechar() }
-    document.addEventListener('keydown', h)
+    sheetsAbertos++
     document.body.style.overflow = 'hidden'
-    return () => { document.removeEventListener('keydown', h); document.body.style.overflow = '' }
-  }, [aberto, fechar])
+    return () => { if (--sheetsAbertos === 0) document.body.style.overflow = '' }
+  }, [aberto])
 
   if (!aberto) return null
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center">
-      <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" onClick={fechar} />
-      <div className={`relative w-full max-w-[560px] bg-bg-soft border-t border-line rounded-t-3xl anim-up flex flex-col ${alto ? 'h-[88vh]' : 'max-h-[85vh]'}`}>
-        <div className="shrink-0 pt-2.5 pb-1 flex justify-center" onClick={fechar}>
+      <div className="absolute inset-0 bg-black/65 backdrop-blur-[2px]" onClick={fechar} aria-hidden="true" />
+      <div ref={painel} role="dialog" aria-modal="true" tabIndex={-1}
+        {...(titulo ? { 'aria-labelledby': idTitulo } : { 'aria-label': 'Painel' })}
+        className={`relative w-full max-w-[560px] bg-bg-soft border-t border-line rounded-t-3xl anim-up flex flex-col outline-none ${alto ? 'h-[88vh]' : 'max-h-[85vh]'}`}>
+        <div className="shrink-0 pt-2.5 pb-1 flex justify-center" onClick={fechar} aria-hidden="true">
           <div className="w-10 h-1 rounded-full bg-line" />
         </div>
         {titulo && (
           <div className="shrink-0 px-5 pb-3 pt-1 flex items-center justify-between border-b border-line/60">
-            <h3 className="text-base font-bold">{titulo}</h3>
+            <h3 id={idTitulo} className="text-base font-bold">{titulo}</h3>
             <button onClick={fechar} aria-label="Fechar"
-              className="toque w-8 h-8 rounded-lg text-muted active:bg-surface-2 text-xl leading-none">×</button>
+              className="toque w-8 h-8 rounded-lg text-muted active:bg-surface-2 text-xl leading-none">
+              <span aria-hidden="true">×</span>
+            </button>
           </div>
         )}
         <div className="overflow-y-auto px-5 py-4 safe-b flex-1">{children}</div>
@@ -243,7 +341,7 @@ export function Chip({ ativo, onClick, children, cor }: {
   ativo?: boolean; onClick?: () => void; children: ReactNode; cor?: string
 }) {
   return (
-    <button onClick={onClick}
+    <button onClick={onClick} aria-pressed={ativo ?? false}
       className={`shrink-0 h-9 px-3.5 rounded-full text-[12.5px] font-medium border transition-colors ${
         ativo
           ? cor ? 'text-[#0a0714] font-semibold' : 'grad-accent text-white font-semibold border-transparent'
@@ -287,20 +385,50 @@ export function Vazio({ icone, titulo, texto, acao }: {
   )
 }
 
-/** Confirmacao. Nada de window.confirm - fica horrivel no celular. */
+/**
+ * Confirmacao. Nada de window.confirm - fica horrivel no celular.
+ *
+ * `onSim` pode devolver uma promessa: enquanto ela nao termina, o Confirmar
+ * fica travado. Sem isso, dois toques rapidos antes de o dialogo sumir rodavam
+ * a acao duas vezes - finalizar treino pagava o XP em dobro, apagar apagava
+ * duas vezes. A trava e um ref, nao estado: dois cliques no mesmo quadro veem
+ * o mesmo estado antigo, mas o ref ja mudou.
+ */
 export function Confirmar({ aberto, titulo, texto, onSim, onNao, perigo }: {
-  aberto: boolean; titulo: string; texto?: string; onSim: () => void; onNao: () => void; perigo?: boolean
+  aberto: boolean; titulo: string; texto?: string
+  onSim: () => unknown; onNao: () => void; perigo?: boolean
 }) {
+  const painel = useRef<HTMLDivElement>(null)
+  const trava = useRef(false)
+  const [rodando, setRodando] = useState(false)
+  const idTitulo = useId()
+  const idTexto = useId()
+  useDialogo(aberto, painel, () => { if (!trava.current) onNao() })
+
   if (!aberto) return null
+
+  async function sim() {
+    if (trava.current) return
+    trava.current = true
+    setRodando(true)
+    try { await onSim() } finally { trava.current = false; setRodando(false) }
+  }
+
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-6">
-      <div className="absolute inset-0 bg-black/70" onClick={onNao} />
-      <div className="relative w-full max-w-[340px] bg-surface border border-line rounded-2xl p-5 anim-pop">
-        <h3 className="font-bold text-base mb-1.5">{titulo}</h3>
-        {texto && <p className="text-[13px] text-muted leading-relaxed mb-5">{texto}</p>}
+      <div className="absolute inset-0 bg-black/70" onClick={() => { if (!trava.current) onNao() }} aria-hidden="true" />
+      <div ref={painel} role="alertdialog" aria-modal="true" tabIndex={-1}
+        aria-labelledby={idTitulo} {...(texto ? { 'aria-describedby': idTexto } : {})}
+        className="relative w-full max-w-[340px] bg-surface border border-line rounded-2xl p-5 anim-pop outline-none">
+        <h3 id={idTitulo} className="font-bold text-base mb-1.5">{titulo}</h3>
+        {texto && <p id={idTexto} className="text-[13px] text-muted leading-relaxed mb-5">{texto}</p>}
         <div className="flex gap-2">
-          <Btn variant="ghost" className="flex-1" onClick={onNao}>Cancelar</Btn>
-          <Btn variant={perigo ? 'danger' : 'primary'} className="flex-1" onClick={onSim}>Confirmar</Btn>
+          {/* o foco comeca no caminho que nao estraga nada: Cancelar quando e perigoso */}
+          <Btn variant="ghost" className="flex-1" onClick={onNao} disabled={rodando} focoInicial={perigo}>Cancelar</Btn>
+          <Btn variant={perigo ? 'danger' : 'primary'} className="flex-1" onClick={sim} disabled={rodando}
+            focoInicial={!perigo}>
+            {rodando ? 'Um instante...' : 'Confirmar'}
+          </Btn>
         </div>
       </div>
     </div>

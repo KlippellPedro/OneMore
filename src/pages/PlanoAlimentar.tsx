@@ -325,7 +325,7 @@ export default function PlanoAlimentar() {
                       <div className="flex-1 min-w-0">
                         <p className="text-[13.5px] font-medium truncate">{a?.nome ?? 'Alimento removido'}</p>
                         <p className="text-[11px] text-muted">
-                          {nq(item.qtd)} {nomeMedida(a, item.medida)}
+                          {nq(item.qtd)} {nomeMedida(a, item.medida, item.qtd)}
                           {item.medida !== 'g' && item.medida !== 'ml' ? ` (${n0(item.gramas)} g)` : ''}
                         </p>
                         <AvisoRestricao alimentoId={item.alimentoId} evitar={evitar} />

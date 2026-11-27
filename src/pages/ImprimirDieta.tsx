@@ -67,7 +67,7 @@ export default function ImprimirDieta() {
                           return (
                             <tr key={i} className="border-t border-gray-100">
                               <td className="py-1.5 pr-2">{a?.nome ?? 'Alimento removido'}</td>
-                              <td className="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap">{nq(it.qtd)} {nomeMedida(mapa.get(it.alimentoId), it.medida)}</td>
+                              <td className="py-1.5 pl-2 text-right tabular-nums whitespace-nowrap">{nq(it.qtd)} {nomeMedida(mapa.get(it.alimentoId), it.medida, it.qtd)}</td>
                               <td className="py-1.5 pl-2 text-right tabular-nums">{mm ? `${n0(mm.carb)}g` : '-'}</td>
                               <td className="py-1.5 pl-2 text-right tabular-nums">{mm ? `${n0(mm.prot)}g` : '-'}</td>
                               <td className="py-1.5 pl-2 text-right tabular-nums">{mm ? `${n0(mm.gord)}g` : '-'}</td>

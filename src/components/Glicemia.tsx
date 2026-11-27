@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { registrarGlicemia, classificarGlicemia, FAIXA_ALVO } from '../lib/acoes'
+import { problemaNaGlicemia } from '../lib/glicemia'
 import { useUI, vibrar } from '../state/ui'
 import { Sheet, Campo, Input, Btn, Chip, Card } from './ui'
 import { n0, horaDe } from '../lib/format'
@@ -9,9 +10,9 @@ export const MOMENTOS: { id: MomentoGlicemia; nome: string }[] = [
   { id: 'jejum', nome: 'Jejum' },
   { id: 'antes-refeicao', nome: 'Antes de comer' },
   { id: 'depois-refeicao', nome: 'Depois de comer' },
-  { id: 'pre-treino', nome: 'Pre-treino' },
+  { id: 'pre-treino', nome: 'Pré-treino' },
   { id: 'durante-treino', nome: 'Durante o treino' },
-  { id: 'pos-treino', nome: 'Pos-treino' },
+  { id: 'pos-treino', nome: 'Pós-treino' },
   { id: 'antes-dormir', nome: 'Antes de dormir' },
   { id: 'madrugada', nome: 'Madrugada' },
   { id: 'hipo', nome: 'Hipo' },
@@ -52,13 +53,20 @@ export function SheetGlicemia({ aberto, fechar, momentoInicial, carboSugerido }:
 
   async function salvar() {
     if (!(num > 0)) return toast('Digite o valor da glicemia', 'erro')
+    /**
+     * Glicosimetro mede de ~20 a ~600 mg/dL (fora disso ele mostra LO/HI). Um
+     * "5000" digitado por engano entrava no historico e puxava a media, o
+     * tempo no alvo e o grafico - num dado que vai pro endocrinologista.
+     */
+    const problema = problemaNaGlicemia(num, unidades, carbo)
+    if (problema) return toast(problema.titulo, 'erro', problema.texto)
     vibrar()
     const g = await registrarGlicemia({
       valor: num,
       momento,
-      insulinaUnidades: unidades.trim() ? Number(unidades) : undefined,
+      insulinaUnidades: unidades.trim() ? Number(unidades.replace(',', '.')) : undefined,
       insulinaTipo: unidades.trim() ? tipo : undefined,
-      carboG: carbo.trim() ? Number(carbo) : undefined,
+      carboG: carbo.trim() ? Number(carbo.replace(',', '.')) : undefined,
       obs: obs.trim() || undefined,
     })
     if (g) celebrar(g)
@@ -121,8 +129,8 @@ export function SheetGlicemia({ aberto, fechar, momentoInicial, carboSugerido }:
 
       <Card className="p-3 mb-4">
         <p className="text-[11.5px] text-muted leading-relaxed">
-          O app só anota e mostra o histórico. Dose de insulina, razao e correcao
-          sao com você e seu endocrinologista.
+          O app só anota e mostra o histórico. Dose de insulina, razão e correção
+          são com você e seu endocrinologista.
         </p>
       </Card>
 
@@ -153,7 +161,7 @@ export function LinhaGlicemia({ r, onClick }: { r: RegistroGlicemia; onClick?: (
         </p>
         <p className="text-[11px] text-muted truncate">
           {horaDe(r.ts)} - {nomeMomento(r.momento)}
-          {r.insulinaUnidades ? ` - ${r.insulinaUnidades}u ${r.insulinaTipo === 'basal' ? 'basal' : 'rapida'}` : ''}
+          {r.insulinaUnidades ? ` - ${r.insulinaUnidades}u ${r.insulinaTipo === 'basal' ? 'basal' : 'rápida'}` : ''}
           {r.carboG ? ` - ${n0(r.carboG)} g carbo` : ''}
         </p>
         {r.obs && <p className="text-[11px] text-muted/80 italic truncate">{r.obs}</p>}

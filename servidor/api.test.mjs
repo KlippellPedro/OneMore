@@ -4,6 +4,7 @@ import { EventEmitter } from 'node:events'
 import {
   ipDe, freadoPorIp, freadoPorConta, MAX_POR_IP, MAX_POR_CONTA,
   lerCorpo, LIMITE_CORPO_CONTA, SENHA_MAXIMA, CODIGO_MAXIMO, tratarApi,
+  escritasDemais, MAX_ESCRITAS_POR_MINUTO,
 } from './api.js'
 import { CABECALHOS_SEGURANCA } from './seguranca.js'
 
@@ -78,10 +79,11 @@ test('freadoPorConta: contas diferentes nao competem pelo mesmo balde', () => {
 
 /* ---------- lerCorpo: teto de corpo por rota ---------- */
 
-/** IncomingMessage de mentira: so o que lerCorpo usa (on/emit e destroy). */
+/** IncomingMessage de mentira: so o que lerCorpo usa (on/emit, pause e destroy). */
 function reqFake() {
   const req = new EventEmitter()
   req.destroy = () => { req.destruida = true }
+  req.pause = () => { req.pausada = true }
   return req
 }
 
@@ -97,8 +99,10 @@ test('lerCorpo: corpo dentro do limite passa normal', async () => {
  * O cenario do relatorio: um corpo de varios MB destinado a uma rota que so
  * espera e-mail e senha. Sem um teto proprio pra essas rotas, isto era lido e
  * bufferizado POR INTEIRO (ate os 12 MB do backup) antes de qualquer validacao
- * de campo rodar. Com o teto pequeno, a conexao e derrubada assim que passa
- * dele - nunca chega a terminar de bufferizar.
+ * de campo rodar. Com o teto pequeno, a leitura para assim que passa dele -
+ * nunca chega a terminar de bufferizar - e o erro pede pra fechar a conexao
+ * DEPOIS da resposta (ver o teste do tratarApi com corpo grande): derrubando
+ * antes, o navegador via "sem conexao" em vez do 413.
  */
 test('lerCorpo: corpo de varios MB numa rota de conta e rejeitado sem terminar de ler', async () => {
   const req = reqFake()
@@ -107,17 +111,29 @@ test('lerCorpo: corpo de varios MB numa rota de conta e rejeitado sem terminar d
   const r = await resultado
   assert.notEqual(r, 'passou')
   assert.equal(r.status, 413)
-  assert.ok(req.destruida, 'deveria ter derrubado a conexao, nao so rejeitado a promessa')
+  assert.ok(req.pausada, 'deveria parar de ler, nao so rejeitar a promessa')
+  assert.equal(r.fechar, true, 'a conexao precisa fechar depois da resposta')
 })
 
-test('lerCorpo: derruba assim que o total passa do limite, mesmo em pedacos pequenos', async () => {
+test('lerCorpo: para assim que o total passa do limite, mesmo em pedacos pequenos', async () => {
   const req = reqFake()
   const resultado = lerCorpo(req, 10).then(() => 'passou', e => e)
   req.emit('data', Buffer.from('123456')) // 6, ainda dentro
   req.emit('data', Buffer.from('7890AB')) // +6 = 12, passa de 10
+  req.emit('data', Buffer.from('o que ja vinha no cano')) // ignorado, nao acumula
+  req.emit('end')
   const r = await resultado
   assert.equal(r.status, 413)
-  assert.ok(req.destruida)
+  assert.ok(req.pausada)
+})
+
+test('escritasDemais: o app normal passa, um script escrevendo sem parar e freado', () => {
+  const id = `conta-${Date.now()}`
+  const t0 = 1_000_000
+  for (let i = 0; i < MAX_ESCRITAS_POR_MINUTO; i++) assert.equal(escritasDemais(id, t0 + i), false)
+  assert.equal(escritasDemais(id, t0 + 500), true, 'passou do teto no mesmo minuto')
+  assert.equal(escritasDemais(id, t0 + 61_000), false, 'minuto novo, contador novo')
+  assert.equal(escritasDemais(`outra-${id}`, t0 + 500), false, 'cada conta tem o proprio balde')
 })
 
 test('LIMITE_CORPO_CONTA, SENHA_MAXIMA e CODIGO_MAXIMO estao coerentes entre si', () => {

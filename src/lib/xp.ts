@@ -1,4 +1,4 @@
-import { db, uid, hoje, isoDia, diffDias, getPerfil, salvarPerfil } from '../db'
+import { db, uid, hoje, isoDia, diffDias, getPerfil, salvarPerfil, apagarLinhas } from '../db'
 import type { Perfil } from '../db/types'
 import { conquistasDoLedger } from './fundir'
 
@@ -124,28 +124,33 @@ export async function darXP(
   /** Treino que gerou o XP - ver EventoXP.sessaoId. */
   sessaoId?: string,
 ): Promise<GanhoXP> {
-  const perfil = await getPerfil()
   const hj = hoje()
 
-  // streak: conta dias com QUALQUER atividade registrada
-  let streak = perfil.streak
-  if (perfil.ultimoDiaAtivo !== hj) {
-    const d = perfil.ultimoDiaAtivo ? diffDias(perfil.ultimoDiaAtivo, hj) : 999
-    streak = d === 1 ? perfil.streak + 1 : 1
-  }
+  /**
+   * Ler o perfil, gravar o evento e somar no total na MESMA transacao. Em
+   * passos soltos, dois darXP quase juntos (refeicao e agua na mesma acao, ou
+   * o bonus de conquista correndo do lado) liam o mesmo `perfil.xp` e o
+   * segundo apagava a soma do primeiro: o ledger tinha 210 XP e a tela, 80.
+   */
+  const { novo, xp, antes, depois, streak } = await db.transaction('rw', db.perfil, db.xp, async () => {
+    const perfil = await getPerfil()
 
-  const mult = multiplicadorStreak(streak)
-  const xp = Math.round(base * mult)
+    // streak: conta dias com QUALQUER atividade registrada
+    let streak = perfil.streak
+    if (perfil.ultimoDiaAtivo !== hj) {
+      const d = perfil.ultimoDiaAtivo ? diffDias(perfil.ultimoDiaAtivo, hj) : 999
+      streak = d === 1 ? perfil.streak + 1 : 1
+    }
 
-  const antes = calcNivel(perfil.xp)
-  const depois = calcNivel(perfil.xp + xp)
-
-  await db.xp.put({ id: uid(), ts: Date.now(), tipo, motivo, xp, data: hj, ...(sessaoId ? { sessaoId } : {}) })
-  const novo = await salvarPerfil({
-    xp: perfil.xp + xp,
-    streak,
-    melhorStreak: Math.max(perfil.melhorStreak, streak),
-    ultimoDiaAtivo: hj,
+    const xp = Math.round(base * multiplicadorStreak(streak))
+    await db.xp.put({ id: uid(), ts: Date.now(), tipo, motivo, xp, data: hj, ...(sessaoId ? { sessaoId } : {}) })
+    const novo = await salvarPerfil({
+      xp: perfil.xp + xp,
+      streak,
+      melhorStreak: Math.max(perfil.melhorStreak, streak),
+      ultimoDiaAtivo: hj,
+    })
+    return { novo, xp, streak, antes: calcNivel(perfil.xp), depois: calcNivel(perfil.xp + xp) }
   })
 
   const conquistas = await checarConquistas(novo)
@@ -199,21 +204,21 @@ export const CONQUISTAS: Conquista[] = [
   c('t1', 'Primeiro Ferro', 'Conclua seu primeiro treino', 'chama', 50, s => s.treinos, 1),
   c('t10', 'Constante', 'Conclua 10 treinos', 'halter', 120, s => s.treinos, 10),
   c('t50', 'Veterano', 'Conclua 50 treinos', 'medalha', 400, s => s.treinos, 50),
-  c('t100', 'Centuriao', 'Conclua 100 treinos', 'escudo', 900, s => s.treinos, 100),
-  c('t250', 'Inabalavel', 'Conclua 250 treinos', 'montanha', 2500, s => s.treinos, 250),
+  c('t100', 'Centurião', 'Conclua 100 treinos', 'escudo', 900, s => s.treinos, 100),
+  c('t250', 'Inabalável', 'Conclua 250 treinos', 'montanha', 2500, s => s.treinos, 250),
 
   c('s500', 'Meio Milhar', 'Complete 500 séries', 'grafico-linha', 200, s => s.series, 500),
   c('s2000', 'Máquina', 'Complete 2000 séries', 'chip', 700, s => s.series, 2000),
 
   c('v50', '50 Toneladas', 'Levante 50.000 kg no total', 'anilha', 250, s => s.volumeTotal, 50000),
   c('v250', '250 Toneladas', 'Levante 250.000 kg no total', 'predio', 800, s => s.volumeTotal, 250000),
-  c('v1m', 'Um Milhao', 'Levante 1.000.000 kg no total', 'planeta', 3000, s => s.volumeTotal, 1000000),
+  c('v1m', 'Um Milhão', 'Levante 1.000.000 kg no total', 'planeta', 3000, s => s.volumeTotal, 1000000),
 
   c('st7', 'Semana Cheia', '7 dias seguidos de atividade', 'calendario', 150, s => s.melhorStreak, 7),
   c('st30', 'Mês Perfeito', '30 dias seguidos de atividade', 'lua', 600, s => s.melhorStreak, 30),
   c('st100', 'Disciplina', '100 dias seguidos de atividade', 'diamante', 2000, s => s.melhorStreak, 100),
 
-  c('d7', 'Dieta na Regua', '7 dias batendo a meta de calorias', 'folha', 200, s => s.diasDieta, 7),
+  c('d7', 'Dieta na Régua', '7 dias batendo a meta de calorias', 'folha', 200, s => s.diasDieta, 7),
   c('d30', 'Chef do Shape', '30 dias batendo a meta de calorias', 'chapeu', 700, s => s.diasDieta, 30),
 
   c('pr10', 'Mais Forte', 'Bata 10 recordes pessoais', 'foguete', 250, s => s.prs, 10),
@@ -229,8 +234,19 @@ export const CONQUISTAS: Conquista[] = [
   c('n50', 'Elite', 'Alcance o nível 50', 'coroa', 0, s => s.nivel, 50),
 ]
 
-/** Nome -> id, pra ler os eventos de conquista de antes de o id ir junto. */
-const ID_POR_NOME = new Map(CONQUISTAS.map(q => [q.nome, q.id]))
+/**
+ * Nome -> id, pra ler os eventos de conquista de antes de o id ir junto. Os
+ * nomes que ganharam acento continuam aqui na forma antiga: um evento velho
+ * diz "Centuriao" no motivo, e sem o apelido a conquista pareceria nunca paga
+ * - e seria paga de novo.
+ */
+export const NOMES_ANTIGOS_CONQUISTA: Record<string, string> = {
+  Centuriao: 't100', Inabalavel: 't250', 'Um Milhao': 'v1m', 'Dieta na Regua': 'd7',
+}
+export const ID_POR_NOME = new Map<string, string>([
+  ...CONQUISTAS.map(q => [q.nome, q.id] as [string, string]),
+  ...Object.entries(NOMES_ANTIGOS_CONQUISTA),
+])
 
 export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {
   const p = perfil ?? await getPerfil()
@@ -274,46 +290,56 @@ export async function coletarStats(perfil?: Perfil): Promise<StatsConquista> {
 
 /** Desbloqueia o que estiver batido e devolve SOMENTE as novas. */
 export async function checarConquistas(perfil?: Perfil): Promise<Conquista[]> {
-  const p = perfil ?? await getPerfil()
-  const stats = await coletarStats(p)
+  const stats = await coletarStats(perfil ?? await getPerfil())
+
   /**
-   * O que o ledger diz que ja foi pago. `perfil.conquistas` funde por campo
-   * inteiro, e uma conquista paga no outro aparelho pode ter sumido do array
-   * na fusao - continua batida nas estatisticas, entao sem isto seria paga DE
-   * NOVO, com outro evento de bonus. Ver conquistasDoLedger em lib/fundir.ts.
+   * Decidir e pagar na MESMA transacao, lendo o perfil e o ledger de agora -
+   * nao o `perfil` que veio por parametro, que pode ja estar velho. Duas
+   * checagens quase juntas (dois darXP seguidos) viam a mesma conquista como
+   * nova e pagavam o bonus duas vezes; e somar no `xp` de um perfil velho
+   * apagava o XP que outro darXP tinha acabado de gravar.
    */
-  const pagas = new Set(conquistasDoLedger(
-    await db.xp.where('tipo').equals('conquista').toArray(), ID_POR_NOME,
-  ))
-  const novas: Conquista[] = []
-  const devolvidas: string[] = []
-  let bonus = 0
+  return db.transaction('rw', db.perfil, db.xp, async () => {
+    const p = await getPerfil()
+    /**
+     * O que o ledger diz que ja foi pago. `perfil.conquistas` funde por campo
+     * inteiro, e uma conquista paga no outro aparelho pode ter sumido do array
+     * na fusao - continua batida nas estatisticas, entao sem isto seria paga DE
+     * NOVO, com outro evento de bonus. Ver conquistasDoLedger em lib/fundir.ts.
+     */
+    const pagas = new Set(conquistasDoLedger(
+      await db.xp.where('tipo').equals('conquista').toArray(), ID_POR_NOME,
+    ))
+    const novas: Conquista[] = []
+    const devolvidas: string[] = []
+    let bonus = 0
 
-  for (const q of CONQUISTAS) {
-    if (p.conquistas.includes(q.id)) continue
-    // ja paga: volta pra lista sem bonus e sem festa
-    if (pagas.has(q.id)) { devolvidas.push(q.id); continue }
-    if (q.atual(stats) >= q.alvo) {
-      novas.push(q)
-      bonus += q.xp
+    for (const q of CONQUISTAS) {
+      if (p.conquistas.includes(q.id)) continue
+      // ja paga: volta pra lista sem bonus e sem festa
+      if (pagas.has(q.id)) { devolvidas.push(q.id); continue }
+      if (q.atual(stats) >= q.alvo) {
+        novas.push(q)
+        bonus += q.xp
+      }
     }
-  }
 
-  if (novas.length || devolvidas.length) {
-    // XP de conquista entra direto, sem multiplicador e sem recursao.
-    const ids = [...p.conquistas, ...devolvidas, ...novas.map(n => n.id)]
-    if (bonus > 0) {
-      await db.xp.put({
-        id: uid(), ts: Date.now(), tipo: 'conquista',
-        motivo: novas.map(n => n.nome).join(', '), xp: bonus, data: isoDia(new Date()),
-        // os ids viajam no evento: e o que o `pagas` ali em cima le
-        conquistas: novas.map(n => n.id),
-      })
+    if (novas.length || devolvidas.length) {
+      // XP de conquista entra direto, sem multiplicador e sem recursao.
+      const ids = [...p.conquistas, ...devolvidas, ...novas.map(n => n.id)]
+      if (bonus > 0) {
+        await db.xp.put({
+          id: uid(), ts: Date.now(), tipo: 'conquista',
+          motivo: novas.map(n => n.nome).join(', '), xp: bonus, data: isoDia(new Date()),
+          // os ids viajam no evento: e o que o `pagas` ali em cima le
+          conquistas: novas.map(n => n.id),
+        })
+      }
+      await salvarPerfil({ conquistas: ids, xp: p.xp + bonus })
     }
-    await salvarPerfil({ conquistas: ids, xp: p.xp + bonus })
-  }
 
-  return novas
+    return novas
+  })
 }
 
 /* ------------------------------------------------------------------ */
@@ -362,6 +388,39 @@ function maiorSequenciaDeDias(dias: string[]): number {
  * conquista (coletarStats). Ver reconstruirMelhores em db/melhores.ts, que
  * resolve o mesmo tipo de problema pros recordes por exercicio.
  */
+/**
+ * Conserta, uma vez por abertura, o estrago que duas falhas antigas deixaram
+ * no XP de quem ja usava o app:
+ *
+ * - treino pago duas vezes (dois toques no Confirmar antes de concluirSessao
+ *   ser atomica): sobram dois eventos 'treino' com o mesmo `sessaoId`. Um
+ *   treino paga uma vez so, entao o mais novo sai - com lapide, pra sair dos
+ *   outros aparelhos tambem. Eventos de recorde ficam: dois recordes do mesmo
+ *   treino podem ter o mesmo texto ("Recorde: 60 kg" em dois exercicios), e
+ *   nao da pra separar duplicata de recorde legitimo;
+ * - total da tela diferente do ledger (darXP sem transacao perdia somas): o
+ *   ledger e a verdade, e reconstruirGamificacao refaz o total a partir dele.
+ *
+ * So escreve se achou algo - no caso comum e uma leitura da tabela `xp` e mais
+ * nada. Devolve quantos eventos duplicados saíram.
+ */
+export async function sanearXP(): Promise<number> {
+  const eventos = (await db.xp.toArray()).sort((a, b) => a.ts - b.ts)
+  const pagos = new Set<string>()
+  const duplicados: string[] = []
+  for (const e of eventos) {
+    if (e.tipo !== 'treino' || !e.sessaoId) continue
+    if (pagos.has(e.sessaoId)) duplicados.push(e.id)
+    else pagos.add(e.sessaoId)
+  }
+  if (duplicados.length) await apagarLinhas('xp', duplicados)
+
+  const fora = new Set(duplicados)
+  const total = eventos.filter(e => !fora.has(e.id)).reduce((t, e) => t + e.xp, 0)
+  if (duplicados.length || total !== (await getPerfil()).xp) await reconstruirGamificacao()
+  return duplicados.length
+}
+
 export async function reconstruirGamificacao(): Promise<void> {
   const eventos = await db.xp.toArray()
   const xp = eventos.reduce((t, e) => t + e.xp, 0)

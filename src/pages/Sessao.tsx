@@ -16,13 +16,16 @@ import { Icone } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
 import { CalculadoraAnilhas } from '../components/Anilhas'
 import { useUI, vibrar } from '../state/ui'
-import { tempo, duracao, peso, n0, nq, dataCurta } from '../lib/format'
+import { tempo, duracao, peso, n0, nq, dataCurta, clamp } from '../lib/format'
 import { sugerirCarga, faixaDeReps, textoDoTreino } from '../lib/treino'
 import { compartilharTexto } from '../lib/arquivo'
 import { isoDia } from '../db'
 import type { Sessao as TSessao, SerieLog } from '../db/types'
 
 const SEM_RECORDE: Recorde = { carga: 0, reps: 0, volume: 0 }
+/** Os mesmos tetos da correcao no historico (DetalheSessao): leg press passa de 600 kg, 1000 nao. */
+const CARGA_MAX = 1000
+const REPS_MAX = 999
 
 /* ------------------------------------------------------------------ */
 /* CRONOMETRO DE DESCANSO                                              */
@@ -145,6 +148,15 @@ export default function Sessao() {
   const [anilhas, setAnilhas] = useState<string | null>(null)
   /** Sugestoes de carga que a pessoa dispensou nesse treino. */
   const [dispensadas, setDispensadas] = useState<string[]>([])
+  /** Trava do Finalizar: um treino fecha uma vez so, por mais rapido que seja o dedo. */
+  const finalizando = useRef(false)
+  /**
+   * Fechando agora: a sessao ja esta marcada como concluida no banco, mas o
+   * resumo ainda esta sendo montado (recordes, XP). Sem isto a tela mostrava
+   * "Esse treino já foi finalizado - Voltar ao início" por um instante, como
+   * se fosse um treino antigo aberto por engano.
+   */
+  const [fechando, setFechando] = useState(false)
 
   useEffect(() => {
     const i = setInterval(() => setAgora(Date.now()), 1000)
@@ -187,6 +199,14 @@ export default function Sessao() {
       </div>
     )
   }
+  if (sessao.concluida && !resumo && fechando) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3" role="status">
+        <div className="w-9 h-9 rounded-full border-2 border-line border-t-accent animate-spin" />
+        <p className="text-sm text-muted">Fechando o treino...</p>
+      </div>
+    )
+  }
   if (sessao.concluida && !resumo) {
     return (
       <div className="p-10 text-center">
@@ -210,13 +230,22 @@ export default function Sessao() {
   const totalSeries = sessao.series.length
   const volume = volumeSessao(sessao)
 
-  const salvar = (series: SerieLog[]) =>
-    db.sessoes.update(id, { series, atualizadoEm: Date.now() })
+  /**
+   * Toda mudanca nas series le a sessao DO BANCO, dentro da transacao - nao a
+   * copia da ultima renderizacao. Com a copia, duas acoes antes de a tela
+   * redesenhar (marcar duas series em seguida, digitar a carga e ja tocar no
+   * check) gravavam cada uma o array inteiro de quando a tela foi desenhada, e
+   * a segunda apagava a primeira: a serie marcada voltava a ficar por fazer.
+   */
+  const mudarSeries = (fn: (series: SerieLog[]) => SerieLog[]) =>
+    db.transaction('rw', db.sessoes, async () => {
+      const atual = await db.sessoes.get(id)
+      if (!atual || atual.concluida) return
+      await db.sessoes.update(id, { series: fn(atual.series), atualizadoEm: Date.now() })
+    })
 
   async function alterar(i: number, patch: Partial<SerieLog>) {
-    const series = [...sessao!.series]
-    series[i] = { ...series[i], ...patch }
-    await salvar(series)
+    await mudarSeries(series => series.map((s, k) => (k === i ? { ...s, ...patch } : s)))
   }
 
   async function marcar(i: number) {
@@ -241,7 +270,7 @@ export default function Sessao() {
       } else if (volume > rec.volume) {
         // mesma carga, mais repeticoes: antes isso passava batido
         setRecordes(r => ({ ...r, [s.exercicioId]: { ...rec, volume } }))
-        toast('MELHOR SERIE!', 'xp', `${s.carga} kg x ${s.reps} - mais que qualquer outra`)
+        toast('MELHOR SÉRIE!', 'xp', `${s.carga} kg x ${s.reps} - mais que qualquer outra`)
         vibrar([30, 50, 30, 80])
       }
     }
@@ -252,24 +281,26 @@ export default function Sessao() {
   }
 
   async function addSerie(exercicioId: string) {
-    const doEx = sessao!.series.filter(s => s.exercicioId === exercicioId)
-    const ultima = doEx[doEx.length - 1]
-    const idx = sessao!.series.lastIndexOf(ultima)
-    const series = [...sessao!.series]
-    series.splice(idx + 1, 0, {
-      exercicioId, serie: doEx.length + 1,
-      reps: ultima?.reps ?? 0, carga: ultima?.carga ?? 0, feito: false,
+    await mudarSeries(atuais => {
+      const doEx = atuais.filter(s => s.exercicioId === exercicioId)
+      const ultima = doEx[doEx.length - 1]
+      const idx = atuais.lastIndexOf(ultima)
+      const series = [...atuais]
+      series.splice(idx + 1, 0, {
+        exercicioId, serie: doEx.length + 1,
+        reps: ultima?.reps ?? 0, carga: ultima?.carga ?? 0, feito: false,
+      })
+      return renumerarSeries(series)
     })
-    await salvar(renumerarSeries(series))
   }
 
   async function removerSerie(i: number) {
-    await salvar(renumerarSeries(sessao!.series.filter((_, k) => k !== i)))
+    await mudarSeries(atuais => renumerarSeries(atuais.filter((_, k) => k !== i)))
   }
 
   /** Tira o exercicio inteiro - todas as series dele - de dentro da sessao. */
   async function removerExercicio(exercicioId: string) {
-    await salvar(renumerarSeries(sessao!.series.filter(s => s.exercicioId !== exercicioId)))
+    await mudarSeries(atuais => renumerarSeries(atuais.filter(s => s.exercicioId !== exercicioId)))
   }
 
   /**
@@ -290,17 +321,17 @@ export default function Sessao() {
    */
   async function trocarExercicio(de: string, para: string) {
     const ant = await ultimasSeries(para)
-    const doEx = sessao!.series.filter(s => s.exercicioId === de)
-    const corrigindo = doEx.every(s => s.feito)
-    const series = sessao!.series.map(s => {
-      if (s.exercicioId !== de) return s
-      if (corrigindo) return { ...s, exercicioId: para }
-      if (s.feito) return s
-      const a = serieAnterior(ant, s.serie - 1)
-      // reps sem historico ficam: o alvo da posicao no treino continua o mesmo
-      return { ...s, exercicioId: para, carga: a?.carga ?? 0, reps: a?.reps ?? s.reps }
+    await mudarSeries(atuais => {
+      const corrigindo = atuais.filter(s => s.exercicioId === de).every(s => s.feito)
+      return renumerarSeries(atuais.map(s => {
+        if (s.exercicioId !== de) return s
+        if (corrigindo) return { ...s, exercicioId: para }
+        if (s.feito) return s
+        const a = serieAnterior(ant, s.serie - 1)
+        // reps sem historico ficam: o alvo da posicao no treino continua o mesmo
+        return { ...s, exercicioId: para, carga: a?.carga ?? 0, reps: a?.reps ?? s.reps }
+      }))
     })
-    await salvar(renumerarSeries(series))
     setAnteriores(a => ({ ...a, [para]: ant }))
     recordeDe(para).then(rec => setRecordes(r => ({ ...r, [para]: rec })))
     fecharTroca()
@@ -312,21 +343,30 @@ export default function Sessao() {
    * recomeca embaixo: e assim que a progressao dupla anda.
    */
   async function aplicarCarga(exercicioId: string, carga: number, reps?: number) {
-    const series = sessao!.series.map(s =>
+    await mudarSeries(atuais => atuais.map(s =>
       s.exercicioId === exercicioId && !s.feito && !s.aquecimento
         ? { ...s, carga, ...(reps ? { reps } : {}) }
-        : s)
-    await salvar(series)
+        : s))
     vibrar(15)
   }
 
   async function finalizar() {
     setConfirmarFim(false)
-    const r = await concluirSessao(id)
-    if (!r) return
-    descanso.parar()
-    setResumo(r)
-    celebrar(r.ganho)
+    // dois toques no Confirmar antes de o dialogo sumir: o segundo nao faz nada.
+    // (concluirSessao tambem se protege - ver lib/acoes.ts)
+    if (finalizando.current) return
+    finalizando.current = true
+    setFechando(true)
+    try {
+      const r = await concluirSessao(id)
+      if (!r) return
+      descanso.parar()
+      setResumo(r)
+      celebrar(r.ganho)
+    } finally {
+      finalizando.current = false
+      setFechando(false)
+    }
   }
 
   return (
@@ -334,9 +374,9 @@ export default function Sessao() {
       {/* -------- cabecalho fixo -------- */}
       <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur-lg border-b border-line safe-t">
         <div className="flex items-center gap-2 px-3 h-14">
-          <button onClick={() => setConfirmarSair(true)}
+          <button onClick={() => setConfirmarSair(true)} aria-label="Sair do treino"
             className="toque w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-muted active:bg-surface-2 text-lg">
-            ×
+            <span aria-hidden="true">×</span>
           </button>
           <div className="flex-1 min-w-0">
             <p className="text-[14px] font-bold truncate leading-tight">{sessao.nome}</p>
@@ -372,7 +412,7 @@ export default function Sessao() {
               <div className="flex items-start gap-2.5 mb-3">
                 <span className="w-1 self-stretch rounded-full shrink-0"
                   style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
-                <Link to={`/exercicios/${g.exercicioId}`} className="shrink-0">
+                <Link to={`/exercicios/${g.exercicioId}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
                   <ImagemExercicio exercicioId={g.exercicioId} tamanho="mini" />
                 </Link>
                 <div className="flex-1 min-w-0">
@@ -503,7 +543,7 @@ export default function Sessao() {
             const a = serieAnterior(ant, n - 1)
             return { exercicioId: ex.id, serie: n, reps: a?.reps ?? 0, carga: a?.carga ?? 0, feito: false }
           })
-          await salvar([...sessao.series, ...novas])
+          await mudarSeries(atuais => [...atuais, ...novas])
           setAnteriores(a => ({ ...a, [ex.id]: ant }))
           setRecordes(r => ({ ...r, [ex.id]: SEM_RECORDE }))
           recordeDe(ex.id).then(rec => setRecordes(r => ({ ...r, [ex.id]: rec })))
@@ -544,8 +584,8 @@ export default function Sessao() {
           return feitasEx > 0
             ? `${nome} sai do treino de hoje e ${feitasEx === 1
                 ? 'a série já marcada não vai contar'
-                : `as ${feitasEx} séries já marcadas não vao contar`}.`
-            : `${nome} sai do treino de hoje. Da pra adicionar de novo depois.`
+                : `as ${feitasEx} séries já marcadas não vão contar`}.`
+            : `${nome} sai do treino de hoje. Dá pra adicionar de novo depois.`
         })()}
         onNao={() => setRemoverEx(null)}
         onSim={async () => {
@@ -559,7 +599,7 @@ export default function Sessao() {
         <Confirmar aberto={confirmarFim} titulo="Finalizar treino?"
           texto={feitas < totalSeries
             ? `Você fez ${feitas} de ${totalSeries} séries. As não marcadas não contam.`
-            : `${feitas} séries concluidas. Mandou bem.`}
+            : `${feitas} séries concluídas. Mandou bem.`}
           onSim={finalizar} onNao={() => setConfirmarFim(false)} />
       ) : (
         <Confirmar aberto={confirmarFim} perigo titulo="Descartar treino?"
@@ -578,7 +618,7 @@ export default function Sessao() {
       <Confirmar aberto={confirmarSair} titulo="Sair do treino?"
         texto={feitas > 0
           ? 'O treino continua em andamento e você pode voltar depois pela tela inicial.'
-          : 'Nada foi registrado ainda. O treino sera descartado.'}
+          : 'Nada foi registrado ainda. O treino será descartado.'}
         onNao={() => setConfirmarSair(false)}
         onSim={async () => {
           if (feitas === 0) await descartarSessao(id)
@@ -610,16 +650,19 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
           {serie.aquecimento ? 'A' : serie.serie}
         </button>
 
-        <NumInput valor={serie.carga} onChange={onCarga} passo={2.5} feito={serie.feito} destaque={ehRecorde} />
-        <NumInput valor={serie.reps} onChange={onReps} passo={1} feito={serie.feito} inteiro />
+        <NumInput valor={serie.carga} onChange={onCarga} passo={2.5} feito={serie.feito} destaque={ehRecorde}
+          rotulo={`carga da série ${serie.serie}, em kg`} max={CARGA_MAX} />
+        <NumInput valor={serie.reps} onChange={onReps} passo={1} feito={serie.feito} inteiro
+          rotulo={`repetições da série ${serie.serie}`} max={REPS_MAX} />
 
-        <button onClick={onMarcar}
+        <button onClick={onMarcar} aria-pressed={serie.feito}
+          aria-label={`Série ${serie.serie}${serie.aquecimento ? ' (aquecimento)' : ''} feita`}
           className={`w-11 h-11 shrink-0 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90 ${
             serie.feito
               ? 'bg-good border-good text-[#0a0714]'
               : 'border-line text-muted active:border-accent'
           }`}>
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M20 6L9 17l-5-5" />
           </svg>
         </button>
@@ -640,28 +683,38 @@ function LinhaSerie({ serie, ehRecorde, onCarga, onReps, onMarcar, onAquecimento
   )
 }
 
-function NumInput({ valor, onChange, passo, feito, inteiro, destaque }: {
+function NumInput({ valor, onChange, passo, feito, inteiro, destaque, rotulo, max }: {
   valor: number; onChange: (v: number) => void; passo: number
   feito?: boolean; inteiro?: boolean; destaque?: boolean
+  /** O que o campo e, pra leitor de tela: "carga da série 2, em kg". */
+  rotulo: string
+  /**
+   * Teto do que se digita. Sem ele, "10000" no lugar de "100" virava recorde,
+   * inflava o volume e podia liberar a conquista de 1 milhao de kg - e um "-5"
+   * digitado (o botao de menos para no zero, o teclado nao) dava volume negativo.
+   */
+  max: number
 }) {
+  const limitar = (v: number) => clamp(Number.isFinite(v) ? v : 0, 0, max)
   return (
     <div className="flex-1 flex items-center rounded-xl bg-bg-soft border border-line overflow-hidden h-11">
-      <button onClick={() => onChange(Math.max(0, Number((valor - passo).toFixed(2))))}
-        aria-label="Diminuir"
+      <button onClick={() => onChange(limitar(Number((valor - passo).toFixed(2))))}
+        aria-label={`Diminuir ${rotulo}`}
         className="w-9 h-full shrink-0 text-muted text-base active:bg-surface-2">-</button>
       <input
-        type="number" inputMode="decimal"
+        type="number" inputMode="decimal" aria-label={rotulo[0].toUpperCase() + rotulo.slice(1)}
         value={valor === 0 ? '' : valor} placeholder="0"
+        min={0} max={max}
         onChange={e => {
-          const v = Number(e.target.value || 0)
+          const v = limitar(Number(e.target.value || 0))
           onChange(inteiro ? Math.round(v) : v)
         }}
         // 16px: com 15 o iPhone dava zoom na tela a cada carga digitada (ver inputBase em ui.tsx)
         className={`flex-1 min-w-0 h-full text-center bg-transparent font-bold text-base outline-none tabular-nums ${
           destaque ? 'text-xp' : feito ? 'text-good' : 'text-txt'
         }`} />
-      <button onClick={() => onChange(Number((valor + passo).toFixed(2)))}
-        aria-label="Aumentar"
+      <button onClick={() => onChange(limitar(Number((valor + passo).toFixed(2))))}
+        aria-label={`Aumentar ${rotulo}`}
         className="w-9 h-full shrink-0 text-muted text-base active:bg-surface-2">+</button>
     </div>
   )

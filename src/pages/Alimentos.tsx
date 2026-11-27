@@ -42,7 +42,7 @@ export default function Alimentos() {
         acao={<Btn size="sm" variant="primary" onClick={() => setEditar('novo')}>+ Criar</Btn>} />
 
       <div className="px-4 pt-3">
-        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." className="mb-3" />
+        <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar..." aria-label="Buscar alimento" type="search" className="mb-3" />
         <div className="flex gap-1.5 overflow-x-auto -mx-4 px-4 pb-3">
           <Chip ativo={cat === 'todos'} onClick={() => setCat('todos')}>Todos</Chip>
           <Chip ativo={cat === 'favoritos'} onClick={() => setCat('favoritos')}>Favoritos</Chip>
@@ -228,7 +228,7 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
           className="toque text-[12px] font-semibold text-accent">+ Adicionar</button>
       </div>
       <p className="text-[11px] text-muted mb-3 leading-relaxed">
-        Ex: "colher de sopa" = 25 g. Assim voce registra sem pesar tudo.
+        Ex: "colher de sopa" = 25 g. Assim você registra sem pesar tudo.
       </p>
 
       <div className="space-y-2 mb-4">
@@ -257,7 +257,7 @@ function EditorAlimento({ alvo, fechar, onSalvo, onApagar }: {
       )}
       {base && !base.custom && (
         <p className="text-[11.5px] text-muted text-center leading-relaxed">
-          Esse e um alimento do catalogo. Suas edicoes valem, mas ele volta ao original se o catalogo for atualizado.
+          Esse é um alimento do catálogo. Suas edições valem, mas ele volta ao original se o catálogo for atualizado.
         </p>
       )}
     </Sheet>

@@ -206,7 +206,7 @@ export default function Home() {
               </div>
               {treinouHoje && (
                 <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-good/15 text-good">
-                  JA TREINOU
+                  JÁ TREINOU
                 </span>
               )}
             </div>
@@ -317,7 +317,7 @@ export default function Home() {
         {feitas === missoes.length && (
           <div className="flex items-center gap-2.5 mb-2.5 px-3.5 py-2.5 rounded-2xl bg-xp/12 border border-xp/30 anim-pop">
             <Icone nome="trofeu" tamanho={18} className="text-xp shrink-0" />
-            <p className="text-[12.5px] font-bold text-xp">Dia perfeito! Todas as missões concluidas.</p>
+            <p className="text-[12.5px] font-bold text-xp">Dia perfeito! Todas as missões concluídas.</p>
           </div>
         )}
         <Card className={`p-2 ${feitas === missoes.length ? 'border-xp/30' : ''}`}>

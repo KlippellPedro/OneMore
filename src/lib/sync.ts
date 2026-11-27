@@ -2,7 +2,7 @@ import {
   db, normalizarFlags, limparLapidesVelhas, escutarEscrita, semAvisarEscrita,
   apagarLinhas, hoje, PERFIL_PADRAO, type TabelaSync,
 } from '../db'
-import { resetarCacheSeed, CHAVE_SETUP } from '../db/seed'
+import { resetarCacheSeed, rodarSeed, CHAVE_SETUP } from '../db/seed'
 import { EXERCICIOS_SEED } from '../db/seedExercicios'
 import { ALIMENTOS_SEED } from '../db/seedAlimentos'
 import type { Perfil } from '../db/types'
@@ -87,7 +87,7 @@ export interface ResultadoImport { tabelas: number; registros: number }
  */
 export async function importar(backup: Backup, apenas?: readonly string[]): Promise<ResultadoImport> {
   if (backup?.app !== 'onemore' || !backup.dados) {
-    throw new Error('Esse arquivo não e um backup do OneMore.')
+    throw new Error('Esse arquivo não é um backup do OneMore.')
   }
   /**
    * Este backup pode vir de um arquivo escolhido a mao ("Restaurar backup") -
@@ -160,6 +160,8 @@ export async function importar(backup: Backup, apenas?: readonly string[]): Prom
 export async function apagarTudo() {
   for (const t of [...TABELAS, ...TABELAS_DERIVADAS]) await limpar(t)
   localStorage.removeItem('onemore:seed')
+  // nao sobrou nada de conta nenhuma aqui: a proxima conta a entrar nao tem com quem conflitar
+  localStorage.removeItem(CHAVE_DONO)
   resetarCacheSeed()
 }
 
@@ -256,7 +258,7 @@ export async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T
       headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
     })
   } catch {
-    throw new Error('Sem conexao com o servidor.')
+    throw new Error('Sem conexão com o servidor.')
   }
 
   if (r.status === 204) return null
@@ -295,12 +297,21 @@ export const entrar = (email: string, senha: string) =>
  * ligado a uma conta - quem saiu nao esta mais.
  */
 export async function sair() {
+  /**
+   * A publicacao automatica espera alguns segundos depois da ultima escrita
+   * (ESPERA_ESCRITA_MS). Sair nesse intervalo deixava a ultima serie ou o
+   * ultimo alimento so neste aparelho - e, se a proxima conta a entrar aqui
+   * escolher comecar limpo, isso se perdia. Sobe antes de largar a sessao.
+   */
+  await sincronizarEmSilencio().catch(() => {})
   // ANTES de encerrar a sessao: apagar a inscricao exige estar logado. Quem
   // saiu nao pode continuar recebendo os lembretes da conta neste aparelho
   await desligarPush().catch(() => {})
   await chamar('/sessao', { method: 'DELETE' })
   // onemore:cartao e a marca do ultimo cartao de amigos enviado (lib/amigos.ts):
-  // a proxima conta a entrar aqui precisa mandar o dela, nao herdar a marca
+  // a proxima conta a entrar aqui precisa mandar o dela, nao herdar a marca.
+  // CHAVE_DONO fica de proposito: os dados continuam aqui e continuam sendo da
+  // conta que saiu - e o que impede de irem parar na proxima (ver sincronizar)
   for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA, 'onemore:cartao']) localStorage.removeItem(chave)
 }
 
@@ -309,14 +320,78 @@ export async function sair() {
  * aparelho ficam: o app continua funcionando offline, so sem conta.
  */
 export async function excluirConta(senha: string) {
+  // quem esta sendo excluida - antes de excluir, depois nao ha mais sessao pra perguntar
+  const eu = await usuarioAtual().catch(() => null)
   // primeiro a conta: com a senha errada nada pode mudar (nem o push deste aparelho)
   await chamar('/conta', { method: 'DELETE', body: JSON.stringify({ senha }) })
   // o servidor ja esqueceu a inscricao (cascade); falta o navegador parar de receber
   await desligarPush().catch(() => {})
   // onemore:cartao e a marca do ultimo cartao de amigos enviado (lib/amigos.ts):
-  // a proxima conta a entrar aqui precisa mandar o dela, nao herdar a marca
+  // a proxima conta a entrar aqui precisa mandar o dela, nao herdar a marca.
   for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA, 'onemore:cartao']) localStorage.removeItem(chave)
+  /**
+   * A marca de dono so sai se os dados daqui eram DESTA conta - ai sao so da
+   * pessoa, e uma conta nova pode adota-los. Se eram de outra (B entrou no
+   * celular de A, viu o aviso e excluiu a propria conta), apagar a marca
+   * deixava os dados de A sem dono, e a proxima conta a entrar os levava.
+   */
+  if (eu && donoDosDados() === eu.email) localStorage.removeItem(CHAVE_DONO)
 }
+
+/* ------------------------------------------------------------------ */
+/* DE QUEM SAO OS DADOS DESTE APARELHO                                 */
+/* ------------------------------------------------------------------ */
+
+/**
+ * O e-mail da conta com que os dados deste aparelho foram sincronizados por
+ * ultimo. Fica guardado mesmo depois de sair, e e isso que segura o caso do
+ * aparelho compartilhado: sem esta marca, a pessoa B entrava no celular onde A
+ * tinha saido e a primeira sincronizacao FUNDIA os treinos, a dieta, o peso e
+ * a glicemia de A dentro da conta de B - e mandava tudo pra nuvem dela (e pro
+ * treinador dela). Aparelho que nunca sincronizou nao tem dono: entrar ou criar
+ * conta leva os dados daqui pra conta, que e o que se espera.
+ */
+const CHAVE_DONO = 'onemore:dono'
+
+export const donoDosDados = () => localStorage.getItem(CHAVE_DONO)
+
+/** A conta logada nao e a dona dos dados deste aparelho - ver CHAVE_DONO. */
+export class ErroOutraConta extends Error {
+  dono: string
+  conta: string
+  constructor(dono: string, conta: string) {
+    super(`Este aparelho tem os dados de ${dono}. Escolha em Perfil > Sua conta o que fazer com eles antes de sincronizar ${conta}.`)
+    this.dono = dono
+    this.conta = conta
+  }
+}
+
+/**
+ * Comecar limpo na conta logada: apaga ESTE aparelho (os dados da conta
+ * anterior continuam salvos na nuvem dela) e traz os da conta atual. O setup de
+ * fabrica que o seed monta logo depois perde pra conta na primeira fusao, como
+ * num aparelho novo (ver setupDeFabricaIntacto).
+ */
+export async function comecarLimpoNaConta(conta: string): Promise<ResultadoSync> {
+  /**
+   * Confere ANTES de apagar: este passo tira do aparelho os dados de outra
+   * conta, e so faz sentido se `conta` ainda esta logada. Se a sessao caiu,
+   * a pessoa saiu ou excluiu a conta com o aviso aberto, apagar primeiro e
+   * descobrir depois (no sincronizar) deixava o aparelho vazio e a conta
+   * inexistente - os dados de quem era dono se perdiam daqui sem ir pra lugar
+   * nenhum.
+   */
+  const logada = await usuarioAtual()
+  if (logada?.email !== conta) {
+    throw new ErroApi('Você não está mais nessa conta. Entre de novo pra escolher.', 401)
+  }
+  await apagarTudo()
+  await rodarSeed()
+  return sincronizar({ conta })
+}
+
+/** Levar o que esta neste aparelho pra conta logada, de proposito. */
+export const juntarNaConta = (conta: string) => sincronizar({ conta, juntarOutraConta: true })
 
 /* ------------------------------------------------------------------ */
 /* SINCRONIZACAO POR FUSAO                                             */
@@ -394,12 +469,23 @@ export interface ResultadoSync {
  * numa operacao so, pra nao existir mais "enviar por engano" nem "baixar por
  * engano".
  */
-export async function sincronizar(): Promise<ResultadoSync> {
+export async function sincronizar(opcoes: {
+  /** E-mail da conta logada, se quem chama ja sabe - poupa uma ida ao /eu. */
+  conta?: string
+  /** A pessoa escolheu levar os dados de outra conta (CHAVE_DONO) pra esta. */
+  juntarOutraConta?: boolean
+} = {}): Promise<ResultadoSync> {
+  const conta = opcoes.conta ?? (await usuarioAtual())?.email
+  if (!conta) throw new ErroApi('Entre na sua conta.', 401)
+  const dono = donoDosDados()
+  if (dono && dono !== conta && !opcoes.juntarOutraConta) throw new ErroOutraConta(dono, conta)
+
   const nuvem = await espiar()
   const local = await exportar()
 
   if (!nuvem) {
     await publicar(local)
+    localStorage.setItem(CHAVE_DONO, conta)
     return { quando: marcarSync(), primeiraVez: true, recebidos: 0, semNovidade: false }
   }
 
@@ -427,6 +513,8 @@ export async function sincronizar(): Promise<ResultadoSync> {
   const mudouLa = assinatura(fundido.dados) !== assinatura(nuvem.backup.dados)
   if (mudouLa) await publicar(fundido)
   else marcarVersaoNuvem(nuvem.atualizadoEm)
+  // daqui em diante o que esta neste aparelho e desta conta
+  localStorage.setItem(CHAVE_DONO, conta)
 
   const recebidos = mudouAqui ? contar(fundido.dados) - contar(local.dados) : 0
   return {
@@ -481,7 +569,12 @@ export function ultimoSync(): Date | null {
 
 const CHAVE_FALHA = 'onemore:sync-falha'
 
-export interface FalhaSync { mensagem: string; quando: Date }
+export interface FalhaSync {
+  mensagem: string
+  quando: Date
+  /** A falha foi o aviso de dados de outra conta - so a escolha da pessoa resolve. */
+  outraConta?: boolean
+}
 
 /**
  * O sync automatico engole erro de proposito - quem esta no meio de uma serie
@@ -490,11 +583,21 @@ export interface FalhaSync { mensagem: string; quando: Date }
  * sobrava nada em lugar nenhum. Agora a ultima falha fica guardada e aparece em
  * Perfil > Sua conta, sem interromper ninguem.
  */
+/**
+ * O texto que aparece em Perfil > Sua conta. "Erro 502." nao diz nada pra
+ * quem usa o app: falha do servidor vira uma frase, o resto segue como veio.
+ */
+function mensagemDeFalha(e: unknown): string {
+  if (e instanceof ErroApi && e.status >= 500) return 'O servidor não respondeu. O que você anotou está salvo aqui e sobe assim que ele voltar.'
+  return (e as Error)?.message || String(e)
+}
+
 function registrarFalha(e: unknown) {
   try {
     localStorage.setItem(CHAVE_FALHA, JSON.stringify({
-      mensagem: (e as Error)?.message || String(e),
+      mensagem: mensagemDeFalha(e),
       quando: new Date().toISOString(),
+      outraConta: e instanceof ErroOutraConta,
     }))
   } catch { /* storage cheio ou bloqueado nao e motivo pra derrubar o sync */ }
 }
@@ -503,8 +606,8 @@ export function ultimaFalhaSync(): FalhaSync | null {
   const bruto = localStorage.getItem(CHAVE_FALHA)
   if (!bruto) return null
   try {
-    const { mensagem, quando } = JSON.parse(bruto)
-    return { mensagem, quando: new Date(quando) }
+    const { mensagem, quando, outraConta } = JSON.parse(bruto)
+    return { mensagem, quando: new Date(quando), outraConta: outraConta === true }
   } catch { return null }
 }
 
@@ -560,8 +663,9 @@ export async function sincronizarEmSilencio(): Promise<ResultadoSync | null> {
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return null
 
   try {
-    if (!(await usuarioAtual())) return null
-    return await sincronizar()
+    const u = await usuarioAtual()
+    if (!u) return null
+    return await sincronizar({ conta: u.email })
   } catch (e) {
     registrarFalha(e)
     return null
@@ -639,7 +743,20 @@ export function iniciarSyncAutomatico(aoSincronizar?: (r: ResultadoSync) => void
     // 401. Entrar na conta sincroniza na hora e a marca passa a existir
     if (!ultimoSync()) return
     try {
-      if (await novidadeNaNuvem()) await executar()
+      /**
+       * A nuvem nao mudou, mas a ultima tentativa daqui FALHOU (servidor fora,
+       * erro 5xx): o que foi gravado nesse meio tempo ainda nao subiu. So a
+       * pergunta "mudou la?" nunca mandava isso - ficava parado ate a proxima
+       * escrita ou troca de aba, e o outro aparelho nao via o treino. Com o
+       * servidor ainda fora, `novidadeNaNuvem` estoura antes e nada roda: nao
+       * vira martelada de 10 em 10 s.
+       *
+       * O conflito de conta (ErroOutraConta) nao entra: ele so se resolve com
+       * a escolha da pessoa, e tentar de novo sozinho nao mudaria nada.
+       */
+      const falha = ultimaFalhaSync()
+      const pendente = falha != null && !falha.outraConta
+      if ((await novidadeNaNuvem()) || pendente) await executar()
     } catch { /* rede instavel: a proxima consulta tenta de novo */ }
   }
 

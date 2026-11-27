@@ -223,7 +223,7 @@ export default function DietaAluno() {
                       <button key={idx} onClick={() => setEditando({ refeicao: ri, idx })}
                         className="w-full flex items-center gap-3 px-4 py-2.5 border-b border-line/40 text-left active:bg-surface-2">
                         <p className="flex-1 min-w-0 text-[13px] font-semibold truncate">{a?.nome ?? 'Alimento removido'}</p>
-                        <p className="text-[11.5px] text-muted shrink-0">{nq(it.qtd)} {nomeMedida(a, it.medida)}</p>
+                        <p className="text-[11.5px] text-muted shrink-0">{nq(it.qtd)} {nomeMedida(a, it.medida, it.qtd)}</p>
                         <p className="text-[11.5px] text-muted shrink-0 w-16 text-right">{a ? `${n0(macrosDe(a, it.gramas).kcal)} kcal` : ''}</p>
                       </button>
                     )

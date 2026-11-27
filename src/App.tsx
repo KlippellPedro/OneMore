@@ -1,41 +1,107 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react'
 import { HashRouter, Routes, Route, NavLink, useLocation, Navigate } from 'react-router-dom'
 import { rodarSeed } from './db/seed'
 import { usuarioAtual, iniciarSyncAutomatico } from './lib/sync'
 import { secaoDe } from './lib/secoes'
 import { iniciarLembretes, publicarAgenda } from './lib/lembretes'
 import { publicarCartao } from './lib/amigos'
+import { sanearXP } from './lib/xp'
 import { Feedback } from './components/Feedback'
 import { AplicarTema } from './components/AplicarTema'
 import { Icone } from './components/Icone'
+import { LimiteDeErro } from './components/LimiteDeErro'
 import { useSessaoAtiva, usePerfil, usePerfilCarregado } from './state/hooks'
 import { Link } from 'react-router-dom'
 
 import Home from './pages/Home'
-import Treinos from './pages/Treinos'
-import Programas from './pages/Programas'
-import EditorRotina from './pages/EditorRotina'
-import Sessao from './pages/Sessao'
-import DetalheSessao from './pages/DetalheSessao'
-import Exercicios from './pages/Exercicios'
-import DetalheExercicio from './pages/DetalheExercicio'
-import Dieta from './pages/Dieta'
-import PlanoAlimentar from './pages/PlanoAlimentar'
-import Alimentos from './pages/Alimentos'
-import Diario from './pages/Diario'
-import ImprimirDiario from './pages/ImprimirDiario'
-import ImprimirDieta from './pages/ImprimirDieta'
-import ListaCompras from './pages/ListaCompras'
-import Progresso from './pages/Progresso'
-import Perfil from './pages/Perfil'
-import Lembretes from './pages/Lembretes'
 import Entrada from './pages/Entrada'
-import Privacidade from './pages/Privacidade'
-import Amigos from './pages/Amigos'
-import Equipe from './pages/Equipe'
-import Aluno from './pages/Aluno'
-import ProgramaAluno from './pages/ProgramaAluno'
-import DietaAluno from './pages/DietaAluno'
+
+/**
+ * Cada tela (fora o Inicio e a Entrada) e um pedaco separado do JS. Num pacote
+ * so eram ~880 KB pra o celular ler e compilar antes do primeiro quadro, mesmo
+ * que a pessoa so fosse olhar o Inicio. Os pedacos sao baixados logo depois que
+ * o app abre (ver `adiantarPaginas`) e o service worker guarda todos, entao
+ * trocar de tela continua instantaneo - e offline, na academia.
+ */
+const PAGINAS = {
+  Treinos: () => import('./pages/Treinos'),
+  Programas: () => import('./pages/Programas'),
+  EditorRotina: () => import('./pages/EditorRotina'),
+  Sessao: () => import('./pages/Sessao'),
+  DetalheSessao: () => import('./pages/DetalheSessao'),
+  Exercicios: () => import('./pages/Exercicios'),
+  DetalheExercicio: () => import('./pages/DetalheExercicio'),
+  Dieta: () => import('./pages/Dieta'),
+  PlanoAlimentar: () => import('./pages/PlanoAlimentar'),
+  Alimentos: () => import('./pages/Alimentos'),
+  Diario: () => import('./pages/Diario'),
+  ImprimirDiario: () => import('./pages/ImprimirDiario'),
+  ImprimirDieta: () => import('./pages/ImprimirDieta'),
+  ListaCompras: () => import('./pages/ListaCompras'),
+  Progresso: () => import('./pages/Progresso'),
+  Perfil: () => import('./pages/Perfil'),
+  Lembretes: () => import('./pages/Lembretes'),
+  Privacidade: () => import('./pages/Privacidade'),
+  Amigos: () => import('./pages/Amigos'),
+  Equipe: () => import('./pages/Equipe'),
+  Aluno: () => import('./pages/Aluno'),
+  ProgramaAluno: () => import('./pages/ProgramaAluno'),
+  DietaAluno: () => import('./pages/DietaAluno'),
+}
+
+const Treinos = lazy(PAGINAS.Treinos)
+const Programas = lazy(PAGINAS.Programas)
+const EditorRotina = lazy(PAGINAS.EditorRotina)
+const Sessao = lazy(PAGINAS.Sessao)
+const DetalheSessao = lazy(PAGINAS.DetalheSessao)
+const Exercicios = lazy(PAGINAS.Exercicios)
+const DetalheExercicio = lazy(PAGINAS.DetalheExercicio)
+const Dieta = lazy(PAGINAS.Dieta)
+const PlanoAlimentar = lazy(PAGINAS.PlanoAlimentar)
+const Alimentos = lazy(PAGINAS.Alimentos)
+const Diario = lazy(PAGINAS.Diario)
+const ImprimirDiario = lazy(PAGINAS.ImprimirDiario)
+const ImprimirDieta = lazy(PAGINAS.ImprimirDieta)
+const ListaCompras = lazy(PAGINAS.ListaCompras)
+const Progresso = lazy(PAGINAS.Progresso)
+const Perfil = lazy(PAGINAS.Perfil)
+const Lembretes = lazy(PAGINAS.Lembretes)
+const Privacidade = lazy(PAGINAS.Privacidade)
+const Amigos = lazy(PAGINAS.Amigos)
+const Equipe = lazy(PAGINAS.Equipe)
+const Aluno = lazy(PAGINAS.Aluno)
+const ProgramaAluno = lazy(PAGINAS.ProgramaAluno)
+const DietaAluno = lazy(PAGINAS.DietaAluno)
+
+/**
+ * Baixa as outras telas quando o navegador estiver folgado: a primeira visita
+ * a cada tela nao espera rede, e quem abre o app em casa e vai pra academia
+ * sem internet ja tem tudo (mesmo antes de o service worker terminar de instalar).
+ */
+function adiantarPaginas() {
+  const carregar = () => { for (const f of Object.values(PAGINAS)) f().catch(() => {}) }
+  if ('requestIdleCallback' in window) window.requestIdleCallback(carregar, { timeout: 4000 })
+  else setTimeout(carregar, 1500)
+}
+
+/** Enquanto o pedaco da tela chega (so na primeira vez, e quase sempre instantaneo). */
+function CarregandoTela() {
+  return (
+    <div className="min-h-[60vh] flex items-center justify-center" role="status" aria-label="Carregando">
+      <div className="w-8 h-8 rounded-full border-2 border-line border-t-accent animate-spin" />
+    </div>
+  )
+}
+
+/** Erro numa tela nao derruba o app; trocar de rota zera o erro (ver LimiteDeErro). */
+function RotasProtegidas({ children }: { children: ReactNode }) {
+  const loc = useLocation()
+  return (
+    <LimiteDeErro key={loc.pathname}>
+      <Suspense fallback={<CarregandoTela />}>{children}</Suspense>
+    </LimiteDeErro>
+  )
+}
 
 const TABS_BASE = [
   { to: '/', label: 'Início', icone: 'casa' },
@@ -137,7 +203,17 @@ export default function App() {
   const [entrada, setEntrada] = useState<'vendo' | 'mostrar' | 'ok'>('vendo')
 
   useEffect(() => {
-    rodarSeed().then(() => setPronto(true)).catch(e => setErro(String(e)))
+    rodarSeed()
+      .then(() => {
+        setPronto(true)
+        adiantarPaginas()
+        // conserta XP de treino pago em dobro e total fora do ledger (ver sanearXP)
+        sanearXP().catch(e => console.error('[xp] nao consegui conferir o ledger', e))
+      })
+      .catch(e => {
+        console.error('[banco] nao abriu', e)
+        setErro(String(e))
+      })
   }, [])
 
   useEffect(() => {
@@ -184,12 +260,21 @@ export default function App() {
   }, [pronto, entrada])
 
   if (erro) {
+    // o detalhe tecnico ja foi pro console; pra quem usa, o que fazer
     return (
-      <div className="min-h-full flex items-center justify-center p-8 text-center">
-        <div>
+      <div role="alert" className="min-h-full flex items-center justify-center p-8 text-center">
+        <div className="max-w-[320px]">
           <div className="flex justify-center mb-4 text-bad"><Icone nome="alerta" tamanho={40} /></div>
-          <p className="font-bold mb-2">Não consegui abrir o banco local</p>
-          <p className="text-[13px] text-muted">{erro}</p>
+          <p className="font-bold mb-2">Não consegui abrir os dados deste aparelho</p>
+          <p className="text-[13px] text-muted leading-relaxed mb-5">
+            Costuma acontecer com o navegador em modo anônimo, sem espaço livre, ou com
+            o OneMore aberto em outra aba durante uma atualização. Feche as outras abas
+            e tente de novo.
+          </p>
+          <button onClick={() => location.reload()}
+            className="h-11 px-6 rounded-xl grad-accent text-white font-bold text-sm">
+            Tentar de novo
+          </button>
         </div>
       </div>
     )
@@ -203,12 +288,16 @@ export default function App() {
     )
   }
 
-  if (entrada === 'mostrar') return <><Entrada pronto={passouDaEntrada} /><Feedback /><AplicarTema /></>
+  if (entrada === 'mostrar') {
+    return <LimiteDeErro><Entrada pronto={passouDaEntrada} /><Feedback /><AplicarTema /></LimiteDeErro>
+  }
 
   return (
+    <LimiteDeErro>
     <HashRouter>
       <AoTrocarDeRota />
       <Miolo>
+        <RotasProtegidas>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/treinos" element={<Treinos />} />
@@ -236,11 +325,13 @@ export default function App() {
           <Route path="/equipe/aluno/:id/dieta" element={<DietaAluno />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </RotasProtegidas>
       </Miolo>
       <BarraSessao />
       <TabBar />
       <Feedback />
       <AplicarTema />
     </HashRouter>
+    </LimiteDeErro>
   )
 }

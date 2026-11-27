@@ -243,6 +243,6 @@ export const REFEICOES_PADRAO = [
   { nome: 'Lanche da manhã', horario: '10:00' },
   { nome: 'Almoço', horario: '12:30' },
   { nome: 'Lanche da tarde', horario: '16:00' },
-  { nome: 'Pre-treino', horario: '18:00' },
+  { nome: 'Pré-treino', horario: '18:00' },
   { nome: 'Jantar', horario: '21:00' },
 ]

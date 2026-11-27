@@ -6,9 +6,11 @@ import { gastoDiario, tmb, idadeDe } from '../lib/nutricao'
 import {
   baixarBackup, importar, apagarTudo, apagarTudoNaConta,
   entrar, criarConta, sair, usuarioAtual, novoCodigoRecuperacao, excluirConta,
-  sincronizar, ultimoSync, ultimaFalhaSync, ultimoBackup, type Backup,
+  sincronizar, ultimoSync, ultimaFalhaSync, ultimoBackup, donoDosDados, ErroOutraConta,
+  type Backup, type ResultadoSync,
 } from '../lib/sync'
 import { CodigoRecuperacao } from '../components/CodigoRecuperacao'
+import { ContaDiferente } from '../components/ContaDiferente'
 import { rodarSeed } from '../db/seed'
 import { restricoesDoPerfil } from '../lib/restricoes'
 import { MARCADORES, PRESETS, type Marcador } from '../db/marcadores'
@@ -17,7 +19,7 @@ import { SheetMetas } from '../components/SheetMetas'
 import { SheetAparencia } from '../components/SheetAparencia'
 import { CardInstalar } from '../components/Instalar'
 import { resumoTema } from '../lib/tema'
-import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip } from '../components/ui'
+import { Card, Btn, Sheet, Campo, Input, Select, Confirmar, Barra, Chip, Switch } from '../components/ui'
 import { useUI } from '../state/ui'
 import { n0, n1, pl } from '../lib/format'
 import { streakVivo } from '../lib/xp'
@@ -25,7 +27,7 @@ import { Icone } from '../components/Icone'
 import type { Perfil as TPerfil } from '../db/types'
 
 const ATIVIDADES = [
-  { v: 1.2, nome: 'Sedentario', desc: 'Trabalho parado, sem exercício' },
+  { v: 1.2, nome: 'Sedentário', desc: 'Trabalho parado, sem exercício' },
   { v: 1.375, nome: 'Leve', desc: 'Exercício 1 a 3x por semana' },
   { v: 1.55, nome: 'Moderado', desc: 'Exercício 3 a 5x por semana' },
   { v: 1.725, nome: 'Intenso', desc: 'Exercício 6 a 7x por semana' },
@@ -53,6 +55,8 @@ export default function Perfil() {
   /** 'conta' = o aparelho sincroniza, entao apaga em todos; 'local' = so aqui. */
   const [apagar, setApagar] = useState<null | 'conta' | 'local'>(null)
   const arquivo = useRef<HTMLInputElement>(null)
+  /** Backup lido do arquivo, esperando a confirmacao. */
+  const [restaurar, setRestaurar] = useState<Backup | null>(null)
 
   /**
    * Com conta, limpar so este aparelho nao apaga nada: a proxima sincronizacao
@@ -65,14 +69,30 @@ export default function Perfil() {
     setApagar(temConta ? 'conta' : 'local')
   }
 
-  async function importarArquivo(f: File) {
+  /**
+   * Le o arquivo e PERGUNTA antes de substituir. Escolher o arquivo ja
+   * trocava tudo na hora: um backup velho escolhido por engano apagava o que
+   * a pessoa tinha hoje, sem volta pra quem nao tem conta.
+   */
+  async function lerArquivo(f: File) {
     try {
-      const texto = await f.text()
-      const r = await importar(JSON.parse(texto) as Backup)
+      const backup = JSON.parse(await f.text()) as Backup
+      if (backup?.app !== 'onemore' || !backup.dados) throw new Error('Esse arquivo não é um backup do OneMore.')
+      setRestaurar(backup)
+    } catch (e) {
+      toast('Não consegui ler esse arquivo', 'erro', e instanceof SyntaxError ? 'O arquivo não é um JSON válido.' : (e as Error).message)
+    }
+  }
+
+  async function restaurarBackup(backup: Backup) {
+    try {
+      const r = await importar(backup)
+      setRestaurar(null)
       toast(`${r.registros} registros restaurados`, 'ok')
       setTimeout(() => location.reload(), 900)
     } catch (e) {
-      toast('Não consegui ler esse arquivo', 'erro', String((e as Error).message))
+      setRestaurar(null)
+      toast('Não consegui restaurar', 'erro', (e as Error).message)
     }
   }
 
@@ -142,7 +162,7 @@ export default function Perfil() {
             onClick={() => setAberto('saude')} />
         </Grupo>
 
-        <Grupo titulo="Catalogos">
+        <Grupo titulo="Catálogos">
           <LinhaLink to="/treinos/programas" titulo="Programas de treino" sub="PPL, Upper/Lower, Full Body, Arnold, 5x5" />
           <LinhaLink to="/exercicios" titulo="Exercícios" sub="Ver, favoritar, adicionar vídeo, criar novos" />
           <LinhaLink to="/alimentos" titulo="Alimentos" sub="Macros e medidas caseiras" />
@@ -155,7 +175,7 @@ export default function Perfil() {
             onClick={() => setAberto('nuvem')} />
           <Linha titulo="Baixar backup" sub={textoBackup()}
             onClick={async () => { await baixarBackup(); toast('Backup gerado', 'ok') }} />
-          <Linha titulo="Restaurar backup" sub="Substitui tudo pelo conteudo do arquivo"
+          <Linha titulo="Restaurar backup" sub="Substitui tudo pelo conteúdo do arquivo"
             onClick={() => arquivo.current?.click()} />
           <Linha titulo="Apagar tudo" sub="Zera treinos, dieta e XP - com conta, em todos os aparelhos" perigo
             onClick={pedirApagar} />
@@ -163,7 +183,7 @@ export default function Perfil() {
         </Grupo>
 
         <input ref={arquivo} type="file" accept="application/json,.json" className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) importarArquivo(f); e.target.value = '' }} />
+          onChange={e => { const f = e.target.files?.[0]; if (f) lerArquivo(f); e.target.value = '' }} />
 
         <p className="text-center text-[11px] text-muted/60 py-6">
           OneMore - seus dados ficam no seu aparelho.
@@ -175,6 +195,14 @@ export default function Perfil() {
       <SheetNuvem aberto={aberto === 'nuvem'} fechar={() => setAberto(null)} />
       <SheetSaude aberto={aberto === 'saude'} fechar={() => setAberto(null)} perfil={perfil} />
       <SheetAparencia aberto={aberto === 'aparencia'} fechar={() => setAberto(null)} perfil={perfil} />
+
+      <Confirmar aberto={restaurar != null} perigo titulo="Restaurar este backup?"
+        texto={restaurar ? `O que está neste aparelho é trocado pelo arquivo${
+          restaurar.criadoEm && !Number.isNaN(Date.parse(restaurar.criadoEm))
+            ? ` de ${new Date(restaurar.criadoEm).toLocaleString('pt-BR')}` : ''
+        }. Com conta, o que já está na nuvem volta na próxima sincronização; sem conta, o que não está no arquivo se perde. Baixe um backup de agora antes se tiver dúvida.` : undefined}
+        onNao={() => setRestaurar(null)}
+        onSim={() => restaurar && restaurarBackup(restaurar)} />
 
       <Confirmar aberto={apagar != null} perigo titulo="Apagar tudo mesmo?"
         texto={apagar === 'conta'
@@ -327,12 +355,25 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
   const [codigo, setCodigo] = useState<string | null>(null)
   const [excluindo, setExcluindo] = useState(false)
   const [senhaExcluir, setSenhaExcluir] = useState('')
+  /** A conta logada nao e a dona dos dados daqui: a sincronizacao espera a escolha. */
+  const [conflito, setConflito] = useState<{ dono: string; conta: string } | null>(null)
+
+  /** true = os dados deste aparelho sao de outra conta, e o painel de escolha abriu. */
+  function conferirDono(conta: string) {
+    const dono = donoDosDados()
+    if (!dono || dono === conta) return false
+    setConflito({ dono, conta })
+    return true
+  }
 
   useEffect(() => {
     if (!aberto) return
     setUltima(ultimoSync())
     setFalha(ultimaFalhaSync())
-    usuarioAtual().then(u => setUsuario(u?.email ?? null)).catch(() => setUsuario(null))
+    usuarioAtual().then(u => {
+      setUsuario(u?.email ?? null)
+      if (u) conferirDono(u.email)
+    }).catch(() => setUsuario(null))
   }, [aberto])
 
   async function tentar(nome: string, fn: () => Promise<void>) {
@@ -349,6 +390,7 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
       // o codigo aparece uma vez so: mostra antes de qualquer outra coisa
       setCodigo(u!.codigo)
       toast('Conta criada', 'ok')
+      if (conferirDono(u!.email)) return
       await sincronizarAgora(true)
       return
     }
@@ -356,12 +398,24 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
     setUsuario(u?.email ?? null)
     setSenha('')
     toast('Conectado', 'ok')
+    // dados de outra conta aqui: nada sincroniza ate a pessoa escolher
+    if (u && conferirDono(u.email)) return
     // primeira sincronizacao logo apos entrar: e o que a pessoa quer de fato
     await sincronizarAgora(true)
   }
 
   async function sincronizarAgora(silencioso = false) {
-    const r = await sincronizar()
+    let r: ResultadoSync
+    try {
+      r = await sincronizar()
+    } catch (e) {
+      if (e instanceof ErroOutraConta) { setConflito({ dono: e.dono, conta: e.conta }); return }
+      throw e
+    }
+    mostrarResultado(r, silencioso)
+  }
+
+  function mostrarResultado(r: ResultadoSync, silencioso = false) {
     setUltima(r.quando)
     setFalha(null)
     if (silencioso && r.semNovidade) return
@@ -375,13 +429,30 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
     <Sheet aberto={aberto} fechar={fechar} titulo="Sua conta" alto>
       <p className="text-[12.5px] text-muted leading-relaxed mb-4">
         O app funciona 100% offline - a conta serve pra ter backup e usar o mesmo
-        perfil no celular e no PC. Seus dados ficam na sua conta e ninguem mais le.
+        perfil no celular e no PC. Seus dados ficam na sua conta e ninguém mais lê.
       </p>
 
       {codigo && (
         <div className="mb-4">
           <CodigoRecuperacao codigo={codigo} email={usuario ?? undefined}
             onPronto={() => setCodigo(null)} />
+        </div>
+      )}
+
+      {/* so com a conta do aviso ainda logada: depois de sair ou excluir, o aviso nao tem mais sentido */}
+      {conflito && !codigo && usuario === conflito.conta && (
+        <div className="mb-4">
+          <ContaDiferente dono={conflito.dono} conta={conflito.conta}
+            onFeito={(r, escolha) => {
+              setConflito(null)
+              mostrarResultado(r)
+              // comecar limpo trocou o banco inteiro por baixo das telas: recarrega
+              if (escolha === 'limpo') setTimeout(() => location.reload(), 900)
+            }}
+            onSair={() => tentar('sair', async () => {
+              await sair(); setUsuario(null); setConflito(null); setCriando(false)
+              toast('Você saiu', 'ok', 'Os dados deste aparelho ficaram como estavam')
+            })} />
         </div>
       )}
 
@@ -392,7 +463,7 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
             <div className="flex items-center gap-3">
               <p className="flex-1 text-[13px] truncate">Conectado como <b>{usuario}</b></p>
               <Btn size="sm" disabled={ocupado === 'sair'} onClick={() => tentar('sair', async () => {
-                await sair(); setUsuario(null); toast('Você saiu', 'ok')
+                await sair(); setUsuario(null); setConflito(null); setCriando(false); toast('Você saiu', 'ok')
               })}>Sair</Btn>
             </div>
             <p className="text-[11.5px] text-muted leading-relaxed mt-3">
@@ -430,7 +501,7 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
                       disabled={ocupado === 'excluir' || !senhaExcluir}
                       onClick={() => tentar('excluir', async () => {
                         await excluirConta(senhaExcluir)
-                        setUsuario(null); setExcluindo(false); setSenhaExcluir('')
+                        setUsuario(null); setConflito(null); setExcluindo(false); setSenhaExcluir('')
                         toast('Conta excluída', 'ok', 'Seus dados continuam neste aparelho')
                       })}>
                       {ocupado === 'excluir' ? 'Excluindo...' : 'Excluir de vez'}
@@ -462,7 +533,7 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
                 : (criando ? 'Criar conta' : 'Entrar')}
             </Btn>
             <p className="text-[11px] text-muted leading-relaxed mt-2.5">
-              Ao criar a conta você recebe um código de recuperação - guarde. E o
+              Ao criar a conta você recebe um código de recuperação - guarde. É o
               único jeito de trocar a senha se esquecer, porque o app não envia
               e-mail. Esqueceu a senha? Saia do app e use "Esqueci a senha" na
               tela de entrada.
@@ -474,9 +545,9 @@ function SheetNuvem({ aberto, fechar }: { aberto: boolean; fechar: () => void })
       {/* passo 2 */}
       <Passo n={2} titulo="Sincronizar" desabilitado={!usuario}>
         <p className="text-[12px] text-muted leading-relaxed mb-3">
-          Junta o que esta aqui com o que esta na nuvem, registro a registro -
-          nada e sobrescrito. Acontece sozinho ao abrir o app; o botao e so pra
-          quando voce quiser na hora.
+          Junta o que está aqui com o que está na nuvem, registro a registro -
+          nada é sobrescrito. Acontece sozinho ao abrir o app; o botão é só pra
+          quando você quiser na hora.
         </p>
         <Btn variant="primary" size="lg" className="w-full" disabled={ocupado === 'sync'}
           onClick={() => tentar('sync', () => sincronizarAgora())}>
@@ -516,18 +587,10 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
               e você ganha o registro de glicemia e insulina.
             </p>
           </div>
-          <button
-            onClick={async () => {
-              await salvarPerfil({ diabetesTipo1: !ligado })
-              toast(ligado ? 'Desligado' : 'Ligado', 'ok')
-            }}
-            className={`toque w-12 h-7 shrink-0 rounded-full transition-colors relative ${
-              ligado ? 'grad-accent' : 'bg-surface-2 border border-line'
-            }`}>
-            <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
-              ligado ? 'left-6' : 'left-1'
-            }`} />
-          </button>
+          <Switch ligado={ligado} rotulo="Diabetes tipo 1" onChange={async v => {
+            await salvarPerfil({ diabetesTipo1: v })
+            toast(v ? 'Ligado' : 'Desligado', 'ok')
+          }} />
         </div>
       </Card>
 
@@ -539,7 +602,7 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
             </h3>
             <ul className="text-[12.5px] leading-relaxed text-txt/85 space-y-1.5">
               <li>Mostra o carboidrato de cada refeição antes do total de calorias.</li>
-              <li>Gera o cardápio com carboidrato parecido entre as refeições, pra dose ficar previsivel.</li>
+              <li>Gera o cardápio com carboidrato parecido entre as refeições, pra dose ficar previsível.</li>
               <li>Guarda glicemia, insulina aplicada e contexto, com histórico e gráfico.</li>
             </ul>
           </Card>
@@ -549,10 +612,10 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
               O que o app não faz
             </h3>
             <p className="text-[12.5px] leading-relaxed text-txt/85">
-              Não calcula dose de insulina, razao carboidrato/insulina nem fator de
-              correcao, e não avalia se um valor está bom ou ruim. Isso e do seu
+              Não calcula dose de insulina, razão carboidrato/insulina nem fator de
+              correção, e não avalia se um valor está bom ou ruim. Isso é do seu
               endocrinologista. Leve o plano de treino e o cardápio pra ele e pro
-              nutricionista antes de começar - superavit calorico muda a necessidade
+              nutricionista antes de começar - superávit calórico muda a necessidade
               de insulina.
             </p>
           </Card>
@@ -562,8 +625,8 @@ function SheetSaude({ aberto, fechar, perfil }: { aberto: boolean; fechar: () =>
               Na academia
             </h3>
             <p className="text-[12.5px] leading-relaxed text-txt/85">
-              Leve carboidrato de acao rapida na mochila e meca antes e depois do
-              treino - o app tem os momentos "pre-treino" e "pos-treino" prontos no
+              Leve carboidrato de ação rápida na mochila e meça antes e depois do
+              treino - o app tem os momentos "pré-treino" e "pós-treino" prontos no
               registro justamente pra você enxergar esse padrão com o tempo.
             </p>
           </Card>
@@ -596,16 +659,10 @@ function Hipertensao({ perfil }: { perfil: TPerfil }) {
               Mostra o sódio do dia na Dieta, com o teto de 2.000 mg da OMS.
             </p>
           </div>
-          <button
-            onClick={async () => {
-              await salvarPerfil({ hipertensao: !ligado })
-              toast(ligado ? 'Desligado' : 'Ligado', 'ok')
-            }}
-            className={`toque w-12 h-7 shrink-0 rounded-full transition-colors relative ${
-              ligado ? 'bg-accent' : 'bg-surface-2'}`}>
-            <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
-              ligado ? 'left-6' : 'left-1'}`} />
-          </button>
+          <Switch ligado={ligado} rotulo="Acompanhar sódio" onChange={async v => {
+            await salvarPerfil({ hipertensao: v })
+            toast(v ? 'Ligado' : 'Desligado', 'ok')
+          }} />
         </div>
       </Card>
 
@@ -615,15 +672,15 @@ function Hipertensao({ perfil }: { perfil: TPerfil }) {
             Leia isto antes de confiar no número
           </h3>
           <p className="text-[12.5px] leading-relaxed text-txt/85">
-            O catalogo traz o sódio do alimento <b>sem sal adicionado</b>. Arroz e
+            O catálogo traz o sódio do alimento <b>sem sal adicionado</b>. Arroz e
             feijão cozidos aparecem com quase nada porque e isso que o grão tem - o
             sal da panela não está aí. Pra conta fechar, lance também o
             <b> "Sal de cozinha"</b>: uma colher de cha rasa tem cerca de 1.900 mg,
             quase o dia inteiro sozinha.
           </p>
           <p className="text-[12.5px] leading-relaxed text-txt/85 mt-2.5">
-            Ou seja: o total e um <b>piso</b>, não um retrato. E ele não substitui
-            medir a pressão nem conversar com seu medico.
+            Ou seja: o total é um <b>piso</b>, não um retrato. E ele não substitui
+            medir a pressão nem conversar com seu médico.
           </p>
         </Card>
       )}
@@ -661,7 +718,7 @@ function Restricoes({ perfil }: { perfil: TPerfil }) {
       </h3>
       <p className="text-[12.5px] text-muted leading-relaxed mb-3 px-1">
         Marque o que não pode ou não quer comer. O app passa a avisar quando
-        aparecer no seu plano, marca no catalogo, para de sugerir na substituição
+        aparecer no seu plano, marca no catálogo, para de sugerir na substituição
         e não usa no cardápio gerado. Nada fica bloqueado - a escolha continua sua.
       </p>
 
@@ -698,7 +755,7 @@ function Restricoes({ perfil }: { perfil: TPerfil }) {
       </div>
 
       <p className="text-[11px] text-muted leading-relaxed mt-3 px-1">
-        Alergia grave e coisa seria: o catalogo cobre o que e obvio pelo alimento,
+        Alergia grave é coisa séria: o catálogo cobre o que é óbvio pelo alimento,
         mas não substitui ler o rotulo do que você compra.
       </p>
     </>

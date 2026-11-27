@@ -12,6 +12,7 @@ import { Card, Btn, Sheet, Campo, Input, Barra, Chip, Vazio } from '../component
 import { useUI } from '../state/ui'
 import { n0, n1, pl, peso, dataCurta, duracao, dataNumerica } from '../lib/format'
 import { calcularProgressao, ROTULO_TENDENCIA } from '../lib/progressao'
+import { lerMedidas } from '../lib/medidas'
 import { useMapaExercicios } from '../state/hooks'
 import { ResumoSemana } from '../components/ResumoSemana'
 
@@ -327,6 +328,7 @@ function SheetPeso({ aberto, fechar, pesoAtual, onSalvo }: {
   aberto: boolean; fechar: () => void; pesoAtual: number
   onSalvo: (g: Awaited<ReturnType<typeof registrarCorpo>>) => void
 }) {
+  const { toast } = useUI()
   const [data, setData] = useState(hoje())
   const [f, setF] = useState({
     peso: String(pesoAtual), gorduraPct: '', cintura: '', braco: '', peito: '', coxa: '', quadril: '',
@@ -352,8 +354,6 @@ function SheetPeso({ aberto, fechar, pesoAtual, onSalvo }: {
     </Campo>
   )
 
-  const num = (s: string) => (s.trim() ? Number(s) : undefined)
-
   return (
     <Sheet aberto={aberto} fechar={fechar} titulo="Registrar medidas" alto>
       <Campo label="Data">
@@ -374,10 +374,10 @@ function SheetPeso({ aberto, fechar, pesoAtual, onSalvo }: {
       </div>
 
       <Btn variant="primary" size="lg" className="w-full mt-2" onClick={async () => {
-        const g = await registrarCorpo(data, {
-          peso: num(f.peso), gorduraPct: num(f.gorduraPct), cintura: num(f.cintura),
-          braco: num(f.braco), peito: num(f.peito), coxa: num(f.coxa), quadril: num(f.quadril),
-        })
+        // sem isto entrava peso 0, negativo ou 5000, e data vazia - ver lib/medidas.ts
+        const lido = lerMedidas(f, data, hoje())
+        if (!lido.ok) return toast('Confira as medidas', 'erro', lido.erro)
+        const g = await registrarCorpo(data, lido.dados)
         onSalvo(g)
         fechar()
       }}>Salvar</Btn>

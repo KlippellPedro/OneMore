@@ -187,7 +187,7 @@ function AvisoRestricaoAlimento({ alimentoId }: { alimentoId: string }) {
       <span className="text-warn shrink-0 mt-0.5"><Icone nome="alerta" tamanho={16} /></span>
       <p className="text-[12px] leading-relaxed text-txt/85">
         <b className="text-warn">Este {textoConflito(bate)}</b> - você marcou pra evitar
-        em Perfil {'>'} Saúde. Da pra lancar assim mesmo, ou voltar e escolher outro.
+        em Perfil {'>'} Saúde. Dá pra lançar assim mesmo, ou voltar e escolher outro.
       </p>
     </div>
   )

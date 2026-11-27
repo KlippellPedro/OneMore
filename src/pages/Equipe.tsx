@@ -384,7 +384,7 @@ function Entrar({ codigoInicial, entrou, discreto }: { codigoInicial: string; en
           Com o código do seu treinador (ou personal), seus treinos passam a ser acompanhados e o treinador
           pode montar o seu treino e a sua dieta.
         </p>
-        <Input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="K7Q2-XP9M"
+        <Input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="K7Q2-XP9M" aria-label="Código da equipe"
           autoCapitalize="characters" autoComplete="off" spellCheck={false}
           className="font-mono tracking-[0.12em] uppercase mb-3" />
         <p className="text-[12px] font-medium text-muted mb-1.5">O que o treinador vai ver</p>

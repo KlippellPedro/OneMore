@@ -135,7 +135,7 @@ export const DIETAS_PRONTAS: DietaPronta[] = [
         ],
       },
       {
-        nome: 'Pre-treino', horario: '18:00',
+        nome: 'Pré-treino', horario: '18:00',
         nota: 'Sem gordura e sem fibra de proposito - absorve rápido e previsivel.',
         itens: [
           i('al_tapioca-goma-hidratada', 1, 'beiju medio', 60),

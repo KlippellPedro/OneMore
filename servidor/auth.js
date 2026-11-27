@@ -150,9 +150,9 @@ const SENHAS_COMUNS = new Set([
 export function problemaNaSenha(senha, email = '') {
   const s = senha.normalize('NFKC').toLowerCase()
   const local = normalizarEmail(email).split('@')[0]
-  if (SENHAS_COMUNS.has(s) || /^(.)\1+$/.test(s)) return 'Essa senha e muito comum. Escolha outra.'
+  if (SENHAS_COMUNS.has(s) || /^(.)\1+$/.test(s)) return 'Essa senha é muito comum. Escolha outra.'
   if (email && (s === normalizarEmail(email) || (local.length >= 6 && s === local))) {
-    return 'A senha nao pode ser igual ao e-mail.'
+    return 'A senha não pode ser igual ao e-mail.'
   }
   return null
 }

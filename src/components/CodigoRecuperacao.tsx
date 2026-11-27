@@ -53,7 +53,7 @@ export function CodigoRecuperacao({ codigo, email, onPronto }: {
       </div>
 
       <p className="text-[12.5px] text-txt/85 leading-relaxed mb-3">
-        Ele aparece <b>uma única vez</b>. E com ele que você troca a senha se
+        Ele aparece <b>uma única vez</b>. É com ele que você troca a senha se
         esquecer - o OneMore não manda e-mail de recuperação. Sem o código, senha
         esquecida vira conta perdida.
       </p>

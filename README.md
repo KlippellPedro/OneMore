@@ -43,6 +43,19 @@ npm run dev -- --host
 
 O terminal mostra um endereço tipo `http://192.168.0.10:5173` — abre esse no celular.
 
+### Testes
+
+```bash
+npm test          # unidade: fusão, XP, semana, dieta, validação da API (sem banco)
+npm run lint
+npm run test:api  # segurança da API ponta a ponta - precisa do servidor local + Postgres
+```
+
+O `test:api` cria contas e tenta ler e mexer no que é dos outros (backup, caixa de
+envios, alunos de outro treinador), força bruta, CSRF e corpo gigante. Ele só aceita
+endereço local (`ONEMORE_API`, padrão `http://127.0.0.1:8099/api`) — nunca aponte pra
+produção. Suba o Postgres descartável acima e o `npm run servidor:local` antes.
+
 ---
 
 ## Instalando no celular
@@ -286,6 +299,14 @@ sincronização daquele aparelho para sempre, calado.
 Erro de rede no caminho automático é engolido de propósito — quem está treinando não
 precisa de um alerta na cara —, mas a última falha fica registrada e aparece em
 **Perfil → Sua conta**, embaixo de "Última vez".
+
+**Aparelho compartilhado.** O app lembra de qual conta são os dados do aparelho, mesmo
+depois de sair dela. Se outra conta entrar ali, nada sincroniza até a pessoa escolher:
+**usar só a conta dela** (limpa o aparelho; os dados da outra conta continuam na nuvem
+dela), **juntar tudo** (só se as duas contas forem suas) ou **cancelar e sair**. Sem
+isso, entrar no celular de outra pessoa levava os treinos, a dieta, o peso e a glicemia
+dela pra sua conta. Sair da conta sincroniza antes, pra não deixar a última mudança só
+no aparelho.
 
 Sem nuvem, **Perfil → Baixar backup** gera um JSON com tudo, e **Restaurar backup**
 traz de volta. A linha do backup mostra quando foi o último arquivo baixado naquele

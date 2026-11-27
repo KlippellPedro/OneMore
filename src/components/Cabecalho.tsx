@@ -1,19 +1,45 @@
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
+
+/**
+ * Tela de cima, pra quando nao ha tela do app pra onde voltar - a pagina foi
+ * aberta direto por link de convite, notificacao, atalho do icone ou recarga.
+ * Os catalogos e as telas sociais sao abertos a partir do Perfil.
+ */
+function paiDe(caminho: string): string {
+  const p = caminho.replace(/\/+$/, '') || '/'
+  if (/^\/historico\//.test(p)) return '/progresso'
+  if (/^\/equipe\/aluno\/[^/]+$/.test(p)) return '/equipe'
+  if (/^\/(amigos|equipe|lembretes|privacidade|exercicios|alimentos)$/.test(p)) return '/perfil'
+  return p.slice(0, p.lastIndexOf('/')) || '/'
+}
 
 /** Cabecalho de pagina interna, com voltar. */
 export function Cabecalho({ titulo, sub, acao, voltarPara }: {
   titulo: string; sub?: string; acao?: ReactNode; voltarPara?: string
 }) {
   const nav = useNavigate()
+  const loc = useLocation()
+
+  function voltar() {
+    if (voltarPara) return nav(voltarPara)
+    /**
+     * O roteador guarda a posicao no historico em `idx`. Zero = esta e a
+     * primeira tela do app nesta aba: `nav(-1)` saia do app (ou nao fazia
+     * nada, numa aba nova) - o botao parecia quebrado. Ai sobe um nivel.
+     */
+    const idx = (window.history.state as { idx?: number } | null)?.idx ?? 0
+    if (idx > 0) return nav(-1)
+    nav(paiDe(loc.pathname), { replace: true })
+  }
+
   return (
     <header className="sticky top-0 z-30 bg-bg/95 backdrop-blur-lg border-b border-line/60 safe-t relative">
       <FioDaSecao />
       <div className="flex items-center gap-2 px-3 h-14">
-        <button
-          onClick={() => (voltarPara ? nav(voltarPara) : nav(-1))}
+        <button onClick={voltar} aria-label="Voltar"
           className="toque w-9 h-9 shrink-0 rounded-xl flex items-center justify-center text-muted active:bg-surface-2">
-          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>

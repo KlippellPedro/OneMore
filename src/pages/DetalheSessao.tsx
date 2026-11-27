@@ -45,7 +45,7 @@ export default function DetalheSessao() {
         <Cabecalho titulo="Treino" voltarPara="/progresso" />
         <Vazio icone="prancheta" titulo="Treino não encontrado"
           texto="Ele pode ter sido apagado."
-          acao={<Btn variant="primary" onClick={() => history.back()}>Voltar</Btn>} />
+          acao={<Btn variant="primary" onClick={() => nav('/progresso', { replace: true })}>Voltar</Btn>} />
       </div>
     )
   }
@@ -121,7 +121,7 @@ export default function DetalheSessao() {
                   <div className="flex items-start gap-3 mb-2.5">
                     <span className="w-1 self-stretch rounded-full shrink-0 min-h-[40px]"
                       style={{ background: ex ? corGrupo(ex.grupo) : 'var(--color-muted)' }} />
-                    <Link to={`/exercicios/${exId}`} className="shrink-0">
+                    <Link to={`/exercicios/${exId}`} className="shrink-0" tabIndex={-1} aria-hidden="true">
                       <ImagemExercicio exercicioId={exId} tamanho="mini" animar={false} />
                     </Link>
                     <div className="flex-1 min-w-0">

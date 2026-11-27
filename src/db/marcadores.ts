@@ -46,17 +46,17 @@ export const MARCADORES: Record<Marcador, InfoMarcador> = {
   },
   gluten: {
     nome: 'Glúten',
-    rotulo: 'Doenca celíaca ou sensibilidade ao glúten',
+    rotulo: 'Doença celíaca ou sensibilidade ao glúten',
     descricao:
       'Trigo, cevada e centeio. A aveia entra junto de proposito: ela não tem '
       + 'glúten, mas quase sempre e processada onde se processa trigo - quem tem '
-      + 'doenca celíaca só deve comer aveia com selo "sem glúten".',
+      + 'doença celíaca só deve comer aveia com selo "sem glúten".',
   },
   carne: { nome: 'Carne', rotulo: 'Não como carne', descricao: 'Boi, porco e aves, incluindo embutidos.' },
   peixe: { nome: 'Peixe e frutos do mar', rotulo: 'Não como peixe', descricao: 'Peixes, frutos do mar e enlatados.' },
   ovo: { nome: 'Ovo', rotulo: 'Alergia ou restrição a ovo', descricao: 'Ovo e o que leva ovo, como maionese e albumina.' },
   amendoim: { nome: 'Amendoim', rotulo: 'Alergia a amendoim', descricao: 'Amendoim e derivados.' },
-  castanhas: { nome: 'Castanhas', rotulo: 'Alergia a castanhas', descricao: 'Castanhas, nozes e amendoas.' },
+  castanhas: { nome: 'Castanhas', rotulo: 'Alergia a castanhas', descricao: 'Castanhas, nozes e amêndoas.' },
   soja: { nome: 'Soja', rotulo: 'Alergia ou restrição a soja', descricao: 'Soja e derivados, incluindo shoyu.' },
 }
 

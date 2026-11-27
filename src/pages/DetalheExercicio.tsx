@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db, isoDia } from '../db'
 import { apagarExercicio, ondeUsam } from '../lib/acoes'
@@ -8,7 +8,7 @@ import { Cabecalho } from '../components/Cabecalho'
 import { Card, Btn, Vazio, Sheet, Campo, Input, Confirmar } from '../components/ui'
 import { Grafico } from '../components/Grafico'
 import { useUI } from '../state/ui'
-import { youtubeId, dataNumerica, n0, peso, pl } from '../lib/format'
+import { youtubeId, dataNumerica, n0, peso, pl, linkSeguro, imagemSegura } from '../lib/format'
 import { Icone, BotaoFavorito } from '../components/Icone'
 import { ImagemExercicio } from '../components/ImagemExercicio'
 import { CardVariacoes } from '../components/Variacoes'
@@ -20,6 +20,7 @@ import { nq } from '../lib/format'
 
 export default function DetalheExercicio() {
   const { id = '' } = useParams()
+  const nav = useNavigate()
   const { toast } = useUI()
   // `?? null` separa "carregando" de "não existe" - ver DetalheSessao
   const ex = useLiveQuery(() => db.exercicios.get(id).then(e => e ?? null), [id])
@@ -58,7 +59,7 @@ export default function DetalheExercicio() {
       <div>
         <Cabecalho titulo="Exercício" voltarPara="/exercicios" />
         <Vazio icone="halter" titulo="Exercício não encontrado"
-          texto="Ele pode ter sido apagado do catalogo." />
+          texto="Ele pode ter sido apagado do catálogo." />
       </div>
     )
   }
@@ -118,8 +119,8 @@ export default function DetalheExercicio() {
                 allowFullScreen />
             </div>
           </div>
-        ) : ex.videoUrl ? (
-          <a href={ex.videoUrl} target="_blank" rel="noreferrer"
+        ) : linkSeguro(ex.videoUrl) ? (
+          <a href={linkSeguro(ex.videoUrl)} target="_blank" rel="noopener noreferrer"
             className="flex items-center justify-center gap-2 p-4 rounded-2xl bg-surface border border-line mb-3 text-[13px] font-semibold text-accent">
             Abrir vídeo da execução
             <Icone nome="link-externo" tamanho={15} />
@@ -133,8 +134,9 @@ export default function DetalheExercicio() {
           </Card>
         )}
 
-        {ex.imagemUrl && (
-          <img src={ex.imagemUrl} alt={ex.nome} className="w-full rounded-2xl border border-line mb-3" />
+        {imagemSegura(ex.imagemUrl) && (
+          <img src={imagemSegura(ex.imagemUrl)} alt={ex.nome} referrerPolicy="no-referrer"
+            className="w-full rounded-2xl border border-line mb-3" />
         )}
 
         {ex.videoUrl && (
@@ -253,7 +255,9 @@ export default function DetalheExercicio() {
             }}>Remover</Btn>
           )}
           <Btn variant="primary" className="flex-1" onClick={async () => {
-            await db.exercicios.update(id, { videoUrl: url.trim() || undefined, atualizadoEm: Date.now() })
+            const link = linkSeguro(url)
+            if (url.trim() && !link) return toast('Link inválido', 'erro', 'Cole um endereço que comece com https://')
+            await db.exercicios.update(id, { videoUrl: link, atualizadoEm: Date.now() })
             setEditVideo(false); toast('Vídeo salvo', 'ok')
           }}>Salvar</Btn>
         </div>
@@ -271,7 +275,9 @@ export default function DetalheExercicio() {
         onSim={async () => {
           await apagarExercicio(id)
           toast(`${ex.nome} apagado`, 'ok')
-          history.back()
+          // replace: voltar depois nao pode cair de novo na pagina de um exercicio que nao existe.
+          // E nao history.back(): aberto por link, isso saia do app
+          nav('/exercicios', { replace: true })
         }} />
     </div>
   )
@@ -282,8 +288,8 @@ const FIM = 'Os treinos já registrados no histórico continuam lá.'
 /** Diz de onde o exercicio vai sumir, com o numero na frente: "das rotinas que
  *  usam" era vago demais pra decidir se pode apagar. */
 function textoApagar(usos?: { rotinas: number; sessoesAbertas: number }) {
-  if (!usos) return `Ele sai do catalogo. ${FIM}`
-  const partes = ['do catalogo']
+  if (!usos) return `Ele sai do catálogo. ${FIM}`
+  const partes = ['do catálogo']
   if (usos.rotinas > 0) partes.push(`de ${pl(usos.rotinas, 'rotina')}`)
   if (usos.sessoesAbertas > 0) partes.push('do treino em andamento')
   const ultimo = partes.pop()!

@@ -60,6 +60,58 @@ export function youtubeId(url?: string): string | null {
   return m ? m[1] : null
 }
 
+/** Plural de UMA palavra em portugues - as regras que as medidas caseiras usam. */
+function pluralDe(p: string): string {
+  if (/ão$/.test(p)) return p.replace(/ão$/, 'ões')
+  if (/[rz]$/i.test(p)) return p + 'es'
+  if (/al$/.test(p)) return p.replace(/al$/, 'ais')
+  if (/el$/.test(p)) return p.replace(/el$/, 'éis')
+  if (/ol$/.test(p)) return p.replace(/ol$/, 'óis')
+  if (/il$/.test(p)) return p.replace(/il$/, 'is')
+  if (/m$/.test(p)) return p.replace(/m$/, 'ns')
+  if (/[aeiouáéíóúâêôãõ]$/i.test(p)) return p + 's'
+  return p
+}
+
+/**
+ * Nome da medida concordando com a quantidade: "3 unidades médias", "2
+ * colheres de sopa" - nao "3 unidade média". Plural so a partir de 2, que e o
+ * uso no Brasil ("1,5 xícara"). So o comeco do nome concorda: o que vem depois
+ * de "de" ou de um parentese e complemento ("de sopa", "(porção)"). Nome que
+ * ja comeca com numero ("2 fatias") fica como esta.
+ */
+export function medidaPlural(nome: string, qtd: number): string {
+  if (!(qtd >= 2) || /^\d/.test(nome) || nome === 'g' || nome === 'ml') return nome
+  const palavras = nome.split(' ')
+  const fim = palavras.findIndex(w => w === 'de' || w === 'do' || w === 'da' || w.startsWith('('))
+  const ate = fim < 0 ? palavras.length : fim
+  return palavras.map((w, i) => (i < ate ? pluralDe(w) : w)).join(' ')
+}
+
+/**
+ * O link so serve se for http(s). O link de video vem de quem digitou - e
+ * tambem de treino mandado por amigo ou treinador, e de backup importado. Um
+ * `javascript:` ali virava um link que roda codigo ao ser tocado; o React 19 e
+ * a CSP ja barram, mas o app nao deveria nem guardar nem desenhar isso.
+ */
+export function linkSeguro(url?: string | null): string | undefined {
+  const t = url?.trim()
+  if (!t) return undefined
+  try {
+    const u = new URL(t)
+    return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** Imagem: http(s) ou foto embutida (data:image/...) tirada no proprio celular. */
+export function imagemSegura(url?: string | null): string | undefined {
+  const t = url?.trim()
+  if (t && /^data:image\/(png|jpe?g|gif|webp|avif);base64,/i.test(t)) return t
+  return linkSeguro(t)
+}
+
 export function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v))
 }

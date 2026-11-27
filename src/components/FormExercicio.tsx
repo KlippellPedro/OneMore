@@ -4,6 +4,7 @@ import { GRUPOS, EQUIPAMENTOS } from '../db/seedExercicios'
 import { Btn, Sheet, Campo, Input, Select, Textarea } from './ui'
 import { SelectFamilia } from './Variacoes'
 import { useUI } from '../state/ui'
+import { linkSeguro } from '../lib/format'
 import type { Exercicio, GrupoMuscular, Equipamento } from '../db/types'
 
 const linhas = (s: string) => s.split('\n').map(x => x.trim()).filter(Boolean)
@@ -46,10 +47,13 @@ export function FormExercicio({ aberto, fechar, exercicio, nomeInicial, grupoIni
 
   async function salvar() {
     if (!nome.trim()) return toast('Dá um nome pro exercício', 'erro')
+    if (video.trim() && !linkSeguro(video)) {
+      return toast('Link do vídeo inválido', 'erro', 'Cole um endereço que comece com https://')
+    }
     const campos = {
       nome: nome.trim(), grupo, equipamento: equip, familia,
       execucao: linhas(exec), erros: linhas(erros),
-      videoUrl: video.trim() || undefined,
+      videoUrl: linkSeguro(video),
       atualizadoEm: Date.now(),
     }
     let salvo: Exercicio

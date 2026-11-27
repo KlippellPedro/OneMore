@@ -14,6 +14,7 @@ import { repsIniciais } from './treino'
 import { retratoDoPlano, mesmoCardapio } from './dietas'
 import { darXP, reconstruirGamificacao, XP, type GanhoXP } from './xp'
 import { macrosDe, totalDoDia, diaBatido, paraGramas } from './nutricao'
+import { problemaNaGlicemia } from './glicemia'
 
 /* ------------------------------------------------------------------ */
 /* TREINO                                                              */
@@ -152,14 +153,31 @@ export interface ResumoSessao {
 
 /** Fecha o treino: conta volume, detecta recordes e distribui XP. */
 export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
-  const s = await db.sessoes.get(id)
-  if (!s || s.concluida) return null
+  const fim = Date.now()
+  /**
+   * Confere E marca como concluida na MESMA transacao. Ler, decidir e gravar em
+   * passos soltos deixava duas chamadas quase juntas (dois toques no Confirmar
+   * antes de o dialogo sumir) passarem ambas pela checagem `concluida` - e o
+   * treino era pago duas vezes, com dois eventos de XP e recordes em dobro.
+   * Transacoes rw na mesma tabela rodam uma depois da outra: a segunda ja ve
+   * a sessao fechada e volta null.
+   *
+   * Marcar antes de detectar recorde nao muda nada: `recordeDe` le `melhores`,
+   * que so recebe esta sessao em registrarMelhores, mais abaixo.
+   */
+  const s = await db.transaction('rw', db.sessoes, async () => {
+    const atual = await db.sessoes.get(id)
+    if (!atual || atual.concluida) return null
+    // sem nenhuma serie de trabalho nao ha treino: fechar assim dava os 60 XP de
+    // treino, contava pra conquista e cumpria a missao do dia sem nada feito -
+    // abrir e finalizar em seguida virava fabrica de XP. A tela oferece descartar.
+    if (!atual.series.some(g => g.feito && !g.aquecimento)) return null
+    await db.sessoes.update(id, { concluida: 1, fim, atualizadoEm: fim })
+    return atual
+  })
+  if (!s) return null
 
   const feitas = s.series.filter(g => g.feito && !g.aquecimento)
-  // sem nenhuma serie de trabalho nao ha treino: fechar assim dava os 60 XP de
-  // treino, contava pra conquista e cumpria a missao do dia sem nada feito -
-  // abrir e finalizar em seguida virava fabrica de XP. A tela oferece descartar.
-  if (!feitas.length) return null
   const volume = feitas.reduce((t, g) => t + g.reps * g.carga, 0)
 
   // recordes: compara com o historico ANTES de marcar essa sessao como concluida
@@ -185,11 +203,9 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
     }
   }
 
-  const fim = Date.now()
   const baseXP = XP.TREINO + feitas.length * XP.SERIE
     + prs.reduce((t, p) => t + (p.tipo === 'carga' ? XP.PR_CARGA : XP.PR_REPS), 0)
 
-  await db.sessoes.update(id, { concluida: 1, fim, atualizadoEm: fim })
   await registrarMelhores({ ...s, concluida: 1, fim })
 
   for (const pr of prs) {
@@ -203,7 +219,7 @@ export async function concluirSessao(id: string): Promise<ResumoSessao | null> {
 
   const motivo = prs.length
     ? `${feitas.length} séries - ${prs.length} recorde${prs.length > 1 ? 's' : ''}!`
-    : `${feitas.length} séries concluidas`
+    : `${feitas.length} séries concluídas`
   const ganho = await darXP('treino', motivo, baseXP, id)
   await db.sessoes.update(id, { xpGanho: ganho.xp, atualizadoEm: Date.now() })
 
@@ -323,8 +339,17 @@ export async function registrarAlimento(
   data: string, refeicao: string, alimento: Alimento, qtd: number, medida: string,
   /** Item do plano que esse lancamento veio substituir, se for uma troca. */
   noLugarDe?: string,
+  /**
+   * Gramas de verdade, quando quem chama ja sabe - item do plano, registro de
+   * ontem. A medida caseira e aproximada ("3 unidades" de ovo = 150 g), mas o
+   * plano foi calculado em cima de 160 g e mostra "(160 g)": recalcular pela
+   * medida lancava outra quantidade e o diario nao batia com o plano.
+   */
+  gramasExatas?: number,
 ) {
-  const gramas = paraGramas(alimento, qtd, medida)
+  const gramas = gramasExatas != null && Number.isFinite(gramasExatas) && gramasExatas >= 0
+    ? gramasExatas
+    : paraGramas(alimento, qtd, medida)
   await db.dieta.put({
     id: uid(), data, refeicao, alimentoId: alimento.id,
     qtd, medida, gramas, noLugarDe, ts: Date.now(), atualizadoEm: Date.now(),
@@ -424,7 +449,7 @@ export async function checarMetasDoDia(data: string): Promise<GanhoXP[]> {
     ganhos.push(await darXP('proteina', 'Meta de proteína batida', XP.PROTEINA_OK))
   }
   if (kcalOk && protOk && !tem('dieta')) {
-    ganhos.push(await darXP('dieta', 'Dia de dieta na regua', XP.DIETA_OK))
+    ganhos.push(await darXP('dieta', 'Dia de dieta na régua', XP.DIETA_OK))
   }
   return ganhos
 }
@@ -661,6 +686,9 @@ export async function importarSemana(arquivo: File): Promise<SemanaSalva> {
 /* GLICEMIA                                                            */
 /* ------------------------------------------------------------------ */
 
+/** Quantas medicoes por dia rendem XP. */
+export const MAX_GLICEMIAS_COM_XP = 4
+
 /**
  * Anota uma medicao de glicemia (e, se houver, a insulina aplicada).
  * O app registra e mostra - nao calcula dose, razao nem correcao.
@@ -673,15 +701,25 @@ export async function registrarGlicemia(dados: {
   carboG?: number
   obs?: string
 }): Promise<GanhoXP | null> {
+  // a tela ja confere; isto e a ultima barreira pra nenhum caminho gravar lixo no historico
+  const problema = problemaNaGlicemia(dados.valor,
+    dados.insulinaUnidades != null ? String(dados.insulinaUnidades) : '',
+    dados.carboG != null ? String(dados.carboG) : '')
+  if (problema) throw new Error(`${problema.titulo}. ${problema.texto}`)
   const agora = Date.now()
   const data = hoje()
   await db.glicemia.put({
     id: uid(), data, ts: agora, atualizadoEm: agora, ...dados,
   })
 
-  // XP so nas 4 primeiras do dia: recompensa o habito sem incentivar excesso
-  const doDia = await db.glicemia.where('data').equals(data).count()
-  if (doDia > 4) return null
+  /**
+   * XP so nas 4 primeiras do dia: recompensa o habito sem incentivar excesso.
+   * Conta pelo LEDGER, nao pelas medicoes que existem: contando medicao,
+   * registrar, apagar (ou Desfazer) e registrar de novo pagava outra vez a cada
+   * volta - o contador nunca passava de 1.
+   */
+  const pagasHoje = await db.xp.where('data').equals(data).filter(e => e.tipo === 'glicemia').count()
+  if (pagasHoje >= MAX_GLICEMIAS_COM_XP) return null
   return darXP('glicemia', 'Glicemia registrada', XP.GLICEMIA)
 }
 

@@ -206,7 +206,7 @@ export default function Amigos() {
               Peça o código pro seu amigo (fica nesta mesma tela, no app de quem vai te mandar) e digite aqui.
             </p>
             <div className="flex gap-2">
-              <Input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="K7Q2-XP9M"
+              <Input value={codigo} onChange={e => setCodigo(e.target.value)} placeholder="K7Q2-XP9M" aria-label="Código do amigo"
                 autoCapitalize="characters" autoComplete="off" spellCheck={false}
                 className="font-mono tracking-[0.12em] uppercase"
                 onKeyDown={e => { if (e.key === 'Enter' && codigo.trim()) adicionar(codigo) }} />

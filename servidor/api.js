@@ -67,7 +67,7 @@ const LIMITE_CORPO = 12 * 1024 * 1024
 /** E-mail + senha (+ codigo): cabe de sobra em 4 KB, mesmo com folga generosa. */
 export const LIMITE_CORPO_CONTA = 4 * 1024
 const SENHA_MINIMA = 8
-const MSG_EMAIL_EM_USO = 'Ja existe uma conta com esse e-mail. Entre nela ou use "Esqueci a senha".'
+const MSG_EMAIL_EM_USO = 'Já existe uma conta com esse e-mail. Entre nela ou use "Esqueci a senha".'
 /**
  * Nenhuma senha de verdade chega perto disso. Sem um teto, um corpo de ate
  * 12 MB (o limite do lerCorpo acima) virava uma senha gigante jogada direto
@@ -113,17 +113,28 @@ const erro = (res, status, msg, cab) => responder(res, status, { erro: msg }, ca
 export function lerCorpo(req, limite = LIMITE_CORPO) {
   return new Promise((ok, falhou) => {
     let tam = 0
+    let estourou = false
     const partes = []
     req.on('data', p => {
+      if (estourou) return
       tam += p.length
       if (tam > limite) {
-        falhou(Object.assign(new Error('Corpo da requisicao grande demais.'), { status: 413 }))
-        req.destroy()
+        estourou = true
+        partes.length = 0
+        /**
+         * Para de ler, mas NAO derruba a conexao aqui: derrubando antes de
+         * responder, o navegador via so "conexao fechada" - e o app mostrava
+         * "Sem conexao com o servidor" pra um backup grande demais, que e outra
+         * coisa. Quem fecha e o tratarApi, depois que o 413 saiu (ver `fechar`).
+         */
+        req.pause()
+        falhou(Object.assign(new Error('Corpo da requisição grande demais.'), { status: 413, fechar: true }))
         return
       }
       partes.push(p)
     })
     req.on('end', () => {
+      if (estourou) return
       if (!partes.length) return ok({})
       try {
         ok(JSON.parse(Buffer.concat(partes).toString('utf8')))
@@ -228,10 +239,40 @@ setInterval(() => {
 /* ROTAS                                                               */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Teto de escritas por conta, por minuto. O app legitimo fica longe disso: a
+ * publicacao do backup espera 3 s depois da ultima mudanca (no maximo ~20 por
+ * minuto treinando), e o resto e ocasional. Isto e rede contra script: sem
+ * teto, uma conta logada podia mandar PUT /api/dados de 12 MB sem parar e
+ * ocupar o banco e os 512 MB do processo. Memoria do processo, igual ao freio
+ * de senha - reiniciar zera, e tudo bem.
+ */
+export const MAX_ESCRITAS_POR_MINUTO = 120
+const escritas = new Map()
+
+export function escritasDemais(usuarioId, agora = Date.now()) {
+  const reg = escritas.get(usuarioId)
+  if (!reg || agora > reg.ate) {
+    escritas.set(usuarioId, { n: 1, ate: agora + 60_000 })
+    return false
+  }
+  reg.n++
+  return reg.n > MAX_ESCRITAS_POR_MINUTO
+}
+
+setInterval(() => {
+  const agora = Date.now()
+  for (const [chave, reg] of escritas) if (agora > reg.ate) escritas.delete(chave)
+}, 10 * 60 * 1000).unref()
+
 async function exigirLogin(req, res) {
   const u = await usuarioDaSessao(lerCookie(req, COOKIE))
   if (!u) {
     erro(res, 401, 'Entre na sua conta.')
+    return null
+  }
+  if (req.method !== 'GET' && req.method !== 'HEAD' && escritasDemais(u.id)) {
+    erro(res, 429, 'Muitas alterações seguidas. Espere um minuto.')
     return null
   }
   return u
@@ -244,12 +285,12 @@ async function postConta(req, res) {
   const email = normalizarEmail(corpo.email)
   const senha = String(corpo.senha ?? '')
 
-  if (!emailValido(email)) return erro(res, 400, 'E-mail invalido.')
+  if (!emailValido(email)) return erro(res, 400, 'E-mail inválido.')
   if (senha.length < SENHA_MINIMA) {
     return erro(res, 400, `A senha precisa de pelo menos ${SENHA_MINIMA} caracteres.`)
   }
   if (senha.length > SENHA_MAXIMA) {
-    return erro(res, 400, `A senha pode ter no maximo ${SENHA_MAXIMA} caracteres.`)
+    return erro(res, 400, `A senha pode ter no máximo ${SENHA_MAXIMA} caracteres.`)
   }
   const ruim = problemaNaSenha(senha, email)
   if (ruim) return erro(res, 400, ruim)
@@ -339,7 +380,7 @@ async function postSenha(req, res) {
     return erro(res, 400, `A senha precisa de pelo menos ${SENHA_MINIMA} caracteres.`)
   }
   if (senha.length > SENHA_MAXIMA) {
-    return erro(res, 400, `A senha pode ter no maximo ${SENHA_MAXIMA} caracteres.`)
+    return erro(res, 400, `A senha pode ter no máximo ${SENHA_MAXIMA} caracteres.`)
   }
 
   const ruim = problemaNaSenha(senha, email)
@@ -349,7 +390,7 @@ async function postSenha(req, res) {
   const ok = usuario?.codigo_hash
     ? await conferirCodigo(codigo, usuario.codigo_hash)
     : (await hashSenha(codigo), false)
-  if (!ok) return erro(res, 401, 'E-mail ou codigo de recuperacao incorretos.')
+  if (!ok) return erro(res, 401, 'E-mail ou código de recuperação incorretos.')
 
   const novoCodigo = await trocarSenha(usuario.id, senha)
   // entra ja logado: a pessoa acabou de provar que e dona da conta
@@ -433,7 +474,7 @@ async function putDados(req, res) {
   const corpo = await lerCorpo(req)
   const payload = corpo?.payload
   if (!payload || typeof payload !== 'object' || payload.app !== 'onemore') {
-    return erro(res, 400, 'Payload invalido.')
+    return erro(res, 400, 'Dados inválidos.')
   }
   const { rows } = await consultar(
     `insert into dados (usuario_id, payload, atualizado_em) values ($1, $2, now())
@@ -450,7 +491,7 @@ async function putDados(req, res) {
 
 async function getChavePush(req, res) {
   const chave = chaveVapid()
-  if (!chave) return erro(res, 503, 'O push ainda nao esta pronto.')
+  if (!chave) return erro(res, 503, 'Os avisos ainda não estão prontos no servidor. Tente daqui a pouco.')
   responder(res, 200, { chave })
 }
 
@@ -458,7 +499,7 @@ async function postInscricao(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const insc = validarInscricao(await lerCorpo(req, LIMITE_CORPO_CONTA))
-  if (!insc) return erro(res, 400, 'Inscricao de push invalida.')
+  if (!insc) return erro(res, 400, 'Inscrição de aviso inválida.')
   await salvarInscricao(u.id, insc)
   responder(res, 200, { ok: true })
 }
@@ -478,7 +519,7 @@ async function putAgenda(req, res) {
   if (typeof corpo.endpoint !== 'string') return erro(res, 400, 'Falta o endpoint.')
   const itens = validarAgenda(corpo.itens)
   // 404 e nao 403: o aparelho cuja inscricao sumiu (expirou, outra conta) se reinscreve
-  if (!(await salvarAgenda(u.id, corpo.endpoint, itens))) return erro(res, 404, 'Inscricao nao encontrada.')
+  if (!(await salvarAgenda(u.id, corpo.endpoint, itens))) return erro(res, 404, 'Este aparelho não está inscrito nos avisos.')
   responder(res, 200, { avisos: itens.length })
 }
 
@@ -487,9 +528,9 @@ async function postTestePush(req, res) {
   if (!u) return
   const { endpoint } = await lerCorpo(req, LIMITE_CORPO_CONTA)
   try {
-    if (!(await enviarTeste(u.id, String(endpoint ?? '')))) return erro(res, 404, 'Inscricao nao encontrada.')
+    if (!(await enviarTeste(u.id, String(endpoint ?? '')))) return erro(res, 404, 'Este aparelho não está inscrito nos avisos.')
   } catch (e) {
-    return erro(res, 502, `O servico de push recusou (${e?.statusCode ?? 'sem resposta'}).`)
+    return erro(res, 502, `O serviço de avisos recusou (${e?.statusCode ?? 'sem resposta'}).`)
   }
   responder(res, 200, { ok: true })
 }
@@ -519,8 +560,8 @@ async function deleteConvite(req, res) {
 }
 
 const MSG_AMIGO = {
-  'nao-existe': [404, 'Esse codigo nao existe (ou o dono trocou por outro).'],
-  proprio: [400, 'Esse e o seu proprio codigo.'],
+  'nao-existe': [404, 'Esse código não existe (ou o dono trocou por outro).'],
+  proprio: [400, 'Esse é o seu próprio código.'],
   limite: [409, 'Limite de amigos atingido.'],
 }
 
@@ -530,7 +571,7 @@ async function postAmigo(req, res) {
   if (freadoNoConvite(req, u.id)) return erro(res, 429, 'Muitas tentativas. Espere uns minutos.')
   const { codigo: bruto } = await lerCorpo(req, LIMITE_CORPO_CONTA)
   const codigo = normalizarConvite(bruto)
-  if (!codigo) return erro(res, 400, 'Codigo invalido. Ele tem 8 letras e numeros, tipo K7Q2-XP9M.')
+  if (!codigo) return erro(res, 400, 'Código inválido. Ele tem 8 letras e números, tipo K7Q2-XP9M.')
   const r = await adicionarAmigo(u.id, codigo)
   // ja-amigos nao e erro: usar o codigo de novo so confirma o que ja existe
   if (r.motivo && r.motivo !== 'ja-amigos') return erro(res, ...MSG_AMIGO[r.motivo])
@@ -543,7 +584,7 @@ async function deleteAmigo(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const { id } = await lerCorpo(req, LIMITE_CORPO_CONTA)
-  if (!uuidValido(id)) return erro(res, 400, 'Amigo invalido.')
+  if (!uuidValido(id)) return erro(res, 400, 'Amigo inválido.')
   await removerAmigo(u.id, id)
   responder(res, 200, { ok: true })
 }
@@ -552,7 +593,7 @@ async function putCartao(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const cartao = validarCartao((await lerCorpo(req, LIMITE_CORPO_CARTAO)).cartao)
-  if (!cartao) return erro(res, 400, 'Cartao invalido.')
+  if (!cartao) return erro(res, 400, 'Cartão inválido.')
   responder(res, 200, { guardado: await salvarCartao(u.id, cartao) })
 }
 
@@ -577,7 +618,7 @@ async function postEnvio(req, res) {
   const ruim = problemaNoPacote(tipo, conteudo)
   if (ruim) return erro(res, 400, ruim)
   const enviados = await enviarParaAmigos(u.id, para, tipo, textoLimpo(nome, 80) || 'Treino', conteudo)
-  if (!enviados) return erro(res, 409, 'Nao deu pra mandar: so vai pra amigos, e a caixa deles tem limite.')
+  if (!enviados) return erro(res, 409, 'Não deu pra mandar: só vai pra amigos, e a caixa deles tem limite.')
   responder(res, 201, { enviados })
 }
 
@@ -603,7 +644,7 @@ async function postEquipe(req, res) {
   const nome = textoLimpo(corpo.nome, 60)
   const treinador = textoLimpo(corpo.treinador, 60)
   if (!nome || !treinador) return erro(res, 400, 'Preencha o nome da equipe e o seu nome.')
-  if (!(await criarEquipe(u.id, nome, treinador))) return erro(res, 409, 'Voce ja tem uma equipe.')
+  if (!(await criarEquipe(u.id, nome, treinador))) return erro(res, 409, 'Você já tem uma equipe.')
   responder(res, 201, { minha: await minhaEquipe(u.id) })
 }
 
@@ -625,10 +666,10 @@ async function deleteEquipe(req, res) {
 }
 
 const MSG_EQUIPE = {
-  'nao-existe': [404, 'Esse codigo de equipe nao existe (ou o treinador trocou por outro).'],
-  propria: [400, 'Essa e a sua propria equipe.'],
-  'ja-tem': [409, 'Voce ja esta em outra equipe. Saia dela antes de entrar nesta.'],
-  lotada: [409, 'Essa equipe esta lotada.'],
+  'nao-existe': [404, 'Esse código de equipe não existe (ou o treinador trocou por outro).'],
+  propria: [400, 'Essa é a sua própria equipe.'],
+  'ja-tem': [409, 'Você já está em outra equipe. Saia dela antes de entrar nesta.'],
+  lotada: [409, 'Essa equipe está lotada.'],
 }
 
 async function postEntrarEquipe(req, res) {
@@ -638,7 +679,7 @@ async function postEntrarEquipe(req, res) {
   if (freadoNoConvite(req, u.id)) return erro(res, 429, 'Muitas tentativas. Espere uns minutos.')
   const { codigo: bruto, permissoes } = await lerCorpo(req, LIMITE_CORPO_CONTA)
   const codigo = normalizarConvite(bruto)
-  if (!codigo) return erro(res, 400, 'Codigo invalido. Ele tem 8 letras e numeros, tipo K7Q2-XP9M.')
+  if (!codigo) return erro(res, 400, 'Código inválido. Ele tem 8 letras e números, tipo K7Q2-XP9M.')
   const motivo = await entrarNaEquipe(u.id, codigo, permissoes)
   if (motivo) return erro(res, ...MSG_EQUIPE[motivo])
   desfrearConvite(req, u.id)
@@ -649,7 +690,7 @@ async function putPermissoes(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const { permissoes } = await lerCorpo(req, LIMITE_CORPO_CONTA)
-  if (!(await mudarPermissoes(u.id, permissoes))) return erro(res, 404, 'Voce nao esta em nenhuma equipe.')
+  if (!(await mudarPermissoes(u.id, permissoes))) return erro(res, 404, 'Você não está em nenhuma equipe.')
   responder(res, 200, { permissoes: validarPermissoes(permissoes) })
 }
 
@@ -664,10 +705,10 @@ async function getAluno(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const id = new URL(req.url, 'http://local').searchParams.get('id')
-  if (!uuidValido(id)) return erro(res, 400, 'Aluno invalido.')
+  if (!uuidValido(id)) return erro(res, 400, 'Aluno inválido.')
   const aluno = await lerAluno(u.id, id)
   // 404 tanto pra "nao existe" quanto pra "nao e seu aluno": nao entrega quem existe
-  if (!aluno) return erro(res, 404, 'Aluno nao encontrado na sua equipe.')
+  if (!aluno) return erro(res, 404, 'Aluno não encontrado na sua equipe.')
   responder(res, 200, aluno)
 }
 
@@ -675,7 +716,7 @@ async function deleteAluno(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const { id } = await lerCorpo(req, LIMITE_CORPO_CONTA)
-  if (!uuidValido(id)) return erro(res, 400, 'Aluno invalido.')
+  if (!uuidValido(id)) return erro(res, 400, 'Aluno inválido.')
   await removerAluno(u.id, id)
   responder(res, 200, { ok: true })
 }
@@ -684,11 +725,11 @@ async function putPrescricao(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
   const { aluno, tipo, nome, conteudo } = await lerCorpo(req, LIMITE_CORPO_PACOTE)
-  if (!uuidValido(aluno)) return erro(res, 400, 'Aluno invalido.')
+  if (!uuidValido(aluno)) return erro(res, 400, 'Aluno inválido.')
   const ruim = problemaNoPacote(tipo, conteudo)
   if (ruim) return erro(res, 400, ruim)
   const ok = await prescrever(u.id, aluno, tipo, textoLimpo(nome, 80) || (tipo === 'treino' ? 'Treino' : 'Dieta'), conteudo)
-  if (!ok) return erro(res, 404, 'Aluno nao encontrado na sua equipe.')
+  if (!ok) return erro(res, 404, 'Aluno não encontrado na sua equipe.')
   responder(res, 200, { ok: true })
 }
 
@@ -762,7 +803,7 @@ export async function tratarApi(req, res, caminho) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     const origem = req.headers['sec-fetch-site']
     if (origem === 'cross-site' || origem === 'same-site') {
-      erro(res, 403, 'Requisicao de outro site bloqueada.')
+      erro(res, 403, 'Requisição de outro site bloqueada.')
       logarAcesso(req, caminho, 403, desde)
       return true
     }
@@ -770,14 +811,14 @@ export async function tratarApi(req, res, caminho) {
 
   // sem banco a conta nao funciona, mas o site continua servindo normalmente
   if (!configurado || !pronto) {
-    erro(res, 503, 'O servidor ainda nao esta conectado ao banco. Tente daqui a pouco.')
+    erro(res, 503, 'O servidor ainda não está conectado ao banco. Tente daqui a pouco.')
     logarAcesso(req, caminho, 503, desde)
     return true
   }
 
   const rota = ROTAS[`${req.method} ${caminho}`]
   if (!rota) {
-    erro(res, 404, 'Rota nao encontrada.')
+    erro(res, 404, 'Rota não encontrada.')
     logarAcesso(req, caminho, 404, desde)
     return true
   }
@@ -785,11 +826,15 @@ export async function tratarApi(req, res, caminho) {
   try {
     await rota(req, res)
   } catch (e) {
-    console.error(`[api] ${req.method} ${caminho}:`, e)
+    // erro do cliente (400, 413) ja aparece na linha de acesso; stack so pro que e nosso
+    if (!e.status || e.status >= 500) console.error(`[api] ${req.method} ${caminho}:`, e)
     if (!res.headersSent) {
       // mensagem generica pra fora: detalhe de erro interno so no log
-      erro(res, e.status ?? 500, e.status ? e.message : 'Erro no servidor.')
+      erro(res, e.status ?? 500, e.status ? e.message : 'Erro no servidor.',
+        e.fechar ? { Connection: 'close' } : undefined)
     }
+    // corpo grande demais: o resto nao vai ser lido, entao a conexao fecha depois da resposta
+    if (e.fechar) res.once('finish', () => req.destroy())
   }
   logarAcesso(req, caminho, res.statusCode, desde)
   return true

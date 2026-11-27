@@ -80,7 +80,7 @@ export default function ListaCompras() {
 
         {quantos === 0 ? (
           <p className="text-gray-500 text-[13px] leading-relaxed">
-            Seu plano alimentar está vazio, entao não ha o que comprar ainda.
+            Seu plano alimentar está vazio, então não há o que comprar ainda.
             Monte o cardápio em Dieta {'>'} Plano e volte aqui.
           </p>
         ) : (
@@ -149,7 +149,7 @@ export default function ListaCompras() {
 
         <footer className="mt-10 pt-4 border-t border-gray-200 text-[10.5px] text-gray-400 leading-relaxed">
           Gerado pelo OneMore em {geradoEm}. As quantidades sao as do alimento do jeito que
-          voce lanca no app - alimento cozido pesa cozido, entao compre o cru com folga
+          você lança no app - alimento cozido pesa cozido, então compre o cru com folga
           (arroz e feijao rendem cerca de 2,5x o peso seco). As trocas entregam o mesmo tanto
           do macro principal de cada item, com caloria parecida.
         </footer>

@@ -243,3 +243,37 @@ input[type=number] { -moz-appearance: textfield; }
     color-mix(in srgb, var(--color-accent) 16%, transparent) 0%,
     transparent 70%);
 }
+
+/* ------------------------------------------------------------------ */
+/* ACESSIBILIDADE                                                      */
+/* ------------------------------------------------------------------ */
+
+/*
+ * Foco visivel pra quem usa teclado (WCAG 2.4.7). :focus-visible nao aparece
+ * no toque nem no clique de mouse em botao - so quando o foco anda pelo
+ * teclado -, entao nao muda nada pra quem usa o app com o dedo. Fora de
+ * @layer de proposito: CSS sem camada vence as utilidades do Tailwind, e e
+ * isso que passa por cima do `outline-none` dos campos.
+ */
+:where(button, a, [tabindex]:not([tabindex="-1"]), select, summary):focus-visible {
+  outline: 2px solid var(--color-accent-soft);
+  outline-offset: 2px;
+}
+:where(input, textarea):focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent-soft) 70%, transparent);
+  outline-offset: 0;
+}
+
+/*
+ * Quem pediu menos movimento no sistema (enjoo, vestibular) nao ganha
+ * varredura de HUD, confete caindo nem moldura girando - o estado final
+ * aparece direto.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

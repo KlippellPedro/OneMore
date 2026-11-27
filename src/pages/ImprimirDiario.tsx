@@ -70,8 +70,8 @@ export default function ImprimirDiario() {
                 ))}
               </div>
               <p className="text-[10.5px] text-gray-400 mt-2 leading-relaxed">
-                Faixa de referencia geral {FAIXA_ALVO.min}-{FAIXA_ALVO.max} mg/dL, confirme a sua com o endocrinologista.
-                Percentuais sao por medição registrada, não por tempo continuo.
+                Faixa de referência geral {FAIXA_ALVO.min}-{FAIXA_ALVO.max} mg/dL, confirme a sua com o endocrinologista.
+                Percentuais são por medição registrada, não por tempo contínuo.
               </p>
             </section>
 
@@ -96,7 +96,7 @@ export default function ImprimirDiario() {
                     <td className="py-1.5 pr-2 text-right tabular-nums font-bold">{n0(r.valor)}</td>
                     <td className="py-1.5 pr-2">{nomeMomento(r.momento)}</td>
                     <td className="py-1.5 pr-2 text-right tabular-nums whitespace-nowrap">
-                      {r.insulinaUnidades ? `${r.insulinaUnidades}u ${r.insulinaTipo === 'basal' ? 'basal' : 'rapida'}` : '-'}
+                      {r.insulinaUnidades ? `${r.insulinaUnidades}u ${r.insulinaTipo === 'basal' ? 'basal' : 'rápida'}` : '-'}
                     </td>
                     <td className="py-1.5 pr-2 text-right tabular-nums">{r.carboG ? `${n0(r.carboG)}g` : '-'}</td>
                     <td className="py-1.5 text-gray-500">{r.obs ?? ''}</td>
@@ -109,7 +109,7 @@ export default function ImprimirDiario() {
 
         <footer className="mt-10 pt-4 border-t border-gray-200 text-[10.5px] text-gray-400">
           Gerado pelo OneMore em {geradoEm}. O app registra e mostra o histórico - não calcula dose,
-          razao carbo/insulina nem avalia se um valor está bom ou ruim. Isso e com o endocrinologista.
+          razão carbo/insulina nem avalia se um valor está bom ou ruim. Isso é com o endocrinologista.
         </footer>
       </div>
     </div>

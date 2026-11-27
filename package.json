@@ -7,10 +7,11 @@
     "dev": "vite",
     "build:site": "tsc -b && vite build",
     "lint": "oxlint",
-    "test": "node --test src/lib/fundir.test.mjs src/lib/progressao.test.mjs src/lib/tema.test.mjs src/lib/semana.test.mjs src/lib/treino.test.mjs src/lib/dietas.test.mjs src/lib/cartao.test.mjs src/lib/pacotes.test.mjs src/lib/painel.test.mjs src/db/marcadores.test.mjs src/db/melhores.test.mjs src/db/variacoes.test.mjs src/db/esquema.test.mjs src/db/sincronizavel.test.mjs servidor/auth.test.mjs servidor/api.test.mjs servidor/push.test.mjs servidor/amigos.test.mjs servidor/equipe.test.mjs",
+    "test": "node --test src/lib/format.test.mjs src/lib/glicemia.test.mjs src/lib/medidas.test.mjs src/lib/fundir.test.mjs src/lib/progressao.test.mjs src/lib/tema.test.mjs src/lib/semana.test.mjs src/lib/treino.test.mjs src/lib/dietas.test.mjs src/lib/cartao.test.mjs src/lib/pacotes.test.mjs src/lib/painel.test.mjs src/db/marcadores.test.mjs src/db/melhores.test.mjs src/db/variacoes.test.mjs src/db/esquema.test.mjs src/db/sincronizavel.test.mjs servidor/auth.test.mjs servidor/api.test.mjs servidor/push.test.mjs servidor/amigos.test.mjs servidor/equipe.test.mjs",
     "preview": "vite preview",
     "servidor": "node servidor.js",
-    "servidor:local": "node servidor.js --porta=8099"
+    "servidor:local": "node servidor.js --porta=8099",
+    "test:api": "node servidor/api.e2e.mjs"
   },
   "dependencies": {
     "dexie": "^4.4.5",
