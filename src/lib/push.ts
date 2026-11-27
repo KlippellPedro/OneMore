@@ -26,10 +26,14 @@ async function api<T>(metodo: string, rota: string, corpo?: unknown): Promise<T>
     credentials: 'include',
     headers: corpo ? { 'Content-Type': 'application/json' } : undefined,
     body: corpo ? JSON.stringify(corpo) : undefined,
+    // mesmo motivo do prazo em lib/sync.ts: rede pendurada nao pode prender o Sair
+    signal: typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(30_000) : undefined,
   })
   const texto = await r.text()
-  const json = texto ? JSON.parse(texto) : null
-  if (!r.ok) throw Object.assign(new Error(json?.erro ?? `Erro ${r.status}.`), { status: r.status })
+  let json: unknown = null
+  // pagina de erro do proxy (HTML) nao e JSON: cai na mensagem com o status
+  try { json = texto ? JSON.parse(texto) : null } catch { /* segue com null */ }
+  if (!r.ok) throw Object.assign(new Error((json as { erro?: string } | null)?.erro ?? `Erro ${r.status}.`), { status: r.status })
   return json as T
 }
 

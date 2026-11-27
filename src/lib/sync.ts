@@ -13,7 +13,7 @@ import { desligarPush } from './push'
 import { baixarJSON } from './arquivo'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela, sanitizarDados,
-  setupDeFabricaIntacto, semSetupDeFabrica,
+  semRestosDeFabrica,
   type LinhaSync, type Lapide, type ComCamposEm,
 } from './fundir'
 
@@ -248,21 +248,47 @@ export class ErroApi extends Error {
   }
 }
 
+/**
+ * Prazo de uma chamada a API. Sem prazo, o 4G "pendurado" da academia (conecta
+ * e nunca responde) segurava a chamada por minutos: a sincronizacao ficava
+ * presa em `rodando`, nenhuma outra rodava atras dela, e o Sair (que sincroniza
+ * antes) nao voltava. Os dados nunca estiveram em risco - continuam aqui -, mas
+ * o app nao se recuperava sozinho. Estourar o prazo vira "Sem conexão", igual
+ * a rede caida, e a proxima tentativa segue normal.
+ *
+ * O estado inteiro (`/dados`) tem prazo maior: sobe e desce o backup todo, e
+ * num upload lento de celular isso leva bem mais que uma chamada pequena.
+ */
+const PRAZO_MS = 30_000
+export const PRAZO_DADOS_MS = 120_000
+
+/** AbortSignal.timeout e de 2022: navegador mais velho segue sem prazo em vez de quebrar. */
+const prazo = (ms: number) =>
+  typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function'
+    ? AbortSignal.timeout(ms) : undefined
+
 /** Exportado pra lib/amigos.ts: mesma sessao, mesmo tratamento de erro. */
-export async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null> {
+export async function chamar<T>(rota: string, init: RequestInit = {}, prazoMs = PRAZO_MS): Promise<T | null> {
   let r: Response
   try {
     r = await fetch(API + rota, {
       ...init,
       credentials: 'include',
       headers: init.body ? { 'Content-Type': 'application/json' } : undefined,
+      signal: init.signal ?? prazo(prazoMs),
     })
   } catch {
     throw new Error('Sem conexão com o servidor.')
   }
 
   if (r.status === 204) return null
-  const texto = await r.text()
+  let texto: string
+  try {
+    texto = await r.text()
+  } catch {
+    // o prazo tambem vale pra receber o corpo: cair no meio do download e rede caida
+    throw new Error('Sem conexão com o servidor.')
+  }
   let corpo: { erro?: string } | null = null
   try {
     corpo = texto ? JSON.parse(texto) : null
@@ -296,6 +322,8 @@ export const entrar = (email: string, senha: string) =>
  * aqui" e o que o Apagar tudo usa, sem internet, pra saber se o aparelho esta
  * ligado a uma conta - quem saiu nao esta mais.
  */
+const ESPERA_SAIR_MS = 15_000
+
 export async function sair() {
   /**
    * A publicacao automatica espera alguns segundos depois da ultima escrita
@@ -303,7 +331,17 @@ export async function sair() {
    * ultimo alimento so neste aparelho - e, se a proxima conta a entrar aqui
    * escolher comecar limpo, isso se perdia. Sobe antes de largar a sessao.
    */
-  await sincronizarEmSilencio().catch(() => {})
+  /**
+   * Com teto: na rede lenta a rodada inteira pode levar minutos (cada chamada
+   * tem prazo proprio, ver PRAZO_MS), e o botao Sair nao pode ficar esse tempo
+   * sem voltar. A rodada nao e cancelada - segue em segundo plano com a sessao
+   * que ainda vale ate o DELETE abaixo chegar -, e o que nao subir continua
+   * aqui, marcado como desta conta (CHAVE_DONO).
+   */
+  await Promise.race([
+    sincronizarEmSilencio().catch(() => {}),
+    new Promise(ok => setTimeout(ok, ESPERA_SAIR_MS)),
+  ])
   // ANTES de encerrar a sessao: apagar a inscricao exige estar logado. Quem
   // saiu nao pode continuar recebendo os lembretes da conta neste aparelho
   await desligarPush().catch(() => {})
@@ -370,7 +408,7 @@ export class ErroOutraConta extends Error {
  * Comecar limpo na conta logada: apaga ESTE aparelho (os dados da conta
  * anterior continuam salvos na nuvem dela) e traz os da conta atual. O setup de
  * fabrica que o seed monta logo depois perde pra conta na primeira fusao, como
- * num aparelho novo (ver setupDeFabricaIntacto).
+ * num aparelho novo (ver semRestosDeFabrica).
  */
 export async function comecarLimpoNaConta(conta: string): Promise<ResultadoSync> {
   /**
@@ -490,16 +528,19 @@ export async function sincronizar(opcoes: {
   }
 
   /**
-   * Aparelho que so tem o setup de fabrica (instalacao nova, ou dados do
-   * navegador apagados): a conta manda. Fundir daria ao padrao recem-criado, com
-   * carimbo de agora, o direito de vencer o perfil e as edicoes da conta, e
-   * treino e dieta apareceriam em dobro. Compara com `local` de verdade (nao
-   * com o vazio) abaixo, entao a tabela de fabrica e substituida pela da conta.
+   * Primeira sincronizacao de um aparelho que montou o setup de fabrica
+   * (instalacao nova, ou dados do navegador apagados): o que o setup criou e
+   * ninguem mexeu sai da fusao, e a conta manda. Fundir daria ao padrao
+   * recem-criado, com carimbo de agora, o direito de vencer o perfil e as
+   * edicoes da conta, e treino e dieta apareceriam em dobro - mesmo que a
+   * pessoa tenha anotado algo antes de entrar. Ver semRestosDeFabrica.
+   * Compara com `local` de verdade (nao com o filtrado) abaixo, entao o que
+   * era de fabrica e substituido pelo que a conta tem.
    */
   const setupEm = Number(localStorage.getItem(CHAVE_SETUP)) || null
-  const deFabrica = setupDeFabricaIntacto(local.dados, setupEm)
+  const nuvemTemPerfil = (nuvem.backup?.dados?.perfil?.length ?? 0) > 0
   const fundido = fundirBackups(
-    deFabrica ? { ...local, dados: semSetupDeFabrica(local.dados) } : local,
+    { ...local, dados: semRestosDeFabrica(local.dados, setupEm, nuvemTemPerfil) },
     nuvem.backup,
   )
 
@@ -532,7 +573,7 @@ async function publicar(backup: Backup) {
   const r = await chamar<{ atualizadoEm: string }>('/dados', {
     method: 'PUT',
     body: JSON.stringify({ payload: backup }),
-  })
+  }, PRAZO_DADOS_MS)
   // guarda o carimbo que o servidor acabou de gravar: e ele que a consulta
   // barata compara pra saber se a novidade la e nossa ou de outro aparelho
   if (r?.atualizadoEm) marcarVersaoNuvem(new Date(r.atualizadoEm))
@@ -553,7 +594,7 @@ function marcarSync(): Date {
 export interface DadosNuvem { atualizadoEm: Date; backup: Backup }
 
 export async function espiar(): Promise<DadosNuvem | null> {
-  const r = await chamar<{ payload: Backup; atualizadoEm: string }>('/dados')
+  const r = await chamar<{ payload: Backup; atualizadoEm: string }>('/dados', {}, PRAZO_DADOS_MS)
   if (!r) return null
   return { atualizadoEm: new Date(r.atualizadoEm), backup: r.payload }
 }

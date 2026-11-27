@@ -79,7 +79,7 @@ async function executarSeed() {
   if (virgem) {
     await montarSetupInicial()
     // quando o setup de fabrica terminou: a sincronizacao usa isto pra nao deixar
-    // ele passar por cima do que ja esta na conta - ver setupDeFabricaIntacto
+    // ele passar por cima do que ja esta na conta - ver semRestosDeFabrica
     localStorage.setItem(CHAVE_SETUP, String(Date.now()))
   }
   localStorage.setItem('onemore:seed', String(VERSAO_SEED))

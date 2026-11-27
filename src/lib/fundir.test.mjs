@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   fundirTabela, fundirPerfil, fundirLapides, lapidesDe, assinatura, mudouTabela,
-  linhaValida, sanitizarDados, conquistasDoLedger, setupDeFabricaIntacto, semSetupDeFabrica,
+  linhaValida, sanitizarDados, conquistasDoLedger, semRestosDeFabrica,
 } from './fundir.ts'
 
 const ids = a => a.map(x => x.id).sort()
@@ -227,9 +227,11 @@ test('sanitizarDados: filtra linha invalida sem tocar na valida', () => {
   assert.deepEqual(saida.sessoes, [{ id: 's1', nome: 'ok' }])
 })
 
-test('sanitizarDados: tabela que nao e array vira lista vazia, sem quebrar', () => {
-  const saida = sanitizarDados({ rotinas: 'nao deveria ser string', dieta: null, perfil: undefined })
-  assert.deepEqual(saida, { rotinas: [], dieta: [], perfil: [] })
+test('sanitizarDados: tabela que nao e array sai do resultado, sem quebrar', () => {
+  // sai em vez de virar []: o importar limpa toda tabela que recebe, e um
+  // arquivo com `rotinas: "lixo"` apagava todas as rotinas na restauracao
+  const saida = sanitizarDados({ rotinas: 'nao deveria ser string', dieta: null, perfil: undefined, agua: [] })
+  assert.deepEqual(saida, { agua: [] })
 })
 
 test('sanitizarDados: tabela vazia ou ja limpa continua igual', () => {
@@ -283,29 +285,61 @@ test('a fusao sozinha nao protege a conta do setup de fabrica (por isso a sincro
   assert.equal(r.nome, 'Jogador')
 })
 
-test('setupDeFabricaIntacto: so o setup, nada tocado depois', () => {
-  const vazio = { sessoes: [], corpo: [], dieta: [], xp: [], agua: [], glicemia: [], dietas: [], apagados: [] }
+test('semRestosDeFabrica: setup intocado sai inteiro, catalogo fica', () => {
   const dados = {
-    ...vazio,
+    sessoes: [], agua: [], exercicios: [{ id: 'e', atualizadoEm: 0 }],
     rotinas: [{ id: 'r', atualizadoEm: 400 }],
     planos: [{ id: 'p', atualizadoEm: 400 }],
-    perfil: [{ id: 'me', atualizadoEm: 450, camposEm: { nome: 450 } }],
+    perfil: [{ id: 'me', atualizadoEm: 450, nome: 'Jogador', camposEm: { nome: 450 } }],
   }
-  assert.equal(setupDeFabricaIntacto(dados, 500), true)
-  // editou uma rotina depois do setup: e trabalho dele, nao pode ser jogado fora
-  assert.equal(setupDeFabricaIntacto({ ...dados, rotinas: [{ id: 'r', atualizadoEm: 900 }] }, 500), false)
-  // mudou o perfil depois
-  assert.equal(setupDeFabricaIntacto({ ...dados, perfil: [{ id: 'me', atualizadoEm: 900, camposEm: { nome: 900 } }] }, 500), false)
-  // ja treinou / bebeu agua / registrou algo
-  assert.equal(setupDeFabricaIntacto({ ...dados, sessoes: [{ id: 's' }] }, 500), false)
-  assert.equal(setupDeFabricaIntacto({ ...dados, agua: [{ id: 'a' }] }, 500), false)
-  // sem a marca do setup (aparelho antigo, ou o usuario ja sincronizou): nunca mexe
-  assert.equal(setupDeFabricaIntacto(dados, null), false)
+  const r = semRestosDeFabrica(dados, 500)
+  assert.deepEqual([r.rotinas, r.planos, r.perfil], [[], [], []])
+  assert.deepEqual(r.exercicios, [{ id: 'e', atualizadoEm: 0 }])
+  // sem a marca do setup (aparelho antigo, ou ja sincronizou): nunca mexe
+  assert.equal(semRestosDeFabrica(dados, null), dados)
 })
 
-test('semSetupDeFabrica: rotinas, planos e perfil saem, o resto fica', () => {
-  const d = { rotinas: [{ id: 'r' }], planos: [{ id: 'p' }], perfil: [{ id: 'me' }], exercicios: [{ id: 'e' }], sessoes: [] }
-  const r = semSetupDeFabrica(d)
-  assert.deepEqual([r.rotinas, r.planos, r.perfil], [[], [], []])
-  assert.deepEqual(r.exercicios, [{ id: 'e' }])
+test('semRestosDeFabrica: anotar algo antes de entrar nao leva o setup inteiro junto', () => {
+  // o bug: um copo d'agua antes de entrar na conta e o setup de fabrica inteiro
+  // entrava na fusao - rotinas e planos em dobro, perfil da conta trocado pelo padrao
+  const dados = {
+    agua: [{ id: '2026-11-27', ml: 300, atualizadoEm: 900 }],
+    sessoes: [{ id: 's', rotinaId: 'r-usada', atualizadoEm: 950 }],
+    rotinas: [
+      { id: 'r-fabrica', atualizadoEm: 400 },
+      { id: 'r-usada', atualizadoEm: 400 },
+      { id: 'r-editada', atualizadoEm: 800 },
+    ],
+    planos: [{ id: 'p-fabrica', atualizadoEm: 400 }, { id: 'p-editado', atualizadoEm: 700 }],
+    perfil: [{
+      id: 'me', nome: 'Jogador', metaKcal: 3036, pesoKg: 81, atualizadoEm: 900,
+      camposEm: { nome: 450, metaKcal: 450, pesoKg: 900 },
+    }],
+  }
+  const r = semRestosDeFabrica(dados, 500)
+  assert.deepEqual(r.agua, dados.agua)
+  assert.deepEqual(r.sessoes, dados.sessoes)
+  // a usada num treino fica (o treino aponta pra ela); a editada e trabalho da pessoa
+  assert.deepEqual(r.rotinas.map(l => l.id), ['r-usada', 'r-editada'])
+  assert.deepEqual(r.planos.map(l => l.id), ['p-editado'])
+  // do perfil, so o campo mexido depois do setup
+  assert.deepEqual(r.perfil, [{ id: 'me', atualizadoEm: -1, pesoKg: 81, camposEm: { pesoKg: 900 } }])
+
+  // e fundido com a conta: o nome e as metas da conta ficam, o peso novo entra
+  const conta = [{
+    id: 'me', nome: 'Pedro', metaKcal: 2100, pesoKg: 80, xp: 130, atualizadoEm: 300,
+    camposEm: { nome: 300, metaKcal: 300, pesoKg: 300 },
+  }]
+  const [p] = fundirPerfil(r.perfil, conta)
+  assert.equal(p.nome, 'Pedro')
+  assert.equal(p.metaKcal, 2100)
+  assert.equal(p.pesoKg, 81)
+  // campo sem carimbo dos dois lados: o da conta, nao undefined
+  assert.equal(p.xp, 130)
+})
+
+test('semRestosDeFabrica: nuvem sem perfil mantem o perfil local inteiro', () => {
+  const perfil = [{ id: 'me', nome: 'Jogador', atualizadoEm: 450, camposEm: { nome: 450 } }]
+  const r = semRestosDeFabrica({ perfil, rotinas: [], planos: [] }, 500, false)
+  assert.equal(r.perfil, perfil)
 })

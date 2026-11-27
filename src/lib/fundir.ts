@@ -228,36 +228,59 @@ export function assinatura(dados: Record<string, unknown[]>): string {
  * que a da conta: o perfil e as metas voltavam ao padrao, e treino e dieta
  * apareciam em dobro (o de fabrica ao lado do que a pessoa tinha editado).
  *
+ * Devolve o estado local SEM o que sobrou do setup que ninguem mexeu - linha a
+ * linha e campo a campo, nao tudo-ou-nada. A versao anterior so tirava o setup
+ * se o aparelho estivesse 100% intocado: bastava anotar um copo d'agua antes de
+ * entrar na conta pra o setup inteiro entrar na fusao, e ai as metas e o nome
+ * de fabrica (carimbados DEPOIS das edicoes da conta) venciam o perfil da conta
+ * e as rotinas e planos vinham em dobro - e a fusao publicava isso pra nuvem e
+ * pros outros aparelhos.
+ *
+ * Fica do lado local (segue a fusao normal):
+ * - todo registro (treino, refeicao, agua, peso, glicemia...): e da pessoa;
+ * - rotina e plano editados DEPOIS do setup (carimbo > setupEm);
+ * - rotina usada num treino deste aparelho, mesmo sem edicao - o treino aponta
+ *   pra ela (rotinaId) e sumir com ela deixaria o historico orfao;
+ * - campo do perfil gravado depois do setup (camposEm > setupEm).
+ *
+ * O perfil so e filtrado se a nuvem TEM perfil: sem um do outro lado, o
+ * parcial que sobrasse aqui viraria o perfil inteiro, sem nome nem metas.
+ * A linha filtrada leva atualizadoEm -1 pra que, em fundirPerfil, campo sem
+ * carimbo dos dois lados fique sempre com o valor da nuvem - esta linha nao
+ * tem esses campos, e venceria com `undefined`.
+ *
  * `setupEm` e o instante em que o setup terminou de ser montado (null = este
- * aparelho nao montou setup nenhum). So conta como "de fabrica" se NADA foi
- * mexido depois dele: qualquer linha com carimbo posterior, ou qualquer treino,
- * refeicao, agua etc., e trabalho da pessoa e segue a fusao normal.
+ * aparelho nao montou setup nenhum, ou ja sincronizou: nada sai). O catalogo
+ * (exercicios e alimentos) fica sempre: vem do seed com carimbo 0 e a fusao ja
+ * o trata certo.
  */
-export function setupDeFabricaIntacto(
-  dados: Record<string, unknown[]>, setupEm: number | null,
-): boolean {
-  if (setupEm == null || !Number.isFinite(setupEm)) return false
+export function semRestosDeFabrica(
+  dados: Record<string, unknown[]>, setupEm: number | null, nuvemTemPerfil = true,
+): Record<string, unknown[]> {
+  if (setupEm == null || !Number.isFinite(setupEm)) return dados
 
-  const REGISTROS = ['sessoes', 'corpo', 'dieta', 'xp', 'agua', 'glicemia', 'dietas', 'semanas', 'apagados']
-  if (REGISTROS.some(t => (dados[t]?.length ?? 0) > 0)) return false
+  const mexida = (l: LinhaSync) => quando(l) > setupEm
+  const usadas = new Set(
+    ((dados.sessoes ?? []) as { rotinaId?: unknown }[]).map(s => s?.rotinaId).filter(Boolean),
+  )
+  const rotinas = ((dados.rotinas ?? []) as LinhaSync[]).filter(l => mexida(l) || usadas.has(l.id))
+  const planos = ((dados.planos ?? []) as LinhaSync[]).filter(mexida)
 
-  for (const t of ['rotinas', 'planos'] as const) {
-    if (((dados[t] ?? []) as LinhaSync[]).some(l => quando(l) > setupEm)) return false
-  }
+  if (!nuvemTemPerfil) return { ...dados, rotinas, planos }
+
+  const perfil: ComCamposEm[] = []
   for (const p of (dados.perfil ?? []) as ComCamposEm[]) {
-    if ((p.atualizadoEm ?? 0) > setupEm) return false
-    if (Object.values(p.camposEm ?? {}).some(t => t > setupEm)) return false
+    const carimbos = p.camposEm ?? {}
+    const depois = Object.keys(carimbos).filter(c => carimbos[c] > setupEm)
+    if (!depois.length) continue
+    const linha: ComCamposEm = { id: p.id, atualizadoEm: -1, camposEm: {} }
+    for (const c of depois) {
+      linha[c] = p[c]
+      linha.camposEm![c] = carimbos[c]
+    }
+    perfil.push(linha)
   }
-  return true
-}
-
-/**
- * O estado deste aparelho sem o que o setup de fabrica montou. O catalogo
- * (exercicios e alimentos) fica: ele vem do seed, tem carimbo 0 e a fusao ja o
- * trata certo.
- */
-export function semSetupDeFabrica(dados: Record<string, unknown[]>): Record<string, unknown[]> {
-  return { ...dados, rotinas: [], planos: [], perfil: [] }
+  return { ...dados, rotinas, planos, perfil }
 }
 
 /**
@@ -280,11 +303,17 @@ export const linhaValida = (l: unknown): l is { id: string } =>
  * que nao veio do proprio `exportar()` deste aparelho - a nuvem (pode ter sido
  * gravada por uma versao diferente do app) e o arquivo de "Restaurar backup"
  * (escolhido a mao, sem garantia nenhuma do formato).
+ *
+ * Tabela que nao e array SAI do resultado - "nao veio" -, em vez de virar
+ * lista vazia. Pra fusao da no mesmo (ausente e vazio fundem igual), mas o
+ * `importar` limpa e regrava toda tabela que recebe: com `rotinas: "lixo"`
+ * virando [], restaurar um arquivo estragado apagava todas as rotinas do
+ * aparelho. Ausente, a tabela fica como esta.
  */
 export function sanitizarDados(dados: Record<string, unknown[]>): Record<string, unknown[]> {
   const saida: Record<string, unknown[]> = {}
-  for (const [tabela, linhas] of Object.entries(dados)) {
-    saida[tabela] = Array.isArray(linhas) ? linhas.filter(linhaValida) : []
+  for (const [tabela, linhas] of Object.entries(dados ?? {})) {
+    if (Array.isArray(linhas)) saida[tabela] = linhas.filter(linhaValida)
   }
   return saida
 }
