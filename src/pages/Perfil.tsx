@@ -120,6 +120,13 @@ export default function Perfil() {
           <Linha titulo="Aparência" sub={resumoTema(perfil.tema)} onClick={() => setAberto('aparencia')} />
         </Grupo>
 
+        <Grupo titulo="Social">
+          <LinhaLink to="/amigos" titulo="Amigos"
+            sub="Veja os treinos de quem você adicionou e mande os seus" />
+          <LinhaLink to="/equipe" titulo="Equipe e treinador"
+            sub="Treine com um personal, ou acompanhe seus alunos se você é treinador" />
+        </Grupo>
+
         <Grupo titulo="Avisos">
           <LinhaLink to="/lembretes" titulo="Lembretes"
             sub={perfil.diabetesTipo1

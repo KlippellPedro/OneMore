@@ -113,6 +113,70 @@ create table if not exists push_avisos (
   primary key (endpoint, id)
 );
 create index if not exists push_avisos_pendentes on push_avisos (ts) where enviado_em is null;
+
+-- AMIGOS (ver servidor/amigos.js). Um codigo de convite por conta: gerar outro
+-- troca o antigo, que e como se fecha a porta de um codigo que vazou
+create table if not exists convites (
+  usuario_id  uuid primary key references usuarios(id) on delete cascade,
+  codigo      text not null unique,
+  criado_em   timestamptz not null default now()
+);
+
+-- uma linha por par, com o menor id sempre em "a": assim (x, y) e (y, x) nao
+-- viram duas amizades, e a chave primaria segura dois aceites ao mesmo tempo
+create table if not exists amizades (
+  a          uuid not null references usuarios(id) on delete cascade,
+  b          uuid not null references usuarios(id) on delete cascade,
+  criado_em  timestamptz not null default now(),
+  primary key (a, b),
+  check (a < b)
+);
+create index if not exists amizades_b on amizades (b);
+
+-- o resumo que os amigos veem - nunca o backup. So existe pra quem usa amigos
+create table if not exists cartoes (
+  usuario_id     uuid primary key references usuarios(id) on delete cascade,
+  cartao         jsonb not null,
+  atualizado_em  timestamptz not null default now()
+);
+
+-- EQUIPE (ver servidor/equipe.js): um treinador, uma equipe, um codigo
+create table if not exists equipes (
+  id          uuid primary key,
+  dono        uuid not null unique references usuarios(id) on delete cascade,
+  nome        text not null,
+  treinador   text not null,
+  codigo      text not null unique,
+  criado_em   timestamptz not null default now()
+);
+
+-- o aluno esta em no maximo UMA equipe (usuario_id e a chave). permissoes diz
+-- o que ele liberou; programa e dieta sao o que o treinador montou pra ele
+create table if not exists equipe_membros (
+  usuario_id   uuid primary key references usuarios(id) on delete cascade,
+  equipe_id    uuid not null references equipes(id) on delete cascade,
+  permissoes   jsonb not null,
+  programa     jsonb,
+  programa_em  timestamptz,
+  dieta        jsonb,
+  dieta_em     timestamptz,
+  entrou_em    timestamptz not null default now()
+);
+create index if not exists equipe_membros_equipe on equipe_membros (equipe_id);
+
+-- treino ou dieta mandado de uma conta pra outra (amigo, ou treinador pro
+-- aluno), pendente ate quem recebeu usar ou recusar
+create table if not exists envios (
+  id         uuid primary key,
+  de         uuid not null references usuarios(id) on delete cascade,
+  para       uuid not null references usuarios(id) on delete cascade,
+  origem     text not null,
+  tipo       text not null,
+  nome       text not null,
+  conteudo   jsonb not null,
+  criado_em  timestamptz not null default now()
+);
+create index if not exists envios_para on envios (para);
 `
 
 /**

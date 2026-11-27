@@ -4,6 +4,7 @@ import { rodarSeed } from './db/seed'
 import { usuarioAtual, iniciarSyncAutomatico } from './lib/sync'
 import { secaoDe } from './lib/secoes'
 import { iniciarLembretes, publicarAgenda } from './lib/lembretes'
+import { publicarCartao } from './lib/amigos'
 import { Feedback } from './components/Feedback'
 import { AplicarTema } from './components/AplicarTema'
 import { Icone } from './components/Icone'
@@ -30,6 +31,11 @@ import Perfil from './pages/Perfil'
 import Lembretes from './pages/Lembretes'
 import Entrada from './pages/Entrada'
 import Privacidade from './pages/Privacidade'
+import Amigos from './pages/Amigos'
+import Equipe from './pages/Equipe'
+import Aluno from './pages/Aluno'
+import ProgramaAluno from './pages/ProgramaAluno'
+import DietaAluno from './pages/DietaAluno'
 
 const TABS_BASE = [
   { to: '/', label: 'Início', icone: 'casa' },
@@ -168,6 +174,9 @@ export default function App() {
     // o giro de 15 min dos lembretes
     let publicou = false
     return iniciarSyncAutomatico(() => {
+      // o cartao de amigos so sai se mudou, e so fica guardado pra quem usa
+      // amigos (ver lib/amigos.ts); falhar aqui nao e motivo de aviso
+      publicarCartao().catch(() => {})
       if (publicou) return
       publicou = true
       publicarAgenda()
@@ -220,6 +229,11 @@ export default function App() {
           <Route path="/perfil" element={<Perfil />} />
           <Route path="/lembretes" element={<Lembretes />} />
           <Route path="/privacidade" element={<Privacidade />} />
+          <Route path="/amigos" element={<Amigos />} />
+          <Route path="/equipe" element={<Equipe />} />
+          <Route path="/equipe/aluno/:id" element={<Aluno />} />
+          <Route path="/equipe/aluno/:id/treino" element={<ProgramaAluno />} />
+          <Route path="/equipe/aluno/:id/dieta" element={<DietaAluno />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Miolo>
