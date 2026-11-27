@@ -6,6 +6,8 @@ import {
 import { mesmaSemana, resumoSemana, retratoDaSemana } from '../lib/semana'
 import { Card, Btn, Sheet, Campo, Input, Confirmar } from './ui'
 import { Icone } from './Icone'
+import { SheetEnviar } from './SheetEnviar'
+import { pacoteDeTreino } from '../lib/pacotes'
 import { useUI, vibrar } from '../state/ui'
 import { diaCurto, pl } from '../lib/format'
 import type { Rotina, SemanaSalva } from '../db/types'
@@ -33,6 +35,7 @@ export function SemanasSalvas({ rotinas }: { rotinas: Rotina[] }) {
   const [salvarNome, setSalvarNome] = useState<string | null>(null)
   const [abertaId, setAbertaId] = useState<string | null>(null)
   const [confirmar, setConfirmar] = useState<null | 'restaurar' | 'atualizar' | 'apagar'>(null)
+  const [mandar, setMandar] = useState<SemanaSalva | null>(null)
 
   const aberta = semanas.find(s => s.id === abertaId) ?? null
   const atual = useMemo(() => retratoDaSemana(rotinas, []), [rotinas])
@@ -167,6 +170,7 @@ export function SemanasSalvas({ rotinas }: { rotinas: Rotina[] }) {
           restaurar={() => setConfirmar('restaurar')}
           atualizar={() => setConfirmar('atualizar')}
           apagar={() => setConfirmar('apagar')}
+          mandar={() => { setMandar(aberta); setAbertaId(null) }}
           baixar={async () => { await baixarSemana(aberta); toast('Arquivo gerado', 'ok') }} />}
       </Sheet>
 
@@ -178,13 +182,17 @@ export function SemanasSalvas({ rotinas }: { rotinas: Rotina[] }) {
             ? `O que está salvo em "${aberta?.nome}" é trocado pela semana de agora.`
             : 'Só a cópia salva some. Os treinos que estão em uso continuam.'}
         onNao={() => setConfirmar(null)} onSim={executar} />
+
+      <SheetEnviar aberto={!!mandar} fechar={() => setMandar(null)} tipo="treino"
+        titulo="Mandar semana pra amigo" nomeInicial={mandar?.nome ?? 'Semana de treino'}
+        montar={async nome => pacoteDeTreino(nome, mandar!)} />
     </section>
   )
 }
 
-function DetalheSemana({ semana, usando, restaurar, atualizar, apagar, baixar }: {
+function DetalheSemana({ semana, usando, restaurar, atualizar, apagar, baixar, mandar }: {
   semana: SemanaSalva; usando: boolean
-  restaurar: () => void; atualizar: () => void; apagar: () => void; baixar: () => void
+  restaurar: () => void; atualizar: () => void; apagar: () => void; baixar: () => void; mandar: () => void
 }) {
   const r = resumoSemana(semana)
   const semDia = semana.rotinas.filter(x => !x.dias?.length)
@@ -234,6 +242,9 @@ function DetalheSemana({ semana, usando, restaurar, atualizar, apagar, baixar }:
           Restaurar esta semana
         </Btn>
       )}
+      <Btn className="w-full mb-2" onClick={mandar}>
+        <Icone nome="compartilhar" tamanho={16} /> Mandar pra amigo
+      </Btn>
       <div className="grid grid-cols-2 gap-2 mb-2">
         <Btn onClick={baixar}>Baixar arquivo</Btn>
         <Btn onClick={atualizar} disabled={usando}>Trocar pela de agora</Btn>

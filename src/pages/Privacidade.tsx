@@ -35,6 +35,8 @@ export function Politica({ onVoltar, rotulo = 'Voltar' }: { onVoltar: () => void
             <li>Sem conta, <b>nada sai do seu aparelho</b>. O app funciona inteiro assim.</li>
             <li>Com conta, guardamos seu e-mail e um <b>backup dos seus dados</b> (inclusive de saúde, se você preencher) para você usar em mais de um aparelho.</li>
             <li>Não há anúncios, rastreadores nem análise de uso. <b>Não vendemos nem compartilhamos</b> seus dados para marketing.</li>
+            <li>Se você usar <b>Amigos</b>, quem você adicionou vê só um <b>resumo de treino</b> seu. Nunca dieta, peso, medidas, glicemia ou e-mail.</li>
+            <li>Se você entrar na <b>equipe de um treinador</b>, ele vê seus treinos e, <b>só se você ligar</b>, suas medidas e sua dieta. Glicemia e dados de saúde nunca.</li>
             <li>Você pode baixar tudo e <b>excluir a conta</b> quando quiser, no Perfil.</li>
           </ul>
         </Card>
@@ -69,6 +71,23 @@ export function Politica({ onVoltar, rotulo = 'Voltar' }: { onVoltar: () => void
               restrições alimentares (alergias e intolerâncias).
             </li>
             <li><b>Sessão.</b> Um cookie essencial (<code>onemore_sessao</code>), inacessível a scripts da página, mantém você conectado por até 90 dias. No servidor guardamos só um hash dele.</li>
+            <li>
+              <b>Amigos</b>, se você criar um código de convite ou adicionar alguém: o código, quem
+              são seus amigos e o seu <b>cartão</b>, um resumo montado pelo app com nome, XP,
+              sequência de dias, dias em que você treinou nas últimas 5 semanas, os últimos 5
+              treinos (nome, data, séries, volume e duração), quantos treinos e recordes você tem
+              e suas 3 maiores cargas. O cartão só fica guardado enquanto você tiver código ou amigo.
+            </li>
+            <li>
+              <b>Equipe</b>, se você criar uma ou entrar numa: o nome da equipe e do treinador, o
+              código de convite, quando você entrou, o que você liberou para o treinador e o treino
+              e a dieta que ele montou para você.
+            </li>
+            <li>
+              <b>Treinos e dietas enviados</b> (de um amigo, ou do treinador para o aluno): uma cópia
+              das rotinas, exercícios, refeições e alimentos enviados, guardada até quem recebeu usar
+              ou recusar.
+            </li>
             <li><b>Lembretes com o app fechado</b>, se você aceitar notificações: o endereço e as chaves de notificação do seu navegador e a agenda dos próximos lembretes (título e texto, como &quot;beber água&quot;).</li>
             <li><b>Registros técnicos.</b> O servidor anota, para cada requisição, o método, o caminho, o código de resposta e o tempo. Não anota e-mail, senha nem o conteúdo dos seus dados. O endereço IP é usado, só na memória, para limitar tentativas de login seguidas; a hospedagem pode registrar IPs na infraestrutura dela.</li>
           </ul>
@@ -84,14 +103,39 @@ export function Politica({ onVoltar, rotulo = 'Voltar' }: { onVoltar: () => void
             sincronizar seu backup, enviar os lembretes que você ligou e proteger a conta contra
             abuso. A base legal é a execução do serviço que você pediu ao criar a conta (LGPD,
             art. 7º, V) e, para dados de saúde, o seu <b>consentimento</b> (art. 11, I), dado ao
-            preenchê-los e sincronizá-los. Você pode retirar o consentimento a qualquer momento
-            excluindo a conta ou os dados.
+            preenchê-los e sincronizá-los. Mostrar seus dados a um treinador depende do seu{' '}
+            <b>consentimento</b> (art. 7º, I, e art. 11, I), dado ao entrar na equipe e ao ligar cada
+            item; desligar ou sair da equipe retira na hora. Você pode retirar o consentimento a
+            qualquer momento excluindo a conta ou os dados.
           </p>
         </Secao>
 
         <Secao n={5} titulo="Com quem os dados passam">
           <p className="mb-2">Não vendemos dados e não os usamos para publicidade. Para o app existir, alguns terceiros entram no caminho:</p>
           <ul className="list-disc pl-4 space-y-1.5">
+            <li>
+              <b>Seus amigos no app.</b> Só se você criar um código ou adicionar alguém: as contas
+              ligadas à sua veem o seu cartão (descrito na seção 3), e mais nada. Seu e-mail, sua
+              dieta, peso, medidas, glicemia e dados de saúde nunca vão para eles. Quem tiver o seu
+              código pode te adicionar, então mande só para quem você quer; em Perfil &gt; Amigos você
+              troca o código, desliga e desfaz amizades, e o cartão some do servidor quando você
+              fica sem código e sem amigos.
+            </li>
+            <li>
+              <b>Seu treinador</b>, só se você entrar na equipe dele. Ele vê seus treinos feitos
+              (séries, cargas, recordes e histórico do último ano), sua semana de treino, nível,
+              sequência e objetivo. Só se você ligar: <b>Corpo</b> (peso, medidas, altura, sexo e
+              idade) e <b>Dieta</b> (plano alimentar, o que você registrou de comida e água nos
+              últimos 60 dias e suas metas). Ele <b>nunca</b> vê glicemia, diabetes, hipertensão,
+              alergias e restrições, lembretes nem seu e-mail. O servidor lê só o que foi liberado e
+              não deixa o treinador mudar nada nos seus dados: o treino e a dieta que ele monta
+              chegam como sugestão, e você decide se usa. Em Perfil &gt; Equipe você muda o que
+              libera ou sai da equipe.
+            </li>
+            <li>
+              <b>Amigos para quem você manda um treino</b> recebem uma cópia das rotinas e dos
+              exercícios que você mesmo criou e que elas usam.
+            </li>
             <li><b>Discloud</b> hospeda o site e o banco de dados onde ficam sua conta e seu backup.</li>
             <li><b>Serviços de notificação do navegador</b> (Google, Apple, Mozilla ou Microsoft, conforme seu aparelho) entregam os lembretes. O conteúdo viaja criptografado com a chave do seu aparelho; eles veem que existe uma notificação, não o texto.</li>
             <li><b>YouTube (Google).</b> Ao abrir a ficha de um exercício com vídeo, o player do YouTube é carregado e o Google pode receber seu IP e dados do navegador, conforme a política deles. Isso só acontece nessa tela.</li>
@@ -112,8 +156,9 @@ export function Politica({ onVoltar, rotulo = 'Voltar' }: { onVoltar: () => void
         <Secao n={7} titulo="Por quanto tempo guardamos">
           <p>
             Enquanto a conta existir. Ao <b>excluir a conta</b> (Perfil &gt; Sua conta e sincronização &gt;
-            Excluir minha conta), apagamos na hora a conta, o backup, as sessões e as inscrições de
-            notificação. As sessões também vencem sozinhas em 90 dias. Os dados que estão no seu
+            Excluir minha conta), apagamos na hora a conta, o backup, as sessões, as inscrições de
+            notificação, o código de convite, as amizades, o cartão, a sua equipe (se você é
+            treinador), o vínculo com o seu treinador e os envios pendentes. As sessões também vencem sozinhas em 90 dias. Os dados que estão no seu
             aparelho continuam nele até você apagá-los.
           </p>
         </Secao>

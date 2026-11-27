@@ -15,6 +15,7 @@ import {
 import { SeletorAlimento, SheetQuantidade } from '../components/SeletorAlimento'
 import { SheetSubstituir, type AlvoTroca } from '../components/Substituicoes'
 import { SheetMetas } from '../components/SheetMetas'
+import { Recebidos } from '../components/Recebidos'
 import { SheetGlicemia, LinhaGlicemia } from '../components/Glicemia'
 import { Icone } from '../components/Icone'
 import { Titulo } from '../components/Cabecalho'
@@ -213,6 +214,7 @@ export default function Dieta() {
         } />
 
       <div className="px-4">
+        <Recebidos tipo="dieta" />
         {/* -------- navegacao de dia -------- */}
         <div className="flex items-center gap-2 mb-4">
           <button onClick={() => setData(d => diaMais(d, -1))} aria-label="Dia anterior"

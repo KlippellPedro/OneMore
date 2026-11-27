@@ -44,6 +44,6 @@ export function secaoDe(caminho: string): Secao {
   if (raiz === 'dieta' || raiz === 'alimentos') return SECOES.dieta
   if (raiz === 'progresso') return SECOES.progresso
   if (raiz === 'diario') return SECOES.diario
-  if (raiz === 'perfil' || raiz === 'lembretes') return SECOES.perfil
+  if (raiz === 'perfil' || raiz === 'lembretes' || raiz === 'amigos' || raiz === 'equipe') return SECOES.perfil
   return SECOES.inicio
 }

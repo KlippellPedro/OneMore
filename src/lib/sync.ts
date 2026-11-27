@@ -246,7 +246,8 @@ export class ErroApi extends Error {
   }
 }
 
-async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null> {
+/** Exportado pra lib/amigos.ts: mesma sessao, mesmo tratamento de erro. */
+export async function chamar<T>(rota: string, init: RequestInit = {}): Promise<T | null> {
   let r: Response
   try {
     r = await fetch(API + rota, {
@@ -298,7 +299,9 @@ export async function sair() {
   // saiu nao pode continuar recebendo os lembretes da conta neste aparelho
   await desligarPush().catch(() => {})
   await chamar('/sessao', { method: 'DELETE' })
-  for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA]) localStorage.removeItem(chave)
+  // onemore:cartao e a marca do ultimo cartao de amigos enviado (lib/amigos.ts):
+  // a proxima conta a entrar aqui precisa mandar o dela, nao herdar a marca
+  for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA, 'onemore:cartao']) localStorage.removeItem(chave)
 }
 
 /**
@@ -310,7 +313,9 @@ export async function excluirConta(senha: string) {
   await chamar('/conta', { method: 'DELETE', body: JSON.stringify({ senha }) })
   // o servidor ja esqueceu a inscricao (cascade); falta o navegador parar de receber
   await desligarPush().catch(() => {})
-  for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA]) localStorage.removeItem(chave)
+  // onemore:cartao e a marca do ultimo cartao de amigos enviado (lib/amigos.ts):
+  // a proxima conta a entrar aqui precisa mandar o dela, nao herdar a marca
+  for (const chave of ['onemore:sync', CHAVE_VERSAO, CHAVE_FALHA, 'onemore:cartao']) localStorage.removeItem(chave)
 }
 
 /* ------------------------------------------------------------------ */

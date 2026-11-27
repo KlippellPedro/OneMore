@@ -19,6 +19,25 @@
  *   DELETE /api/push/inscricao  este aparelho nao quer mais (logado)
  *   PUT    /api/push/agenda     os proximos lembretes deste aparelho (logado)
  *   POST   /api/push/teste      manda um aviso agora, pra conferir (logado)
+ *   GET    /api/amigos          meu codigo de convite + amigos com o cartao de cada um (logado)
+ *   POST   /api/amigos          vira amigo de quem e dono do codigo (logado)
+ *   DELETE /api/amigos          desfaz uma amizade, dos dois lados (logado)
+ *   POST   /api/amigos/convite  gera ou troca meu codigo de convite (logado)
+ *   DELETE /api/amigos/convite  desliga meu codigo: ninguem mais me adiciona (logado)
+ *   PUT    /api/amigos/cartao   o resumo que meus amigos veem (logado)
+ *   GET    /api/envios          treinos e dietas que mandaram pra mim, pendentes (logado)
+ *   POST   /api/envios          manda treino ou dieta pra amigos (logado)
+ *   DELETE /api/envios          usei ou recusei: tira da caixa (logado)
+ *   GET    /api/equipe          minha equipe (se sou treinador) e a equipe em que sou aluno (logado)
+ *   POST   /api/equipe          cria minha equipe de treinador (logado)
+ *   PUT    /api/equipe          muda nome, meu nome ou o codigo da equipe (logado)
+ *   DELETE /api/equipe          desfaz minha equipe (logado)
+ *   POST   /api/equipe/entrar   entro numa equipe com o codigo, dizendo o que libero (logado)
+ *   PUT    /api/equipe/permissoes  mudo o que libero pro treinador (logado)
+ *   DELETE /api/equipe/sair     saio da equipe em que sou aluno (logado)
+ *   GET    /api/equipe/aluno?id=  o que um aluno meu liberou (logado, treinador)
+ *   DELETE /api/equipe/aluno    tiro um aluno da equipe (logado, treinador)
+ *   PUT    /api/equipe/prescricao  mando treino ou dieta montados pra um aluno (logado, treinador)
  */
 import { consultar, configurado, pronto } from './banco.js'
 import { CABECALHOS_SEGURANCA } from './seguranca.js'
@@ -26,6 +45,16 @@ import {
   chaveVapid, validarInscricao, validarAgenda, salvarInscricao, apagarInscricao,
   salvarAgenda, enviarTeste,
 } from './push.js'
+import {
+  normalizarConvite, formatarConvite, uuidValido, validarCartao,
+  meuConvite, novoConvite, apagarConvite, adicionarAmigo, removerAmigo, listarAmigos, salvarCartao,
+} from './amigos.js'
+import {
+  LIMITE_PACOTE, validarPermissoes, problemaNoPacote, textoLimpo,
+  minhaEquipe, equipeQueParticipo, criarEquipe, editarEquipe, apagarEquipe, entrarNaEquipe,
+  mudarPermissoes, sairDaEquipe, removerAluno, lerAluno, prescrever,
+  recebidos, enviarParaAmigos, resolverEnvio,
+} from './equipe.js'
 import {
   COOKIE, hashSenha, conferirSenha, criarSessao, usuarioDaSessao, encerrarSessao,
   criarUsuario, acharPorEmail, normalizarEmail, emailCanonico, emailValido, problemaNaSenha,
@@ -51,6 +80,8 @@ export const SENHA_MAXIMA = 128
 export const CODIGO_MAXIMO = 32
 /** Agenda de push: ate 200 avisos de ~300 bytes cada. */
 const LIMITE_CORPO_AGENDA = 128 * 1024
+/** Cartao de amigos: o cheio (40 dias, 5 treinos, 3 recordes) tem ~2 KB. */
+const LIMITE_CORPO_CARTAO = 16 * 1024
 
 /* ------------------------------------------------------------------ */
 /* HELPERS                                                             */
@@ -167,6 +198,20 @@ export const freadoPorIp = req => contar(`ip:${ipDe(req)}`, MAX_POR_IP)
  */
 export const freadoPorConta = email => contar(`conta:${emailCanonico(email)}`, MAX_POR_CONTA)
 
+/**
+ * Freio do codigo de convite, por IP e por conta - mesma ideia do login: e um
+ * segredo curto sendo adivinhado. Baldes proprios (`convite-*`), pra quem erra
+ * codigo de amigo nao travar o proprio login. Sucesso zera os dois, entao so
+ * o ERRO acumula: adicionar dez amigos seguidos nao trava ninguem.
+ */
+export const MAX_CONVITE = 10
+export const freadoNoConvite = (req, usuarioId) =>
+  contar(`convite-ip:${ipDe(req)}`, MAX_CONVITE) || contar(`convite-conta:${usuarioId}`, MAX_CONVITE)
+function desfrearConvite(req, usuarioId) {
+  tentativas.delete(`convite-ip:${ipDe(req)}`)
+  tentativas.delete(`convite-conta:${usuarioId}`)
+}
+
 /** Sucesso limpa os dois contadores - senao o uso normal ia acumulando ate travar. */
 function desfrear(req, email) {
   tentativas.delete(`ip:${ipDe(req)}`)
@@ -231,8 +276,9 @@ async function postConta(req, res) {
  * Apaga a conta e tudo que e dela. Exige a SENHA de novo, mesmo logado: um
  * celular desbloqueado e esquecido por ai nao pode ser o bastante pra apagar
  * (ou, pior, pra um terceiro apagar) anos de treino. As tabelas filhas
- * (sessoes, dados, push_inscricoes e push_avisos) saem junto por `on delete
- * cascade` - ver banco.js. Os dados DESTE aparelho ficam: sao da pessoa.
+ * (sessoes, dados, push_inscricoes, push_avisos, convites, amizades, cartoes,
+ * equipes, equipe_membros e envios) saem junto por `on delete cascade` - ver
+ * banco.js. Os dados DESTE aparelho ficam: sao da pessoa.
  */
 async function deleteConta(req, res) {
   const u = await exigirLogin(req, res)
@@ -448,7 +494,224 @@ async function postTestePush(req, res) {
   responder(res, 200, { ok: true })
 }
 
+/* ------------------------------------------------------------------ */
+/* AMIGOS (ver servidor/amigos.js)                                     */
+/* ------------------------------------------------------------------ */
+
+async function getAmigos(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const [convite, amigos] = await Promise.all([meuConvite(u.id), listarAmigos(u.id)])
+  responder(res, 200, { convite: formatarConvite(convite), amigos })
+}
+
+async function postConvite(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  responder(res, 200, { convite: formatarConvite(await novoConvite(u.id)) })
+}
+
+async function deleteConvite(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  await apagarConvite(u.id)
+  responder(res, 200, { ok: true })
+}
+
+const MSG_AMIGO = {
+  'nao-existe': [404, 'Esse codigo nao existe (ou o dono trocou por outro).'],
+  proprio: [400, 'Esse e o seu proprio codigo.'],
+  limite: [409, 'Limite de amigos atingido.'],
+}
+
+async function postAmigo(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  if (freadoNoConvite(req, u.id)) return erro(res, 429, 'Muitas tentativas. Espere uns minutos.')
+  const { codigo: bruto } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  const codigo = normalizarConvite(bruto)
+  if (!codigo) return erro(res, 400, 'Codigo invalido. Ele tem 8 letras e numeros, tipo K7Q2-XP9M.')
+  const r = await adicionarAmigo(u.id, codigo)
+  // ja-amigos nao e erro: usar o codigo de novo so confirma o que ja existe
+  if (r.motivo && r.motivo !== 'ja-amigos') return erro(res, ...MSG_AMIGO[r.motivo])
+  desfrearConvite(req, u.id)
+  const amigo = (await listarAmigos(u.id)).find(a => a.id === r.amigoId) ?? null
+  responder(res, r.motivo ? 200 : 201, { amigo, jaEram: r.motivo === 'ja-amigos' })
+}
+
+async function deleteAmigo(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { id } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  if (!uuidValido(id)) return erro(res, 400, 'Amigo invalido.')
+  await removerAmigo(u.id, id)
+  responder(res, 200, { ok: true })
+}
+
+async function putCartao(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const cartao = validarCartao((await lerCorpo(req, LIMITE_CORPO_CARTAO)).cartao)
+  if (!cartao) return erro(res, 400, 'Cartao invalido.')
+  responder(res, 200, { guardado: await salvarCartao(u.id, cartao) })
+}
+
+/* ------------------------------------------------------------------ */
+/* ENVIOS E EQUIPE (ver servidor/equipe.js)                            */
+/* ------------------------------------------------------------------ */
+
+/** Corpo de envio/prescricao: o pacote tem teto proprio, mais uma folga pro resto. */
+const LIMITE_CORPO_PACOTE = LIMITE_PACOTE + 8 * 1024
+
+async function getEnvios(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  responder(res, 200, { envios: await recebidos(u.id) })
+}
+
+async function postEnvio(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { para, tipo, nome, conteudo } = await lerCorpo(req, LIMITE_CORPO_PACOTE)
+  if (!Array.isArray(para) || !para.length) return erro(res, 400, 'Escolha pra quem mandar.')
+  const ruim = problemaNoPacote(tipo, conteudo)
+  if (ruim) return erro(res, 400, ruim)
+  const enviados = await enviarParaAmigos(u.id, para, tipo, textoLimpo(nome, 80) || 'Treino', conteudo)
+  if (!enviados) return erro(res, 409, 'Nao deu pra mandar: so vai pra amigos, e a caixa deles tem limite.')
+  responder(res, 201, { enviados })
+}
+
+async function deleteEnvio(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { id } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  await resolverEnvio(u.id, id)
+  responder(res, 200, { ok: true })
+}
+
+async function getEquipe(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const [minha, participo] = await Promise.all([minhaEquipe(u.id), equipeQueParticipo(u.id)])
+  responder(res, 200, { minha, participo })
+}
+
+async function postEquipe(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const corpo = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  const nome = textoLimpo(corpo.nome, 60)
+  const treinador = textoLimpo(corpo.treinador, 60)
+  if (!nome || !treinador) return erro(res, 400, 'Preencha o nome da equipe e o seu nome.')
+  if (!(await criarEquipe(u.id, nome, treinador))) return erro(res, 409, 'Voce ja tem uma equipe.')
+  responder(res, 201, { minha: await minhaEquipe(u.id) })
+}
+
+async function putEquipe(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const corpo = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  await editarEquipe(u.id, {
+    nome: textoLimpo(corpo.nome, 60), treinador: textoLimpo(corpo.treinador, 60), novoCodigo: corpo.novoCodigo === true,
+  })
+  responder(res, 200, { minha: await minhaEquipe(u.id) })
+}
+
+async function deleteEquipe(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  await apagarEquipe(u.id)
+  responder(res, 200, { ok: true })
+}
+
+const MSG_EQUIPE = {
+  'nao-existe': [404, 'Esse codigo de equipe nao existe (ou o treinador trocou por outro).'],
+  propria: [400, 'Essa e a sua propria equipe.'],
+  'ja-tem': [409, 'Voce ja esta em outra equipe. Saia dela antes de entrar nesta.'],
+  lotada: [409, 'Essa equipe esta lotada.'],
+}
+
+async function postEntrarEquipe(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  // codigo de equipe e o mesmo tipo de segredo curto do convite de amigo: mesmo freio
+  if (freadoNoConvite(req, u.id)) return erro(res, 429, 'Muitas tentativas. Espere uns minutos.')
+  const { codigo: bruto, permissoes } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  const codigo = normalizarConvite(bruto)
+  if (!codigo) return erro(res, 400, 'Codigo invalido. Ele tem 8 letras e numeros, tipo K7Q2-XP9M.')
+  const motivo = await entrarNaEquipe(u.id, codigo, permissoes)
+  if (motivo) return erro(res, ...MSG_EQUIPE[motivo])
+  desfrearConvite(req, u.id)
+  responder(res, 200, { participo: await equipeQueParticipo(u.id) })
+}
+
+async function putPermissoes(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { permissoes } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  if (!(await mudarPermissoes(u.id, permissoes))) return erro(res, 404, 'Voce nao esta em nenhuma equipe.')
+  responder(res, 200, { permissoes: validarPermissoes(permissoes) })
+}
+
+async function deleteSairEquipe(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  await sairDaEquipe(u.id)
+  responder(res, 200, { ok: true })
+}
+
+async function getAluno(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const id = new URL(req.url, 'http://local').searchParams.get('id')
+  if (!uuidValido(id)) return erro(res, 400, 'Aluno invalido.')
+  const aluno = await lerAluno(u.id, id)
+  // 404 tanto pra "nao existe" quanto pra "nao e seu aluno": nao entrega quem existe
+  if (!aluno) return erro(res, 404, 'Aluno nao encontrado na sua equipe.')
+  responder(res, 200, aluno)
+}
+
+async function deleteAluno(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { id } = await lerCorpo(req, LIMITE_CORPO_CONTA)
+  if (!uuidValido(id)) return erro(res, 400, 'Aluno invalido.')
+  await removerAluno(u.id, id)
+  responder(res, 200, { ok: true })
+}
+
+async function putPrescricao(req, res) {
+  const u = await exigirLogin(req, res)
+  if (!u) return
+  const { aluno, tipo, nome, conteudo } = await lerCorpo(req, LIMITE_CORPO_PACOTE)
+  if (!uuidValido(aluno)) return erro(res, 400, 'Aluno invalido.')
+  const ruim = problemaNoPacote(tipo, conteudo)
+  if (ruim) return erro(res, 400, ruim)
+  const ok = await prescrever(u.id, aluno, tipo, textoLimpo(nome, 80) || (tipo === 'treino' ? 'Treino' : 'Dieta'), conteudo)
+  if (!ok) return erro(res, 404, 'Aluno nao encontrado na sua equipe.')
+  responder(res, 200, { ok: true })
+}
+
 const ROTAS = {
+  'GET /api/envios': getEnvios,
+  'POST /api/envios': postEnvio,
+  'DELETE /api/envios': deleteEnvio,
+  'GET /api/equipe': getEquipe,
+  'POST /api/equipe': postEquipe,
+  'PUT /api/equipe': putEquipe,
+  'DELETE /api/equipe': deleteEquipe,
+  'POST /api/equipe/entrar': postEntrarEquipe,
+  'PUT /api/equipe/permissoes': putPermissoes,
+  'DELETE /api/equipe/sair': deleteSairEquipe,
+  'GET /api/equipe/aluno': getAluno,
+  'DELETE /api/equipe/aluno': deleteAluno,
+  'PUT /api/equipe/prescricao': putPrescricao,
+  'GET /api/amigos': getAmigos,
+  'POST /api/amigos': postAmigo,
+  'DELETE /api/amigos': deleteAmigo,
+  'POST /api/amigos/convite': postConvite,
+  'DELETE /api/amigos/convite': deleteConvite,
+  'PUT /api/amigos/cartao': putCartao,
   'GET /api/push/chave': getChavePush,
   'POST /api/push/inscricao': postInscricao,
   'DELETE /api/push/inscricao': deleteInscricao,

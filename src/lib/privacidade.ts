@@ -12,4 +12,4 @@ export const RESPONSAVEL: string = ''
 export const CONTATO: string = ''
 
 /** Muda sempre que o texto da politica muda de verdade (nao a cada ajuste de redacao). */
-export const POLITICA_ATUALIZADA_EM = '25 de novembro de 2026'
+export const POLITICA_ATUALIZADA_EM = '27 de novembro de 2026'

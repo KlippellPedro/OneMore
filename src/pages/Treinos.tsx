@@ -10,6 +10,9 @@ import { useUI, vibrar } from '../state/ui'
 import { diaCurto, diaLongo, pl } from '../lib/format'
 import { Icone } from '../components/Icone'
 import { SemanasSalvas } from '../components/SemanasSalvas'
+import { Recebidos } from '../components/Recebidos'
+import { SheetEnviar } from '../components/SheetEnviar'
+import { pacoteDaSemanaAtual } from '../lib/envios'
 import { VolumeSemanal } from '../components/VolumeSemanal'
 import { duracaoEstimada } from '../lib/treino'
 import type { GrupoMuscular, Rotina } from '../db/types'
@@ -35,6 +38,9 @@ export default function Treinos() {
   const [apagarDeVez, setApagarDeVez] = useState<Rotina | null>(null)
   const [diaAberto, setDiaAberto] = useState<number | null>(null)
   const [vista, setVista] = useState<'semana' | 'rotinas'>('semana')
+  const [enviar, setEnviar] = useState(false)
+  /** 'semana' = todas as rotinas ativas; senao, o id de uma rotina. */
+  const [oQue, setOQue] = useState<string>('semana')
 
   const hojeDia = new Date().getDay()
   const doDia = (d: number) => rotinas.find(r => r.dias?.includes(d))
@@ -74,9 +80,21 @@ export default function Treinos() {
   return (
     <div>
       <Titulo titulo="Treino" sub={pl(rotinas.length, 'rotina')}
-        acao={<Btn variant="primary" size="sm" onClick={() => setNovo(true)}>+ Novo</Btn>} />
+        acao={
+          <div className="flex items-center gap-1.5">
+            {rotinas.length > 0 && (
+              <button onClick={() => { setOQue('semana'); setEnviar(true) }} aria-label="Mandar treino pra amigo"
+                className="toque h-9 px-2.5 rounded-xl flex items-center gap-1.5 text-[12.5px] font-semibold text-muted active:bg-surface-2">
+                <Icone nome="compartilhar" tamanho={16} /> Mandar
+              </button>
+            )}
+            <Btn variant="primary" size="sm" onClick={() => setNovo(true)}>+ Novo</Btn>
+          </div>
+        } />
 
       <div className="px-4">
+        <Recebidos tipo="treino" />
+
         {sessaoAtiva && (
           <Card className="p-4 mb-4 border-accent/40" onClick={() => nav(`/sessao/${sessaoAtiva.id}`)}>
             <div className="flex items-center gap-3">
@@ -333,6 +351,19 @@ export default function Treinos() {
           setApagarDeVez(null); toast('Treino apagado', 'ok')
         }}
         onNao={() => setApagarDeVez(null)} />
+
+      <SheetEnviar aberto={enviar} fechar={() => setEnviar(false)} tipo="treino"
+        titulo="Mandar treino pra amigo"
+        nomeInicial={oQue === 'semana' ? 'Minha semana de treino' : rotinas.find(r => r.id === oQue)?.nome ?? 'Treino'}
+        montar={nome => pacoteDaSemanaAtual(nome, oQue === 'semana' ? undefined : [oQue])}>
+        <p className="text-[12px] font-medium text-muted mb-1.5">O que mandar</p>
+        <div className="flex gap-2 flex-wrap mb-4">
+          <Chip ativo={oQue === 'semana'} onClick={() => setOQue('semana')}>Semana inteira</Chip>
+          {rotinas.map(r => (
+            <Chip key={r.id} ativo={oQue === r.id} onClick={() => setOQue(r.id)}>{r.nome}</Chip>
+          ))}
+        </div>
+      </SheetEnviar>
     </div>
   )
 }
