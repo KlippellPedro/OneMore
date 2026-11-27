@@ -39,6 +39,8 @@
  *   DELETE /api/equipe/aluno    tiro um aluno da equipe (logado, treinador)
  *   PUT    /api/equipe/prescricao  mando treino ou dieta montados pra um aluno (logado, treinador)
  */
+import { promisify } from 'node:util'
+import { gzip as gzipCb } from 'node:zlib'
 import { consultar, configurado, pronto } from './banco.js'
 import { CABECALHOS_SEGURANCA } from './seguranca.js'
 import {
@@ -443,6 +445,8 @@ async function getEu(req, res) {
   responder(res, 200, { email: u.email })
 }
 
+const gzip = promisify(gzipCb)
+
 async function getDados(req, res) {
   const u = await exigirLogin(req, res)
   if (!u) return
@@ -450,7 +454,26 @@ async function getDados(req, res) {
     'select payload, atualizado_em from dados where usuario_id = $1', [u.id],
   )
   if (!rows.length) return responder(res, 204)
-  responder(res, 200, { payload: rows[0].payload, atualizadoEm: rows[0].atualizado_em })
+  const corpo = { payload: rows[0].payload, atualizadoEm: rows[0].atualizado_em }
+  /**
+   * Comprimido: e o estado INTEIRO da conta, baixado a cada sincronizacao que
+   * achou novidade - com o catalogo de exercicios e alimentos ja passa de
+   * 100 KB numa conta nova e chega perto de 2 MB com dois anos de treino e
+   * dieta. JSON comprime ~90%, e isso e o 4G de quem esta na academia.
+   */
+  const texto = JSON.stringify(corpo)
+  if (texto.length > 8 * 1024 && /\bgzip\b/.test(String(req.headers['accept-encoding'] ?? ''))) {
+    const comprimido = await gzip(texto, { level: 6 })
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'Content-Encoding': 'gzip',
+      Vary: 'Accept-Encoding',
+      ...CABECALHOS_SEGURANCA,
+    })
+    return res.end(comprimido)
+  }
+  responder(res, 200, corpo)
 }
 
 /**

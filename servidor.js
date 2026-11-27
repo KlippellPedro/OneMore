@@ -138,8 +138,28 @@ const servidor = createServer(async (req, res) => {
       res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', ...CABECALHOS_SEGURANCA })
       return res.end('Endereco invalido.')
     }
-    // o app usa rotas em #/, entao qualquer caminho desconhecido e o index mesmo
-    const alvo = (await achar(caminho)) ?? join(RAIZ, 'index.html')
+    /**
+     * O app usa rotas em #/, entao caminho de PAGINA desconhecido e o index
+     * mesmo. Mas arquivo (tem extensao: /assets/Treinos-abc.js, /icon.png) que
+     * nao existe e 404, nunca o index com 200: o service worker novo baixa os
+     * assets da versao nova pra guardar, e um que faltasse no servidor chegava
+     * como HTML com status 200 - o Workbox guardava aquilo como se fosse o JS,
+     * a instalacao "dava certo" e a tela que usa o pedaco quebrava pra sempre
+     * naquele aparelho. Com 404 a instalacao falha inteira, a versao anterior
+     * continua de pe e o navegador tenta de novo depois. Tambem e o que faz a
+     * aba aberta numa versao velha cair no aviso "O app foi atualizado" (ver
+     * LimiteDeErro) em vez de tentar rodar HTML como JavaScript.
+     */
+    let alvo = await achar(caminho)
+    if (!alvo) {
+      if (extname(caminho)) {
+        res.writeHead(404, {
+          'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store', ...CABECALHOS_SEGURANCA,
+        })
+        return res.end('Arquivo nao encontrado.')
+      }
+      alvo = join(RAIZ, 'index.html')
+    }
     const item = await carregar(alvo)
     const aceita = String(req.headers['accept-encoding'] ?? '')
     const [codificacao, corpo] = item.br && /\bbr\b/.test(aceita) ? ['br', item.br]

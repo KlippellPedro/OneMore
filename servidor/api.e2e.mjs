@@ -87,6 +87,15 @@ checar((await req('PUT', '/dados', { payload: payloadA }, A.cookie)).s === 200, 
 checar((await req('PUT', '/dados', { payload: { app: 'outro' } }, A.cookie)).s === 400, 'payload de outro app recusado')
 const bLe = await req('GET', '/dados', undefined, Bc.cookie)
 checar(bLe.s === 204, 'B nao enxerga backup de A (204 vazio)', bLe.s)
+{
+  // estado grande desce comprimido e chega inteiro (o fetch descompacta sozinho)
+  const grande = { ...payloadA, dados: { ...payloadA.dados, dieta: Array.from({ length: 400 }, (_, i) => ({ id: 'd' + i, data: '2026-01-01', refeicao: 'Almoço', gramas: 100 })) } }
+  checar((await req('PUT', '/dados', { payload: grande }, A.cookie)).s === 200, 'A grava backup grande')
+  const lido = await req('GET', '/dados', undefined, A.cookie, { 'accept-encoding': 'gzip' })
+  checar(lido.s === 200 && lido.h.get('content-encoding') === 'gzip' && lido.j?.payload?.dados?.dieta?.length === 400,
+    'backup grande desce em gzip e chega inteiro', `${lido.s} ${lido.h.get('content-encoding')}`)
+  checar((await req('PUT', '/dados', { payload: payloadA }, A.cookie)).s === 200, 'A volta ao backup pequeno')
+}
 checar((await req('PUT', '/dados', '{lixo', A.cookie)).s === 400, 'JSON invalido = 400')
 
 console.log('# amigos')
@@ -150,6 +159,15 @@ checar(enorme.s === 413 || enorme.s === 'conexao-cortada', 'backup acima de 12 M
 checar((await req('GET', '/eu', undefined, A.cookie)).s === 200, 'servidor segue de pe depois do corpo gigante')
 const rota404 = await req('GET', '/naoexiste', undefined, A.cookie)
 checar(rota404.s === 404 && !/at |Error/.test(rota404.t), '404 sem stack trace')
+// site: asset que nao existe e 404 (senao o service worker guarda o index.html
+// no lugar do JS); pagina desconhecida continua sendo o app
+const SITE = B.replace(/\/api$/, '')
+const assetFaltando = await fetch(SITE + '/assets/Nao-Existe-ABC123.js')
+checar(assetFaltando.status === 404 && !/html/.test(assetFaltando.headers.get('content-type') ?? ''),
+  'asset inexistente = 404, nao index.html', assetFaltando.status)
+const paginaDesconhecida = await fetch(SITE + '/treinos')
+checar(paginaDesconhecida.status === 200 && /html/.test(paginaDesconhecida.headers.get('content-type') ?? ''),
+  'caminho de pagina continua abrindo o app')
 
 console.log('# cabecalhos')
 const h = (await req('GET', '/eu')).h
